@@ -24,7 +24,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jedisct1/go-minisign"
+	minisign "github.com/jedisct1/go-minisign"
 )
 
 var (
