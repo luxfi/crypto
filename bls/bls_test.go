@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 
 	blst "github.com/supranational/blst/bindings/go"
 )
@@ -48,7 +48,7 @@ func TestAggregationThreshold(t *testing.T) {
 	}
 
 	// The transaction's unsigned bytes are publicly known.
-	msg := utils.RandomBytes(1234)
+	msg := crypto.RandomBytes(1234)
 
 	// People may attempt time sign the transaction.
 	sigs := []*Signature{

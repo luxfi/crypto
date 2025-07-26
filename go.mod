@@ -11,6 +11,7 @@ require (
 	github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
 	github.com/luxfi/geth v1.16.2
 	github.com/luxfi/node v1.15.0
+	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.10.0
 	github.com/supranational/blst v0.3.15
 	golang.org/x/crypto v0.40.0

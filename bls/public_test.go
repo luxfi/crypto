@@ -9,13 +9,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 )
 
 func TestPublicKeyFromCompressedBytesWrongSize(t *testing.T) {
 	require := require.New(t)
 
-	pkBytes := utils.RandomBytes(PublicKeyLen + 1)
+	pkBytes := crypto.RandomBytes(PublicKeyLen + 1)
 	_, err := PublicKeyFromCompressedBytes(pkBytes)
 	require.ErrorIs(err, ErrFailedPublicKeyDecompress)
 }
