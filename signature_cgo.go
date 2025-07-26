@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/luxfi/geth/common/math"
 	"github.com/luxfi/geth/crypto/secp256k1"
@@ -82,5 +83,37 @@ func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
 
 // S256 returns an instance of the secp256k1 curve.
 func S256() EllipticCurve {
-	return secp256k1.S256()
+	return btCurve{secp256k1.S256()}
+}
+
+type btCurve struct {
+	*secp256k1.BitCurve
+}
+
+// Marshal converts a point given as (x, y) into a byte slice.
+func (curve btCurve) Marshal(x, y *big.Int) []byte {
+	byteLen := (curve.Params().BitSize + 7) / 8
+
+	ret := make([]byte, 1+2*byteLen)
+	ret[0] = 4 // uncompressed point
+
+	x.FillBytes(ret[1 : 1+byteLen])
+	y.FillBytes(ret[1+byteLen : 1+2*byteLen])
+
+	return ret
+}
+
+// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
+// error, x = nil.
+func (curve btCurve) Unmarshal(data []byte) (x, y *big.Int) {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	if len(data) != 1+2*byteLen {
+		return nil, nil
+	}
+	if data[0] != 4 { // uncompressed form
+		return nil, nil
+	}
+	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(data[1+byteLen:])
+	return
 }

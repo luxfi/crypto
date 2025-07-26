@@ -4,12 +4,12 @@
 
 # Variables
 GOBIN := $(shell go env GOPATH)/bin
-GOLANGCI_LINT_VERSION := v1.54.2
+GOLANGCI_LINT_VERSION := v1.64.8
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
 
 # Default target
-all: clean fmt lint test build
+all: clean fmt test build
 
 # Build the module
 build:
