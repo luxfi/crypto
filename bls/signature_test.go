@@ -8,13 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 )
 
 func TestSignatureBytes(t *testing.T) {
 	require := require.New(t)
 
-	msg := utils.RandomBytes(1234)
+	msg := crypto.RandomBytes(1234)
 
 	sk := newKey(require)
 	sig := sign(sk, msg)
@@ -31,7 +31,7 @@ func TestSignatureBytes(t *testing.T) {
 func TestAggregateSignaturesNoop(t *testing.T) {
 	require := require.New(t)
 
-	msg := utils.RandomBytes(1234)
+	msg := crypto.RandomBytes(1234)
 
 	sk := newKey(require)
 	sig := sign(sk, msg)

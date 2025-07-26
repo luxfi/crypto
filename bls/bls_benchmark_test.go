@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 	"github.com/luxfi/crypto/bls/blstest"
 )
 
@@ -19,7 +19,7 @@ func BenchmarkVerify(b *testing.B) {
 
 	for _, messageSize := range blstest.BenchmarkSizes {
 		b.Run(strconv.Itoa(messageSize), func(b *testing.B) {
-			message := utils.RandomBytes(messageSize)
+			message := crypto.RandomBytes(messageSize)
 			signature := sign(privateKey, message)
 
 			b.ResetTimer()
@@ -99,7 +99,7 @@ func BenchmarkPublicKeyFromValidUncompressedBytes(b *testing.B) {
 func BenchmarkSignatureFromBytes(b *testing.B) {
 	sk := newKey(require.New(b))
 
-	message := utils.RandomBytes(32)
+	message := crypto.RandomBytes(32)
 	signature := sign(sk, message)
 	signatureBytes := SignatureToBytes(signature)
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 	"github.com/luxfi/crypto/bls/blstest"
 )
 
@@ -17,7 +17,7 @@ func BenchmarkSign(b *testing.B) {
 	signer := NewSigner(require.New(b))
 	for _, messageSize := range blstest.BenchmarkSizes {
 		b.Run(strconv.Itoa(messageSize), func(b *testing.B) {
-			message := utils.RandomBytes(messageSize)
+			message := crypto.RandomBytes(messageSize)
 
 			b.ResetTimer()
 

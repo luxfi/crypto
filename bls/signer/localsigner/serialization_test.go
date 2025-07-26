@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/luxfi/node/utils"
+	"github.com/luxfi/crypto"
 
 	blst "github.com/supranational/blst/bindings/go"
 )
@@ -27,7 +27,7 @@ func TestSecretKeyFromBytesZero(t *testing.T) {
 func TestSecretKeyFromBytesWrongSize(t *testing.T) {
 	require := require.New(t)
 
-	skBytes := utils.RandomBytes(SecretKeyLen + 1)
+	skBytes := crypto.RandomBytes(SecretKeyLen + 1)
 	_, err := FromBytes(skBytes)
 	require.ErrorIs(err, ErrFailedSecretKeyDeserialize)
 }
@@ -35,7 +35,7 @@ func TestSecretKeyFromBytesWrongSize(t *testing.T) {
 func TestSecretKeyBytes(t *testing.T) {
 	require := require.New(t)
 
-	msg := utils.RandomBytes(1234)
+	msg := crypto.RandomBytes(1234)
 
 	sk, err := New()
 	require.NoError(err)
