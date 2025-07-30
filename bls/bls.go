@@ -232,6 +232,18 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 		return nil, ErrFailedSignatureDecompress
 	}
 	
+	// Check if signature is all zeros (invalid)
+	allZero := true
+	for _, b := range sigBytes {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return nil, ErrInvalidSignature
+	}
+	
 	return &Signature{sig: sigBytes}, nil
 }
 
