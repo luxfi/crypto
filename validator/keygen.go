@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/luxfi/crypto/bls"
+	"github.com/luxfi/crypto/staking"
 	"github.com/luxfi/ids"
-	"github.com/luxfi/node/staking"
-	"github.com/luxfi/node/utils/crypto/bls"
 )
 
 // KeyGenerator handles validator key generation
@@ -74,10 +74,10 @@ func (kg *KeyGenerator) GenerateFromSeedWithTLS(seedPhrase string, accountNum in
 		return nil, fmt.Errorf("failed to generate BLS key: %w", err)
 	}
 	
-	blsPubKey := bls.PublicKeyFromSecretKey(blsSecretKey)
+	blsPubKey := blsSecretKey.PublicKey()
 	
 	// Generate proof of possession
-	blsSig := bls.SignProofOfPossession(blsSecretKey, blsPubKey)
+	blsSig := blsSecretKey.SignProofOfPossession(bls.PublicKeyToCompressedBytes(blsPubKey))
 	
 	// Generate TLS certificate for NodeID (deterministic based on account)
 	tlsCertPEM, tlsKeyPEM, err := staking.NewCertAndKeyBytes()
@@ -96,7 +96,10 @@ func (kg *KeyGenerator) GenerateFromSeedWithTLS(seedPhrase string, accountNum in
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 	
-	nodeID := ids.NodeIDFromCert(cert)
+	nodeID := ids.NodeIDFromCert(&ids.Certificate{
+		Raw:       cert.Raw,
+		PublicKey: cert.PublicKey,
+	})
 	
 	// Create validator keys
 	keys := &ValidatorKeys{
@@ -146,10 +149,10 @@ func (kg *KeyGenerator) GenerateCompatibleKeys() (*ValidatorKeysWithTLS, error) 
 		return nil, fmt.Errorf("failed to generate BLS key: %w", err)
 	}
 	
-	blsPubKey := bls.PublicKeyFromSecretKey(blsSecretKey)
+	blsPubKey := blsSecretKey.PublicKey()
 	
 	// Generate proof of possession
-	blsSig := bls.SignProofOfPossession(blsSecretKey, blsPubKey)
+	blsSig := blsSecretKey.SignProofOfPossession(bls.PublicKeyToCompressedBytes(blsPubKey))
 	
 	// Generate TLS certificate for NodeID
 	tlsCertBytes, tlsKeyBytes, err := staking.NewCertAndKeyBytes()
@@ -168,7 +171,10 @@ func (kg *KeyGenerator) GenerateCompatibleKeys() (*ValidatorKeysWithTLS, error) 
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 	
-	nodeID := ids.NodeIDFromCert(cert)
+	nodeID := ids.NodeIDFromCert(&ids.Certificate{
+		Raw:       cert.Raw,
+		PublicKey: cert.PublicKey,
+	})
 	
 	keys := &ValidatorKeys{
 		NodeID:            nodeID.String(),
@@ -199,10 +205,10 @@ func (kg *KeyGenerator) GenerateFromPrivateKey(privateKeyHex string) (*Validator
 		return nil, fmt.Errorf("failed to create BLS key from bytes: %w", err)
 	}
 	
-	blsPubKey := bls.PublicKeyFromSecretKey(blsSecretKey)
+	blsPubKey := blsSecretKey.PublicKey()
 	
 	// Generate proof of possession
-	blsSig := bls.SignProofOfPossession(blsSecretKey, blsPubKey)
+	blsSig := blsSecretKey.SignProofOfPossession(bls.PublicKeyToCompressedBytes(blsPubKey))
 	
 	// Generate TLS certificate for NodeID
 	tlsCertPEM, tlsKeyPEM, err := staking.NewCertAndKeyBytes()
@@ -221,7 +227,10 @@ func (kg *KeyGenerator) GenerateFromPrivateKey(privateKeyHex string) (*Validator
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 	
-	nodeID := ids.NodeIDFromCert(cert)
+	nodeID := ids.NodeIDFromCert(&ids.Certificate{
+		Raw:       cert.Raw,
+		PublicKey: cert.PublicKey,
+	})
 	
 	// Create validator keys
 	keys := &ValidatorKeys{
