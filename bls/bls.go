@@ -106,8 +106,15 @@ func (sk *SecretKey) Sign(msg []byte) *Signature {
 
 // SignProofOfPossession signs a [msg] to prove the ownership of this secret key.
 func (sk *SecretKey) SignProofOfPossession(msg []byte) *Signature {
-	// For PoP, we sign the public key bytes as the message
-	return sk.Sign(msg)
+	if sk == nil || sk.sk == nil {
+		return nil
+	}
+	
+	// For now, we have to use regular signing because circl doesn't expose
+	// the private key bytes in a way we can extract them
+	// TODO: This should use different DST once we have proper access to the key
+	sig := blssign.Sign(sk.sk, msg)
+	return &Signature{sig: sig}
 }
 
 // PublicKeyToCompressedBytes returns the compressed big-endian format of the
@@ -157,13 +164,41 @@ func AggregatePublicKeys(pks []*PublicKey) (*PublicKey, error) {
 		return nil, ErrNoPublicKeys
 	}
 	
-	// For simplicity, we'll aggregate by adding the keys manually
-	// This is a simplified implementation - in production you'd want
-	// to use the proper aggregation methods from the library
+	// Convert to our internal representation that can access G1 points
+	newPks := make([]*DirectPublicKey, len(pks))
+	for i, pk := range pks {
+		if pk == nil || pk.pk == nil {
+			return nil, errInvalidPublicKey
+		}
+		
+		// Get the compressed bytes from the circl public key
+		pkBytes, err := pk.pk.MarshalBinary()
+		if err != nil {
+			return nil, errFailedPublicKeyAggregation
+		}
+		
+		// Create a new public key with direct G1 access
+		newPk := new(DirectPublicKey)
+		if err := newPk.SetBytes(pkBytes); err != nil {
+			return nil, errFailedPublicKeyAggregation
+		}
+		newPks[i] = newPk
+	}
 	
-	// Just return the first key for now as a placeholder
-	// TODO: Implement proper aggregation
-	return pks[0], nil
+	// Aggregate using our implementation
+	aggNewPk, err := AggregatePublicKeys2(newPks)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert back to circl PublicKey type
+	aggPkBytes := aggNewPk.Bytes()
+	aggPk := new(blssign.PublicKey[blssign.KeyG1SigG2])
+	if err := aggPk.UnmarshalBinary(aggPkBytes); err != nil {
+		return nil, errFailedPublicKeyAggregation
+	}
+	
+	return &PublicKey{pk: aggPk}, nil
 }
 
 // Verify the [sig] of [msg] against the [pk].
@@ -177,7 +212,8 @@ func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 
 // VerifyProofOfPossession verifies the possession of the secret pre-image of [sk]
 func VerifyProofOfPossession(pk *PublicKey, sig *Signature, msg []byte) bool {
-	// For PoP, we verify the signature against the public key bytes
+	// TODO: This should use different DST from regular Verify
+	// For now, it's the same as Verify due to circl library limitations
 	return Verify(pk, sig, msg)
 }
 
