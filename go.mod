@@ -9,14 +9,12 @@ require (
 	github.com/ethereum/c-kzg-4844/v2 v2.1.1
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
-	github.com/luxfi/geth v1.16.2
-	github.com/luxfi/node v1.15.0
+	github.com/luxfi/geth v1.16.6
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.10.0
 	github.com/supranational/blst v0.3.15
 	golang.org/x/crypto v0.40.0
 	golang.org/x/sys v0.34.0
-	google.golang.org/grpc v1.74.2
 )
 
 require (
@@ -24,11 +22,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250721164621-a45f3dfb1074 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
