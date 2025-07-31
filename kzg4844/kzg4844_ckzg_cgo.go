@@ -25,7 +25,7 @@ import (
 
 	gokzg4844 "github.com/crate-crypto/go-eth-kzg"
 	ckzg4844 "github.com/ethereum/c-kzg-4844/v2/bindings/go"
-	"github.com/luxfi/geth/common/hexutil"
+	"github.com/luxfi/crypto/utils"
 )
 
 // ckzgAvailable signals whether the library was compiled into Geth.
@@ -49,15 +49,15 @@ func ckzgInit() {
 	}
 	g1Lag := make([]byte, len(params.SetupG1Lagrange)*(len(params.SetupG1Lagrange[0])-2)/2)
 	for i, g1 := range params.SetupG1Lagrange {
-		copy(g1Lag[i*(len(g1)-2)/2:], hexutil.MustDecode(g1))
+		copy(g1Lag[i*(len(g1)-2)/2:], utils.MustDecode(g1))
 	}
 	g1s := make([]byte, len(params.SetupG1Monomial)*(len(params.SetupG1Monomial[0])-2)/2)
 	for i, g1 := range params.SetupG1Monomial {
-		copy(g1s[i*(len(g1)-2)/2:], hexutil.MustDecode(g1))
+		copy(g1s[i*(len(g1)-2)/2:], utils.MustDecode(g1))
 	}
 	g2s := make([]byte, len(params.SetupG2)*(len(params.SetupG2[0])-2)/2)
 	for i, g2 := range params.SetupG2 {
-		copy(g2s[i*(len(g2)-2)/2:], hexutil.MustDecode(g2))
+		copy(g2s[i*(len(g2)-2)/2:], utils.MustDecode(g2))
 	}
 	// The last parameter determines the multiplication table, see https://notes.ethereum.org/@jtraglia/windowed_multiplications
 	// I think 6 is an decent compromise between size and speed
