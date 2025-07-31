@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/luxfi/geth/common/math"
-	"github.com/luxfi/geth/crypto/secp256k1"
+	"github.com/luxfi/crypto/secp256k1"
+	"github.com/luxfi/crypto/utils"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.
@@ -55,7 +55,7 @@ func Sign(digestHash []byte, prv *ecdsa.PrivateKey) (sig []byte, err error) {
 	if len(digestHash) != DigestLength {
 		return nil, fmt.Errorf("hash is required to be exactly %d bytes (%d)", DigestLength, len(digestHash))
 	}
-	seckey := math.PaddedBigBytes(prv.D, prv.Params().BitSize/8)
+	seckey := utils.PaddedBigBytes(prv.D, prv.Params().BitSize/8)
 	defer zeroBytes(seckey)
 	return secp256k1.Sign(digestHash, seckey)
 }
