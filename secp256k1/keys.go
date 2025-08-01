@@ -37,9 +37,19 @@ var (
 	errInvalidPublicKeyLength  = fmt.Errorf("public key has unexpected length, expected %d", PublicKeyLen)
 	errInvalidSigLen           = errors.New("invalid signature length")
 	
-	secp256k1N     = S256().Params().N
-	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
+	secp256k1N     *big.Int
+	secp256k1halfN *big.Int
 )
+
+func init() {
+	secp256k1N = S256().Params().N
+	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
+}
+
+// PubkeyBytesToAddress converts public key bytes to an address using SHA256 + RIPEMD160
+func PubkeyBytesToAddress(pubkey []byte) []byte {
+	return hashing.PubkeyBytesToAddress(pubkey)
+}
 
 // RecoverCache is a cache for recovered public keys
 var RecoverCache = cache.NewLRU[string, *PublicKey](2048)
@@ -178,21 +188,22 @@ func (k *PrivateKey) Address() ids.ShortID {
 
 // Address returns the address of the public key as an ids.ShortID
 func (k *PublicKey) Address() ids.ShortID {
-	// Compute Ethereum address from public key
-	pubBytes := make([]byte, 65)
-	pubBytes[0] = 0x04 // uncompressed point
-	k.pk.X.FillBytes(pubBytes[1:33])
-	k.pk.Y.FillBytes(pubBytes[33:65])
-	
-	hash := Keccak256(pubBytes[1:])
-	var addr ids.ShortID
-	copy(addr[:], hash[12:])
+	// Use traditional Lux address format (SHA256 + RIPEMD160)
+	// This is used for X-Chain and P-Chain addresses
+	compressedBytes := k.CompressedBytes()
+	addrBytes := PubkeyBytesToAddress(compressedBytes)
+	addr, _ := ids.ToShortID(addrBytes)
 	return addr
 }
 
 // Bytes returns the public key bytes
 func (k *PublicKey) Bytes() []byte {
 	return k.bytes
+}
+
+// CompressedBytes returns the compressed public key bytes (33 bytes)
+func (k *PublicKey) CompressedBytes() []byte {
+	return CompressPubkey(k.pk.X, k.pk.Y)
 }
 
 // ToECDSA returns the underlying ECDSA public key
@@ -235,10 +246,14 @@ func RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
 		return nil, err
 	}
 
-	x, y := DecompressPubkey(pubBytes)
-	if x == nil || y == nil {
-		return nil, errors.New("invalid recovered public key")
+	// RecoverPubkey returns 65-byte uncompressed public key
+	// Format: 0x04 + 32-byte X + 32-byte Y
+	if len(pubBytes) != 65 || pubBytes[0] != 0x04 {
+		return nil, errors.New("invalid recovered public key format")
 	}
+
+	x := new(big.Int).SetBytes(pubBytes[1:33])
+	y := new(big.Int).SetBytes(pubBytes[33:65])
 	
 	pub := &ecdsa.PublicKey{
 		Curve: S256(),
@@ -248,7 +263,7 @@ func RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
 
 	result := &PublicKey{
 		pk:    pub,
-		bytes: pubBytes,
+		bytes: CompressPubkey(x, y), // Store compressed format
 	}
 
 	RecoverCache.Put(cacheKey, result)
