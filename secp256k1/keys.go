@@ -1,0 +1,323 @@
+// Copyright (C) 2020-2025, Lux Industries Inc. All rights reserved.
+// See the file LICENSE for licensing terms.
+
+package secp256k1
+
+import (
+	"crypto/ecdsa"
+	"crypto/rand"
+	"errors"
+	"fmt"
+	"math/big"
+	"strings"
+
+	"github.com/luxfi/crypto/cb58"
+	"github.com/luxfi/crypto/cache"
+	"github.com/luxfi/crypto/hashing"
+	"github.com/luxfi/ids"
+)
+
+const (
+	// SignatureLen is the number of bytes in a secp256k1 recoverable signature
+	SignatureLen = 65
+
+	// PrivateKeyLen is the number of bytes in a secp256k1 private key
+	PrivateKeyLen = 32
+
+	// PublicKeyLen is the number of bytes in a secp256k1 public key
+	PublicKeyLen = 33
+
+	PrivateKeyPrefix = "PrivateKey-"
+	nullStr          = "null"
+)
+
+var (
+	ErrInvalidSig              = errors.New("invalid signature")
+	errInvalidPrivateKeyLength = fmt.Errorf("private key has unexpected length, expected %d", PrivateKeyLen)
+	errInvalidPublicKeyLength  = fmt.Errorf("public key has unexpected length, expected %d", PublicKeyLen)
+	errInvalidSigLen           = errors.New("invalid signature length")
+	
+	secp256k1N     = S256().Params().N
+	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
+)
+
+// RecoverCache is a cache for recovered public keys
+var RecoverCache = cache.NewLRU[string, *PublicKey](2048)
+
+// PrivateKey wraps an ecdsa.PrivateKey
+type PrivateKey struct {
+	sk    *ecdsa.PrivateKey
+	bytes []byte
+}
+
+// PublicKey wraps an ecdsa.PublicKey
+type PublicKey struct {
+	pk    *ecdsa.PublicKey
+	bytes []byte
+}
+
+// NewPrivateKey generates a new private key
+func NewPrivateKey() (*PrivateKey, error) {
+	privKey, err := ecdsa.GenerateKey(S256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	
+	bytes := PaddedBigBytes(privKey.D, PrivateKeyLen)
+	return &PrivateKey{
+		sk:    privKey,
+		bytes: bytes,
+	}, nil
+}
+
+// ToPrivateKey converts bytes to a private key
+func ToPrivateKey(b []byte) (*PrivateKey, error) {
+	if len(b) != PrivateKeyLen {
+		return nil, errInvalidPrivateKeyLength
+	}
+	
+	priv := new(ecdsa.PrivateKey)
+	priv.PublicKey.Curve = S256()
+	priv.D = new(big.Int).SetBytes(b)
+	
+	// The priv.D must < N
+	if priv.D.Cmp(secp256k1N) >= 0 {
+		return nil, errors.New("invalid private key, >=N")
+	}
+	// The priv.D must not be zero or negative.
+	if priv.D.Sign() <= 0 {
+		return nil, errors.New("invalid private key, zero or negative")
+	}
+	
+	priv.PublicKey.X, priv.PublicKey.Y = S256().ScalarBaseMult(b)
+	if priv.PublicKey.X == nil {
+		return nil, errors.New("invalid private key")
+	}
+	
+	return &PrivateKey{
+		sk:    priv,
+		bytes: b,
+	}, nil
+}
+
+// ToPublicKey converts bytes to a public key
+func ToPublicKey(b []byte) (*PublicKey, error) {
+	if len(b) != PublicKeyLen {
+		return nil, errInvalidPublicKeyLength
+	}
+	
+	x, y := DecompressPubkey(b)
+	if x == nil || y == nil {
+		return nil, errors.New("invalid public key")
+	}
+	
+	pub := &ecdsa.PublicKey{
+		Curve: S256(),
+		X:     x,
+		Y:     y,
+	}
+	
+	return &PublicKey{
+		pk:    pub,
+		bytes: b,
+	}, nil
+}
+
+// Sign signs a message with the private key
+func (k *PrivateKey) Sign(msg []byte) ([]byte, error) {
+	sig, err := k.SignArray(msg)
+	if err != nil {
+		return nil, err
+	}
+	return sig[:], nil
+}
+
+// SignArray signs a message and returns a fixed-size array
+func (k *PrivateKey) SignArray(msg []byte) ([SignatureLen]byte, error) {
+	return k.SignHashArray(hashing.ComputeHash256(msg))
+}
+
+// SignHash signs a hash with the private key
+func (k *PrivateKey) SignHash(hash []byte) ([]byte, error) {
+	sig, err := k.SignHashArray(hash)
+	if err != nil {
+		return nil, err
+	}
+	return sig[:], nil
+}
+
+// SignHashArray signs a hash and returns a fixed-size array
+func (k *PrivateKey) SignHashArray(hash []byte) ([SignatureLen]byte, error) {
+	sig, err := Sign(hash, k.bytes)
+	if err != nil {
+		return [SignatureLen]byte{}, err
+	}
+	var result [SignatureLen]byte
+	copy(result[:], sig)
+	return result, nil
+}
+
+// PublicKey returns the public key
+func (k *PrivateKey) PublicKey() *PublicKey {
+	pubBytes := CompressPubkey(k.sk.PublicKey.X, k.sk.PublicKey.Y)
+	return &PublicKey{
+		pk:    &k.sk.PublicKey,
+		bytes: pubBytes,
+	}
+}
+
+// Bytes returns the private key bytes
+func (k *PrivateKey) Bytes() []byte {
+	return k.bytes
+}
+
+// Address returns the address of the private key (via its public key)
+func (k *PrivateKey) Address() ids.ShortID {
+	return k.PublicKey().Address()
+}
+
+// Address returns the address of the public key as an ids.ShortID
+func (k *PublicKey) Address() ids.ShortID {
+	// Compute Ethereum address from public key
+	pubBytes := make([]byte, 65)
+	pubBytes[0] = 0x04 // uncompressed point
+	k.pk.X.FillBytes(pubBytes[1:33])
+	k.pk.Y.FillBytes(pubBytes[33:65])
+	
+	hash := Keccak256(pubBytes[1:])
+	var addr ids.ShortID
+	copy(addr[:], hash[12:])
+	return addr
+}
+
+// Bytes returns the public key bytes
+func (k *PublicKey) Bytes() []byte {
+	return k.bytes
+}
+
+// ToECDSA returns the underlying ECDSA public key
+func (k *PublicKey) ToECDSA() *ecdsa.PublicKey {
+	return k.pk
+}
+
+// VerifyHash verifies a signature against a hash
+func (k *PublicKey) VerifyHash(hash, sig []byte) bool {
+	if len(sig) != SignatureLen {
+		return false
+	}
+	return VerifySignature(k.bytes, hash, sig[:64])
+}
+
+// Verify verifies a signature against a message
+func (k *PublicKey) Verify(msg, sig []byte) bool {
+	return k.VerifyHash(hashing.ComputeHash256(msg), sig)
+}
+
+// RecoverPublicKey recovers the public key from a message and signature
+func RecoverPublicKey(msg, sig []byte) (*PublicKey, error) {
+	return RecoverPublicKeyFromHash(hashing.ComputeHash256(msg), sig)
+}
+
+// RecoverPublicKeyFromHash recovers the public key from a hash and signature
+func RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
+	if len(sig) != SignatureLen {
+		return nil, errInvalidSigLen
+	}
+
+	// Check cache first
+	cacheKey := string(hash) + string(sig)
+	if cached, found := RecoverCache.Get(cacheKey); found {
+		return cached, nil
+	}
+
+	pubBytes, err := RecoverPubkey(hash, sig)
+	if err != nil {
+		return nil, err
+	}
+
+	x, y := DecompressPubkey(pubBytes)
+	if x == nil || y == nil {
+		return nil, errors.New("invalid recovered public key")
+	}
+	
+	pub := &ecdsa.PublicKey{
+		Curve: S256(),
+		X:     x,
+		Y:     y,
+	}
+
+	result := &PublicKey{
+		pk:    pub,
+		bytes: pubBytes,
+	}
+
+	RecoverCache.Put(cacheKey, result)
+	return result, nil
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (k *PrivateKey) MarshalText() ([]byte, error) {
+	return []byte(k.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (k *PrivateKey) UnmarshalText(text []byte) error {
+	str := string(text)
+	if str == nullStr {
+		return nil
+	}
+	
+	// Remove quotes if present
+	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
+		str = str[1 : len(str)-1]
+	}
+	
+	// Check and remove prefix
+	if !strings.HasPrefix(str, PrivateKeyPrefix) {
+		return fmt.Errorf("private key missing %s prefix", PrivateKeyPrefix)
+	}
+	str = str[len(PrivateKeyPrefix):]
+	
+	// Decode from CB58
+	bytes, err := cb58.Decode(str)
+	if err != nil {
+		return err
+	}
+	
+	// Convert to private key
+	priv, err := ToPrivateKey(bytes)
+	if err != nil {
+		return err
+	}
+	
+	*k = *priv
+	return nil
+}
+
+// String returns the string representation of the private key
+func (k *PrivateKey) String() string {
+	if k == nil || k.sk == nil {
+		return nullStr
+	}
+	encoded, _ := cb58.Encode(k.bytes)
+	return PrivateKeyPrefix + encoded
+}
+
+// String returns the string representation of the public key
+func (k *PublicKey) String() string {
+	if k == nil || k.pk == nil {
+		return nullStr
+	}
+	encoded, _ := cb58.Encode(k.bytes)
+	return encoded
+}
+
+// PaddedBigBytes encodes a big integer as a big-endian byte slice. The byte slice is padded with zeros.
+func PaddedBigBytes(bigint *big.Int, n int) []byte {
+	if bigint.BitLen()/8 >= n {
+		return bigint.Bytes()
+	}
+	ret := make([]byte, n)
+	bigint.FillBytes(ret)
+	return ret
+}
