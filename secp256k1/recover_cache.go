@@ -26,5 +26,19 @@ func (r RecoverCacheType) RecoverPublicKey(msg, sig []byte) (*PublicKey, error) 
 
 // RecoverPublicKeyFromHash recovers a public key from a hash and signature
 func (r RecoverCacheType) RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
-	return RecoverPublicKeyFromHash(hash, sig)
+	// Check cache first
+	cacheKey := string(hash) + string(sig)
+	if cached, found := r.cache.Get(cacheKey); found {
+		return cached, nil
+	}
+
+	// Recover the public key
+	pk, err := RecoverPublicKeyFromHash(hash, sig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the result
+	r.cache.Put(cacheKey, pk)
+	return pk, nil
 }
