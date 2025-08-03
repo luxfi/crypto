@@ -6,7 +6,7 @@ package secp256k1
 import (
 	"crypto/ecdsa"
 
-	"github.com/luxfi/geth/common"
+	"github.com/luxfi/crypto/common"
 )
 
 // PubkeyToAddress returns the Ethereum address for the given public key

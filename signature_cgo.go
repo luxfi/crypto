@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/luxfi/geth/common/math"
+	"github.com/luxfi/crypto/common/math"
 	luxSecp256k1 "github.com/luxfi/crypto/secp256k1"
 )
 

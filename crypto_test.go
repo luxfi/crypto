@@ -26,8 +26,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/geth/common"
-	"github.com/luxfi/geth/common/hexutil"
+	"github.com/luxfi/crypto/common"
+	"github.com/luxfi/crypto/common/hexutil"
 )
 
 var testAddrHex = "970e8128ab834e8eac17ab8e3812f010678cf791"
