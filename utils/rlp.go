@@ -79,7 +79,7 @@ func encodeList(buf *bytes.Buffer, list []interface{}) error {
 		}
 	}
 	content := contentBuf.Bytes()
-	
+
 	if len(content) <= 55 {
 		buf.WriteByte(byte(0xC0 + len(content)))
 		buf.Write(content)
@@ -95,7 +95,7 @@ func encodeList(buf *bytes.Buffer, list []interface{}) error {
 func intToBytes(i uint64) []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], i)
-	
+
 	// Find first non-zero byte
 	for idx := 0; idx < 8; idx++ {
 		if buf[idx] != 0 {

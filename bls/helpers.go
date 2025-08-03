@@ -5,28 +5,12 @@ package bls
 
 // Helper functions to maintain compatibility with node/utils/crypto/bls
 
-// PublicFromSecretKey returns the public key for a secret key
-func PublicFromSecretKey(sk *SecretKey) *PublicKey {
-	if sk == nil {
-		return nil
-	}
-	return sk.PublicKey()
-}
-
 // Sign signs a message with a secret key
 func Sign(sk *SecretKey, msg []byte) *Signature {
 	if sk == nil {
 		return nil
 	}
 	return sk.Sign(msg)
-}
-
-// SignProofOfPossession signs a proof of possession
-func SignProofOfPossession(sk *SecretKey, msg []byte) *Signature {
-	if sk == nil {
-		return nil
-	}
-	return sk.SignProofOfPossession(msg)
 }
 
 // PublicKeyBytes is a helper that returns the compressed bytes of a public key

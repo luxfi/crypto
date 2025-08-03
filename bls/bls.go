@@ -12,8 +12,8 @@ import (
 
 const (
 	SecretKeyLen = 32
-	PublicKeyLen = 48  // Compressed G1 point
-	SignatureLen = 96  // Compressed G2 point
+	PublicKeyLen = 48 // Compressed G1 point
+	SignatureLen = 96 // Compressed G2 point
 )
 
 var (
@@ -33,15 +33,15 @@ type (
 	SecretKey struct {
 		sk *blssign.PrivateKey[blssign.KeyG1SigG2]
 	}
-	
+
 	PublicKey struct {
 		pk *blssign.PublicKey[blssign.KeyG1SigG2]
 	}
-	
+
 	Signature struct {
 		sig blssign.Signature
 	}
-	
+
 	AggregatePublicKey = PublicKey
 	AggregateSignature = Signature
 )
@@ -54,17 +54,17 @@ func NewSecretKey() (*SecretKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	sk, err := blssign.KeyGen[blssign.KeyG1SigG2](ikm, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Clear the ikm
 	for i := range ikm {
 		ikm[i] = 0
 	}
-	
+
 	return &SecretKey{sk: sk}, nil
 }
 
@@ -109,7 +109,7 @@ func (sk *SecretKey) SignProofOfPossession(msg []byte) *Signature {
 	if sk == nil || sk.sk == nil {
 		return nil
 	}
-	
+
 	// For now, we have to use regular signing because circl doesn't expose
 	// the private key bytes in a way we can extract them
 	// TODO: This should use different DST once we have proper access to the key
@@ -134,11 +134,11 @@ func PublicKeyFromCompressedBytes(pkBytes []byte) (*PublicKey, error) {
 	if err := pk.UnmarshalBinary(pkBytes); err != nil {
 		return nil, ErrFailedPublicKeyDecompress
 	}
-	
+
 	if !pk.Validate() {
 		return nil, errInvalidPublicKey
 	}
-	
+
 	return &PublicKey{pk: pk}, nil
 }
 
@@ -163,20 +163,20 @@ func AggregatePublicKeys(pks []*PublicKey) (*PublicKey, error) {
 	if len(pks) == 0 {
 		return nil, ErrNoPublicKeys
 	}
-	
+
 	// Convert to our internal representation that can access G1 points
 	newPks := make([]*DirectPublicKey, len(pks))
 	for i, pk := range pks {
 		if pk == nil || pk.pk == nil {
 			return nil, errInvalidPublicKey
 		}
-		
+
 		// Get the compressed bytes from the circl public key
 		pkBytes, err := pk.pk.MarshalBinary()
 		if err != nil {
 			return nil, errFailedPublicKeyAggregation
 		}
-		
+
 		// Create a new public key with direct G1 access
 		newPk := new(DirectPublicKey)
 		if err := newPk.SetBytes(pkBytes); err != nil {
@@ -184,20 +184,20 @@ func AggregatePublicKeys(pks []*PublicKey) (*PublicKey, error) {
 		}
 		newPks[i] = newPk
 	}
-	
+
 	// Aggregate using our implementation
 	aggNewPk, err := AggregatePublicKeys2(newPks)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert back to circl PublicKey type
 	aggPkBytes := aggNewPk.Bytes()
 	aggPk := new(blssign.PublicKey[blssign.KeyG1SigG2])
 	if err := aggPk.UnmarshalBinary(aggPkBytes); err != nil {
 		return nil, errFailedPublicKeyAggregation
 	}
-	
+
 	return &PublicKey{pk: aggPk}, nil
 }
 
@@ -206,7 +206,7 @@ func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if pk == nil || pk.pk == nil || sig == nil {
 		return false
 	}
-	
+
 	return blssign.Verify(pk.pk, msg, sig.sig)
 }
 
@@ -231,7 +231,7 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 	if len(sigBytes) != SignatureLen {
 		return nil, ErrFailedSignatureDecompress
 	}
-	
+
 	// Check if signature is all zeros (invalid)
 	allZero := true
 	for _, b := range sigBytes {
@@ -243,7 +243,7 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 	if allZero {
 		return nil, ErrInvalidSignature
 	}
-	
+
 	return &Signature{sig: sigBytes}, nil
 }
 
@@ -253,7 +253,7 @@ func AggregateSignatures(sigs []*Signature) (*Signature, error) {
 	if len(sigs) == 0 {
 		return nil, ErrNoSignatures
 	}
-	
+
 	// Convert to slice of Signature bytes
 	sigBytes := make([]blssign.Signature, len(sigs))
 	for i, sig := range sigs {
@@ -262,12 +262,12 @@ func AggregateSignatures(sigs []*Signature) (*Signature, error) {
 		}
 		sigBytes[i] = sig.sig
 	}
-	
+
 	// Use the Aggregate function from circl
 	aggSig, err := blssign.Aggregate[blssign.KeyG1SigG2](blssign.KeyG1SigG2{}, sigBytes)
 	if err != nil {
 		return nil, ErrFailedSignatureAggregation
 	}
-	
+
 	return &Signature{sig: aggSig}, nil
 }
