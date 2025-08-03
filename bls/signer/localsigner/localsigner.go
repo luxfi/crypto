@@ -25,7 +25,7 @@ func New() (*LocalSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	pk := sk.PublicKey()
 	return &LocalSigner{sk: sk, pk: pk}, nil
 }
@@ -42,7 +42,7 @@ func FromBytes(skBytes []byte) (*LocalSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	pk := sk.PublicKey()
 	return &LocalSigner{sk: sk, pk: pk}, nil
 }
