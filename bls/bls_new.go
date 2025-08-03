@@ -37,17 +37,17 @@ func GenerateKey(reader io.Reader) (*DirectSecretKey, error) {
 	if reader == nil {
 		reader = rand.Reader
 	}
-	
+
 	// Generate 32 random bytes
 	ikm := make([]byte, 32)
 	if _, err := io.ReadFull(reader, ikm); err != nil {
 		return nil, err
 	}
-	
+
 	// Convert to scalar
 	var scalar bls12381.Scalar
 	scalar.Random(reader)
-	
+
 	return &DirectSecretKey{scalar: scalar}, nil
 }
 
@@ -63,11 +63,11 @@ func (sk *DirectSecretKey) Sign(msg []byte) *DirectSignature {
 	// Hash message to G2
 	var msgPoint bls12381.G2
 	msgPoint.Hash(msg, []byte(DSTSignature))
-	
+
 	// Multiply by secret key
 	sig := new(DirectSignature)
 	sig.point.ScalarMult(&sk.scalar, &msgPoint)
-	
+
 	return sig
 }
 
@@ -76,11 +76,11 @@ func (sk *DirectSecretKey) SignProofOfPossession(msg []byte) *DirectSignature {
 	// Hash message to G2 with PoP DST
 	var msgPoint bls12381.G2
 	msgPoint.Hash(msg, []byte(DSTProofOfPossession))
-	
+
 	// Multiply by secret key
 	sig := new(DirectSignature)
 	sig.point.ScalarMult(&sk.scalar, &msgPoint)
-	
+
 	return sig
 }
 
@@ -89,10 +89,10 @@ func Verify2(pk *DirectPublicKey, sig *DirectSignature, msg []byte) bool {
 	// Hash message to G2
 	var msgPoint bls12381.G2
 	msgPoint.Hash(msg, []byte(DSTSignature))
-	
+
 	// e(pk, H(m)) == e(G1, sig)
 	g1Gen := bls12381.G1Generator()
-	
+
 	// Prepare for pairing check: e(pk, H(m)) * e(-G1, sig) == 1
 	return bls12381.ProdPairFrac(
 		[]*bls12381.G1{&pk.point, g1Gen},
@@ -106,10 +106,10 @@ func VerifyProofOfPossession2(pk *DirectPublicKey, sig *DirectSignature, msg []b
 	// Hash message to G2 with PoP DST
 	var msgPoint bls12381.G2
 	msgPoint.Hash(msg, []byte(DSTProofOfPossession))
-	
+
 	// e(pk, H(m)) == e(G1, sig)
 	g1Gen := bls12381.G1Generator()
-	
+
 	// Prepare for pairing check: e(pk, H(m)) * e(-G1, sig) == 1
 	return bls12381.ProdPairFrac(
 		[]*bls12381.G1{&pk.point, g1Gen},
@@ -123,11 +123,11 @@ func AggregatePublicKeys2(pks []*DirectPublicKey) (*DirectPublicKey, error) {
 	if len(pks) == 0 {
 		return nil, ErrNoPublicKeys
 	}
-	
+
 	// Start with identity
 	aggPk := new(DirectPublicKey)
 	aggPk.point.SetIdentity()
-	
+
 	// Add all public keys
 	for _, pk := range pks {
 		if pk == nil {
@@ -135,7 +135,7 @@ func AggregatePublicKeys2(pks []*DirectPublicKey) (*DirectPublicKey, error) {
 		}
 		aggPk.point.Add(&aggPk.point, &pk.point)
 	}
-	
+
 	return aggPk, nil
 }
 
@@ -144,11 +144,11 @@ func AggregateSignatures2(sigs []*DirectSignature) (*DirectSignature, error) {
 	if len(sigs) == 0 {
 		return nil, ErrNoSignatures
 	}
-	
+
 	// Start with identity
 	aggSig := new(DirectSignature)
 	aggSig.point.SetIdentity()
-	
+
 	// Add all signatures
 	for _, sig := range sigs {
 		if sig == nil {
@@ -156,7 +156,7 @@ func AggregateSignatures2(sigs []*DirectSignature) (*DirectSignature, error) {
 		}
 		aggSig.point.Add(&aggSig.point, &sig.point)
 	}
-	
+
 	return aggSig, nil
 }
 
