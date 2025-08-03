@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025, Lux Industries Inc
+// Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -23,15 +23,14 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"math/big"
 
-	"github.com/luxfi/crypto/secp256k1"
-	"github.com/luxfi/crypto/utils"
+	"github.com/luxfi/geth/common/math"
+	luxSecp256k1 "github.com/luxfi/crypto/secp256k1"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.
 func Ecrecover(hash, sig []byte) ([]byte, error) {
-	return secp256k1.RecoverPubkey(hash, sig)
+	return luxSecp256k1.RecoverPubkey(hash, sig)
 }
 
 // SigToPub returns the public key that created the given signature.
@@ -55,21 +54,21 @@ func Sign(digestHash []byte, prv *ecdsa.PrivateKey) (sig []byte, err error) {
 	if len(digestHash) != DigestLength {
 		return nil, fmt.Errorf("hash is required to be exactly %d bytes (%d)", DigestLength, len(digestHash))
 	}
-	seckey := utils.PaddedBigBytes(prv.D, prv.Params().BitSize/8)
+	seckey := math.PaddedBigBytes(prv.D, prv.Params().BitSize/8)
 	defer zeroBytes(seckey)
-	return secp256k1.Sign(digestHash, seckey)
+	return luxSecp256k1.Sign(digestHash, seckey)
 }
 
 // VerifySignature checks that the given public key created signature over digest.
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(pubkey, digestHash, signature []byte) bool {
-	return secp256k1.VerifySignature(pubkey, digestHash, signature)
+	return luxSecp256k1.VerifySignature(pubkey, digestHash, signature)
 }
 
 // DecompressPubkey parses a public key in the 33-byte compressed format.
 func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
-	x, y := secp256k1.DecompressPubkey(pubkey)
+	x, y := luxSecp256k1.DecompressPubkey(pubkey)
 	if x == nil {
 		return nil, errors.New("invalid public key")
 	}
@@ -78,42 +77,10 @@ func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 
 // CompressPubkey encodes a public key to the 33-byte compressed format.
 func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
-	return secp256k1.CompressPubkey(pubkey.X, pubkey.Y)
+	return luxSecp256k1.CompressPubkey(pubkey.X, pubkey.Y)
 }
 
 // S256 returns an instance of the secp256k1 curve.
 func S256() EllipticCurve {
-	return btCurve{secp256k1.S256()}
-}
-
-type btCurve struct {
-	*secp256k1.BitCurve
-}
-
-// Marshal converts a point given as (x, y) into a byte slice.
-func (curve btCurve) Marshal(x, y *big.Int) []byte {
-	byteLen := (curve.Params().BitSize + 7) / 8
-
-	ret := make([]byte, 1+2*byteLen)
-	ret[0] = 4 // uncompressed point
-
-	x.FillBytes(ret[1 : 1+byteLen])
-	y.FillBytes(ret[1+byteLen : 1+2*byteLen])
-
-	return ret
-}
-
-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
-// error, x = nil.
-func (curve btCurve) Unmarshal(data []byte) (x, y *big.Int) {
-	byteLen := (curve.Params().BitSize + 7) / 8
-	if len(data) != 1+2*byteLen {
-		return nil, nil
-	}
-	if data[0] != 4 { // uncompressed form
-		return nil, nil
-	}
-	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
-	y = new(big.Int).SetBytes(data[1+byteLen:])
-	return
+	return luxSecp256k1.S256()
 }

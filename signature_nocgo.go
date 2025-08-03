@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025, Lux Industries Inc
+// Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@ package crypto
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math/big"
@@ -163,22 +162,6 @@ func S256() EllipticCurve {
 
 type btCurve struct {
 	*secp256k1.KoblitzCurve
-}
-
-// Params returns the parameters for the curve.
-func (curve btCurve) Params() *elliptic.CurveParams {
-	return curve.CurveParams
-}
-
-// IsOnCurve returns whether the given (x,y) lies on the curve.
-func (curve btCurve) IsOnCurve(x, y *big.Int) bool {
-	return curve.KoblitzCurve.IsOnCurve(x, y)
-}
-
-// ScalarBaseMult returns k*G, where G is the base point of the group
-// and k is an integer in big-endian form.
-func (curve btCurve) ScalarBaseMult(k []byte) (x, y *big.Int) {
-	return curve.KoblitzCurve.ScalarBaseMult(k)
 }
 
 // Marshal converts a point given as (x, y) into a byte slice.
