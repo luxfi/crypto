@@ -32,16 +32,16 @@ func aggregateG1Points(points []*bls12381.G1) (*bls12381.G1, error) {
 	if len(points) == 0 {
 		return nil, ErrNoPublicKeys
 	}
-	
+
 	// Start with the first point
 	result := new(bls12381.G1)
 	*result = *points[0]
-	
+
 	// Add the rest of the points
 	for i := 1; i < len(points); i++ {
 		result.Add(result, points[i])
 	}
-	
+
 	return result, nil
 }
 
@@ -50,16 +50,16 @@ func aggregateG2Points(points []*bls12381.G2) (*bls12381.G2, error) {
 	if len(points) == 0 {
 		return nil, ErrNoSignatures
 	}
-	
+
 	// Start with the first point
 	result := new(bls12381.G2)
 	*result = *points[0]
-	
+
 	// Add the rest of the points
 	for i := 1; i < len(points); i++ {
 		result.Add(result, points[i])
 	}
-	
+
 	return result, nil
 }
 
