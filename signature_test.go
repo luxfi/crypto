@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/geth/common"
-	"github.com/luxfi/geth/common/hexutil"
-	"github.com/luxfi/geth/common/math"
+	"github.com/luxfi/crypto/common"
+	"github.com/luxfi/crypto/common/hexutil"
+	"github.com/luxfi/crypto/common/math"
 )
 
 var (
