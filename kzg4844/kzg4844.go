@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"github.com/luxfi/geth/common/hexutil"
+	"github.com/luxfi/crypto/common/hexutil"
 )
 
 //go:embed trusted_setup.json
