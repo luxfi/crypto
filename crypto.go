@@ -213,7 +213,7 @@ func HexToAddress(s string) Address {
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b Address, nonce uint64) Address {
-	data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
+	data, _ := rlp.EncodeToBytes([]interface{}{b.Bytes(), nonce})
 	return BytesToAddress(Keccak256(data)[12:])
 }
 
@@ -316,7 +316,7 @@ func LoadECDSA(file string) (*ecdsa.PrivateKey, error) {
 	r := bufio.NewReader(fd)
 	buf := make([]byte, 64)
 	n, err := readASCII(buf, r)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return nil, err
 	} else if n != len(buf) {
 		return nil, errors.New("key file too short, want 64 hex characters")
@@ -399,7 +399,7 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 		return bigint.Bytes()
 	}
 	ret := make([]byte, n)
-	ReadBits(bigint, ret)
+	bigint.FillBytes(ret)
 	return ret
 }
 
