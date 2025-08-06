@@ -199,6 +199,18 @@ func Keccak512(data ...[]byte) []byte {
 	return d.Sum(nil)
 }
 
+// HexToAddress returns Address with byte values of s.
+func HexToAddress(s string) Address {
+	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
+		s = s[2:]
+	}
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
+	b, _ := hex.DecodeString(s)
+	return BytesToAddress(b)
+}
+
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b Address, nonce uint64) Address {
 	data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
