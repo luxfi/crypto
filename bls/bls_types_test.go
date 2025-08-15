@@ -94,7 +94,7 @@ func TestSignatureFromBytes(t *testing.T) {
 
 	msg := []byte("test message")
 	sig1 := sk.Sign(msg)
-	
+
 	bytes := SignatureToBytes(sig1)
 	require.Len(bytes, SignatureLen)
 

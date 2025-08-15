@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math/big"
-	
+
 	"github.com/luxfi/crypto/common"
 )
 
@@ -103,7 +103,7 @@ func encodeList(buf *bytes.Buffer, list []interface{}) error {
 			return err
 		}
 	}
-	
+
 	contentBytes := content.Bytes()
 	if len(contentBytes) <= 55 {
 		// Short list

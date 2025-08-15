@@ -65,7 +65,7 @@ func TestPublicKeyVerify(t *testing.T) {
 
 	pub := key.PublicKey()
 	require.True(pub.Verify(msg, sig[:]))
-	
+
 	// Wrong message should fail
 	require.False(pub.Verify([]byte("wrong message"), sig[:]))
 }

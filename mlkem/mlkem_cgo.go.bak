@@ -1,0 +1,248 @@
+// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
+// +build cgo
+
+// Package mlkem provides ML-KEM (FIPS 203) post-quantum key encapsulation
+// CGO implementation using pq-crystals/kyber reference code
+
+package mlkem
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/c -I${SRCDIR}/c/ref -O3
+#cgo LDFLAGS: -L${SRCDIR}/c -lmlkem
+
+#include <stdlib.h>
+#include <string.h>
+
+// Kyber/ML-KEM parameter sets
+#define KYBER512_PUBLICKEYBYTES 800
+#define KYBER512_SECRETKEYBYTES 1632
+#define KYBER512_CIPHERTEXTBYTES 768
+#define KYBER512_BYTES 32
+
+#define KYBER768_PUBLICKEYBYTES 1184
+#define KYBER768_SECRETKEYBYTES 2400
+#define KYBER768_CIPHERTEXTBYTES 1088
+#define KYBER768_BYTES 32
+
+#define KYBER1024_PUBLICKEYBYTES 1568
+#define KYBER1024_SECRETKEYBYTES 3168
+#define KYBER1024_CIPHERTEXTBYTES 1568
+#define KYBER1024_BYTES 32
+
+// Function declarations (would come from kyber headers)
+int crypto_kem_keypair_512(unsigned char *pk, unsigned char *sk);
+int crypto_kem_enc_512(unsigned char *ct, unsigned char *ss, const unsigned char *pk);
+int crypto_kem_dec_512(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
+
+int crypto_kem_keypair_768(unsigned char *pk, unsigned char *sk);
+int crypto_kem_enc_768(unsigned char *ct, unsigned char *ss, const unsigned char *pk);
+int crypto_kem_dec_768(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
+
+int crypto_kem_keypair_1024(unsigned char *pk, unsigned char *sk);
+int crypto_kem_enc_1024(unsigned char *ct, unsigned char *ss, const unsigned char *pk);
+int crypto_kem_dec_1024(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
+
+// Wrapper functions for cleaner Go interface
+int mlkem_keypair(unsigned char *pk, unsigned char *sk, int mode) {
+    switch(mode) {
+        case 512: return crypto_kem_keypair_512(pk, sk);
+        case 768: return crypto_kem_keypair_768(pk, sk);
+        case 1024: return crypto_kem_keypair_1024(pk, sk);
+        default: return -1;
+    }
+}
+
+int mlkem_encapsulate(unsigned char *ct, unsigned char *ss, const unsigned char *pk, int mode) {
+    switch(mode) {
+        case 512: return crypto_kem_enc_512(ct, ss, pk);
+        case 768: return crypto_kem_enc_768(ct, ss, pk);
+        case 1024: return crypto_kem_enc_1024(ct, ss, pk);
+        default: return -1;
+    }
+}
+
+int mlkem_decapsulate(unsigned char *ss, const unsigned char *ct, const unsigned char *sk, int mode) {
+    switch(mode) {
+        case 512: return crypto_kem_dec_512(ss, ct, sk);
+        case 768: return crypto_kem_dec_768(ss, ct, sk);
+        case 1024: return crypto_kem_dec_1024(ss, ct, sk);
+        default: return -1;
+    }
+}
+
+// Get sizes for different security levels
+int mlkem_publickey_bytes(int mode) {
+    switch(mode) {
+        case 512: return KYBER512_PUBLICKEYBYTES;
+        case 768: return KYBER768_PUBLICKEYBYTES;
+        case 1024: return KYBER1024_PUBLICKEYBYTES;
+        default: return 0;
+    }
+}
+
+int mlkem_secretkey_bytes(int mode) {
+    switch(mode) {
+        case 512: return KYBER512_SECRETKEYBYTES;
+        case 768: return KYBER768_SECRETKEYBYTES;
+        case 1024: return KYBER1024_SECRETKEYBYTES;
+        default: return 0;
+    }
+}
+
+int mlkem_ciphertext_bytes(int mode) {
+    switch(mode) {
+        case 512: return KYBER512_CIPHERTEXTBYTES;
+        case 768: return KYBER768_CIPHERTEXTBYTES;
+        case 1024: return KYBER1024_CIPHERTEXTBYTES;
+        default: return 0;
+    }
+}
+
+int mlkem_sharedsecret_bytes(int mode) {
+    switch(mode) {
+        case 512: return KYBER512_BYTES;
+        case 768: return KYBER768_BYTES;
+        case 1024: return KYBER1024_BYTES;
+        default: return 0;
+    }
+}
+*/
+import "C"
+import (
+	"errors"
+	"io"
+	"unsafe"
+)
+
+// CGO-based implementation of ML-KEM
+
+// GenerateKeyPairCGO generates a new ML-KEM key pair using C implementation
+func GenerateKeyPairCGO(rand io.Reader, mode Mode) (*PrivateKey, error) {
+	// Map mode to C parameter
+	var cMode C.int
+	switch mode {
+	case MLKEM512:
+		cMode = 512
+	case MLKEM768:
+		cMode = 768
+	case MLKEM1024:
+		cMode = 1024
+	default:
+		return nil, errors.New("invalid ML-KEM mode")
+	}
+
+	pkSize := int(C.mlkem_publickey_bytes(cMode))
+	skSize := int(C.mlkem_secretkey_bytes(cMode))
+
+	if pkSize == 0 || skSize == 0 {
+		return nil, errors.New("invalid ML-KEM mode parameters")
+	}
+
+	// Allocate memory for keys
+	pk := make([]byte, pkSize)
+	sk := make([]byte, skSize)
+
+	// Generate key pair
+	ret := C.mlkem_keypair(
+		(*C.uchar)(unsafe.Pointer(&pk[0])),
+		(*C.uchar)(unsafe.Pointer(&sk[0])),
+		cMode,
+	)
+
+	if ret != 0 {
+		return nil, errors.New("key generation failed")
+	}
+
+	return &PrivateKey{
+		PublicKey: PublicKey{
+			mode: mode,
+			data: pk,
+		},
+		data: sk,
+	}, nil
+}
+
+// EncapsulateCGO generates a shared secret and ciphertext using the C implementation
+func EncapsulateCGO(pub *PublicKey, rand io.Reader) (*EncapsulationResult, error) {
+	var cMode C.int
+	switch pub.mode {
+	case MLKEM512:
+		cMode = 512
+	case MLKEM768:
+		cMode = 768
+	case MLKEM1024:
+		cMode = 1024
+	default:
+		return nil, errors.New("invalid ML-KEM mode")
+	}
+
+	ctSize := int(C.mlkem_ciphertext_bytes(cMode))
+	ssSize := int(C.mlkem_sharedsecret_bytes(cMode))
+
+	if ctSize == 0 || ssSize == 0 {
+		return nil, errors.New("invalid parameters")
+	}
+
+	// Allocate memory
+	ct := make([]byte, ctSize)
+	ss := make([]byte, ssSize)
+
+	// Encapsulate
+	ret := C.mlkem_encapsulate(
+		(*C.uchar)(unsafe.Pointer(&ct[0])),
+		(*C.uchar)(unsafe.Pointer(&ss[0])),
+		(*C.uchar)(unsafe.Pointer(&pub.data[0])),
+		cMode,
+	)
+
+	if ret != 0 {
+		return nil, errors.New("encapsulation failed")
+	}
+
+	return &EncapsulationResult{
+		Ciphertext:   ct,
+		SharedSecret: ss,
+	}, nil
+}
+
+// DecapsulateCGO recovers the shared secret using the C implementation
+func DecapsulateCGO(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+	var cMode C.int
+	switch priv.mode {
+	case MLKEM512:
+		cMode = 512
+	case MLKEM768:
+		cMode = 768
+	case MLKEM1024:
+		cMode = 1024
+	default:
+		return nil, errors.New("invalid ML-KEM mode")
+	}
+
+	ssSize := int(C.mlkem_sharedsecret_bytes(cMode))
+	if ssSize == 0 {
+		return nil, errors.New("invalid parameters")
+	}
+
+	// Allocate memory for shared secret
+	ss := make([]byte, ssSize)
+
+	// Decapsulate
+	ret := C.mlkem_decapsulate(
+		(*C.uchar)(unsafe.Pointer(&ss[0])),
+		(*C.uchar)(unsafe.Pointer(&ciphertext[0])),
+		(*C.uchar)(unsafe.Pointer(&priv.data[0])),
+		cMode,
+	)
+
+	if ret != 0 {
+		return nil, errors.New("decapsulation failed")
+	}
+
+	return ss, nil
+}
+
+// UseCGO returns true if CGO implementation is available
+func UseCGO() bool {
+	return true
+}

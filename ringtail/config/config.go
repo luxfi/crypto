@@ -9,10 +9,10 @@ import (
 type Config struct {
 	// Network parameters
 	NetworkConfig NetworkConfig `json:"network"`
-	
+
 	// Signature scheme parameters
 	SignatureParams SignatureParams `json:"signature"`
-	
+
 	// Consensus integration
 	ConsensusConfig ConsensusConfig `json:"consensus"`
 }
@@ -102,22 +102,22 @@ func DefaultConfig() *Config {
 // LoadConfig loads configuration from a JSON file
 func LoadConfig(path string) (*Config, error) {
 	config := DefaultConfig()
-	
+
 	if path == "" {
 		return config, nil
 	}
-	
+
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	
+
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(config); err != nil {
 		return nil, err
 	}
-	
+
 	return config, nil
 }
 
@@ -128,7 +128,7 @@ func (c *Config) SaveConfig(path string) error {
 		return err
 	}
 	defer file.Close()
-	
+
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(c)

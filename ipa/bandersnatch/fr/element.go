@@ -23,10 +23,10 @@ package fr
 // /!\ WARNING /!\
 
 import (
-	"fmt"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"math/bits"
@@ -183,10 +183,9 @@ func (z *Element) IsUint64() bool {
 
 // Cmp compares (lexicographic order) z and x and returns:
 //
-//   -1 if z <  x
-//    0 if z == x
-//   +1 if z >  x
-//
+//	-1 if z <  x
+//	 0 if z == x
+//	+1 if z >  x
 func (z *Element) Cmp(x *Element) int {
 	_z := *z
 	_x := *x
@@ -746,7 +745,7 @@ func (z *Element) SetBytesLECanonical(e []byte) (*Element, error) {
 	vv.SetBytes(e)
 
 	if vv.Cmp(&_modulus) != -1 {
-		return  nil, fmt.Errorf("not canonical")
+		return nil, fmt.Errorf("not canonical")
 	}
 
 	// set big int
