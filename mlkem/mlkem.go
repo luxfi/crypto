@@ -264,3 +264,4 @@ func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
 		data: data,
 	}, nil
 }
+

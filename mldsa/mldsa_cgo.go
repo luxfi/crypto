@@ -3,30 +3,12 @@
 
 package mldsa
 
-import (
-	"crypto"
-	"io"
-)
-
-// UseCGO returns whether CGO optimizations are available
-func UseCGO() bool {
-	return true
-}
-
-// GenerateKeyCGO generates a key pair using CGO optimizations
-func GenerateKeyCGO(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	// TODO: Implement actual CGO version with optimized C code
-	return GenerateKey(rand, mode)
-}
-
-// SignCGO signs using CGO optimizations
-func SignCGO(priv *PrivateKey, rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
-	// TODO: Implement actual CGO version with optimized C code
-	return priv.Sign(rand, message, opts)
-}
-
-// VerifyCGO verifies using CGO optimizations
-func VerifyCGO(pub *PublicKey, message, signature []byte) bool {
-	// TODO: Implement actual CGO version with optimized C code
-	return pub.Verify(message, signature)
-}
+// This file contains CGO-optimized implementations that are only compiled
+// when CGO is explicitly enabled with CGO_ENABLED=1
+//
+// TODO: Implement actual CGO optimizations using C libraries for:
+// - ML-DSA-44/65/87 from NIST reference implementation
+// - CRYSTALS-Dilithium optimized implementations  
+// - AVX2/AVX512 optimizations for x86_64
+// - NEON optimizations for ARM64
+// - Batch verification optimizations
