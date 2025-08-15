@@ -68,15 +68,31 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid ML-DSA mode")
 	}
 
-	// Placeholder implementation - generate random keys
-	pubBytes := make([]byte, pubKeySize)
+	// Placeholder implementation - generate random private key
 	privBytes := make([]byte, privKeySize)
-
-	if _, err := io.ReadFull(rand, pubBytes); err != nil {
-		return nil, err
-	}
 	if _, err := io.ReadFull(rand, privBytes); err != nil {
 		return nil, err
+	}
+	
+	// Derive public key from private key for consistency
+	// In real ML-DSA, public key is derived from private key seed
+	h := sha256.New()
+	h.Write(privBytes[:32]) // Use first 32 bytes as seed
+	h.Write([]byte("public"))
+	pubSeed := h.Sum(nil)
+	
+	pubBytes := make([]byte, pubKeySize)
+	// Fill public key with deterministic data
+	for i := 0; i < pubKeySize; i += 32 {
+		h.Reset()
+		h.Write(pubSeed)
+		h.Write([]byte{byte(i / 32)})
+		hash := h.Sum(nil)
+		end := i + 32
+		if end > pubKeySize {
+			end = pubKeySize
+		}
+		copy(pubBytes[i:end], hash)
 	}
 
 	return &PrivateKey{
@@ -103,22 +119,31 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 		return nil, errors.New("invalid ML-DSA mode")
 	}
 
-	// Placeholder: create deterministic signature using hash
+	// Placeholder: create deterministic signature that can be verified
+	// Start with hash of public key and message (what Verify expects)
 	h := sha256.New()
-	h.Write(priv.data)
+	h.Write(priv.PublicKey.data)
 	h.Write(message)
 	hash := h.Sum(nil)
 
 	signature := make([]byte, sigSize)
-	// Fill with deterministic data based on hash
-	for i := 0; i < sigSize; i += len(hash) {
-		end := i + len(hash)
+	// Copy the hash to the beginning of signature
+	copy(signature[:32], hash)
+	
+	// Fill rest with deterministic data based on private key
+	h.Reset()
+	h.Write(priv.data)
+	h.Write(message)
+	privHash := h.Sum(nil)
+	
+	for i := 32; i < sigSize; i += len(privHash) {
+		end := i + len(privHash)
 		if end > sigSize {
 			end = sigSize
 		}
-		copy(signature[i:end], hash)
-		h.Write(hash) // Generate more data
-		hash = h.Sum(nil)
+		copy(signature[i:end], privHash)
+		h.Write(privHash) // Generate more data
+		privHash = h.Sum(nil)
 	}
 
 	return signature, nil
@@ -139,8 +164,32 @@ func (pub *PublicKey) Verify(message, signature []byte) bool {
 		return false
 	}
 
-	// Placeholder verification
-	return len(signature) == expectedSigSize && len(message) > 0
+	// Check signature size
+	if len(signature) != expectedSigSize {
+		return false
+	}
+
+	// Placeholder verification: recompute expected signature based on public key and message
+	// In real implementation, this would use lattice-based verification
+	h := sha256.New()
+	h.Write(pub.data)
+	h.Write(message)
+	expectedSigStart := h.Sum(nil)
+	
+	// Check if first 32 bytes of signature match expected
+	// This is a simplified check for our placeholder
+	if len(signature) < 32 {
+		return false
+	}
+	
+	// Compare first 32 bytes
+	for i := 0; i < 32; i++ {
+		if signature[i] != expectedSigStart[i] {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // Bytes returns the public key as bytes
@@ -172,9 +221,13 @@ func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
 		return nil, errors.New("invalid public key size")
 	}
 
+	// Make a copy of the data
+	pubData := make([]byte, expectedSize)
+	copy(pubData, data)
+
 	return &PublicKey{
 		mode: mode,
-		data: data,
+		data: pubData,
 	}, nil
 }
 
@@ -200,15 +253,35 @@ func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid private key size")
 	}
 
-	// Extract public key from private key (simplified)
+	// Make a copy of private key data
+	privData := make([]byte, expectedPrivSize)
+	copy(privData, data)
+
+	// Derive public key from private key (same as GenerateKey)
+	h := sha256.New()
+	h.Write(privData[:32]) // Use first 32 bytes as seed
+	h.Write([]byte("public"))
+	pubSeed := h.Sum(nil)
+	
 	pubData := make([]byte, expectedPubSize)
-	copy(pubData, data[:expectedPubSize])
+	// Fill public key with deterministic data
+	for i := 0; i < expectedPubSize; i += 32 {
+		h.Reset()
+		h.Write(pubSeed)
+		h.Write([]byte{byte(i / 32)})
+		hash := h.Sum(nil)
+		end := i + 32
+		if end > expectedPubSize {
+			end = expectedPubSize
+		}
+		copy(pubData[i:end], hash)
+	}
 
 	return &PrivateKey{
 		PublicKey: &PublicKey{
 			mode: mode,
 			data: pubData,
 		},
-		data: data,
+		data: privData,
 	}, nil
 }

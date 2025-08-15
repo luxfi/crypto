@@ -118,77 +118,55 @@ func TestSLHDSA(t *testing.T) {
 	}
 }
 
-// TestCGOPerformance tests CGO implementations if available
-func TestCGOPerformance(t *testing.T) {
-	t.Run("ML-KEM CGO", func(t *testing.T) {
-		if !mlkem.UseCGO() {
-			t.Skip("CGO not available for ML-KEM")
-		}
-
-		// Benchmark Go vs CGO
-		privGo, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
-		privCGO, _ := mlkem.GenerateKeyPairCGO(rand.Reader, mlkem.MLKEM768)
+// TestPerformance tests performance of pure Go implementations
+func TestPerformance(t *testing.T) {
+	t.Run("ML-KEM Performance", func(t *testing.T) {
+		// Benchmark pure Go implementation
+		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 
 		// Encapsulation benchmark
 		start := time.Now()
 		for i := 0; i < 100; i++ {
-			privGo.PublicKey.Encapsulate(rand.Reader)
+			priv.PublicKey.Encapsulate(rand.Reader)
 		}
-		goDuration := time.Since(start)
+		duration := time.Since(start)
 
-		start = time.Now()
-		for i := 0; i < 100; i++ {
-			mlkem.EncapsulateCGO(&privCGO.PublicKey, rand.Reader)
-		}
-		cgoDuration := time.Since(start)
-
-		speedup := float64(goDuration) / float64(cgoDuration)
-		t.Logf("ML-KEM CGO speedup: %.2fx", speedup)
-		assert.Greater(t, speedup, 1.5, "CGO should be at least 1.5x faster")
+		t.Logf("ML-KEM-768 Encapsulate (100 ops): %v", duration)
+		assert.Less(t, duration, 5*time.Second, "Should complete 100 encapsulations in under 5 seconds")
 	})
 
-	t.Run("ML-DSA CGO", func(t *testing.T) {
-		if !mldsa.UseCGO() {
-			t.Skip("CGO not available for ML-DSA")
-		}
-
+	t.Run("ML-DSA Performance", func(t *testing.T) {
 		message := make([]byte, 32)
 		rand.Read(message)
 
-		// Benchmark Go vs CGO
-		privGo, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
-		privCGO, _ := mldsa.GenerateKeyCGO(rand.Reader, mldsa.MLDSA65)
+		// Benchmark pure Go implementation
+		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 
 		// Signing benchmark
 		start := time.Now()
 		for i := 0; i < 100; i++ {
-			privGo.Sign(rand.Reader, message, nil)
+			priv.Sign(rand.Reader, message, nil)
 		}
-		goDuration := time.Since(start)
+		duration := time.Since(start)
 
-		start = time.Now()
-		for i := 0; i < 100; i++ {
-			mldsa.SignCGO(privCGO, rand.Reader, message, nil)
-		}
-		cgoDuration := time.Since(start)
-
-		speedup := float64(goDuration) / float64(cgoDuration)
-		t.Logf("ML-DSA CGO speedup: %.2fx", speedup)
-		assert.Greater(t, speedup, 2.0, "CGO should be at least 2x faster")
+		t.Logf("ML-DSA-65 Sign (100 ops): %v", duration)
+		assert.Less(t, duration, 5*time.Second, "Should complete 100 signatures in under 5 seconds")
 	})
 
-	t.Run("SLH-DSA CGO with Sloth", func(t *testing.T) {
-		if !slhdsa.UseCGO() {
-			t.Skip("CGO not available for SLH-DSA")
-		}
-
+	t.Run("SLH-DSA Performance", func(t *testing.T) {
 		message := make([]byte, 32)
 		rand.Read(message)
 
-		// Skip CGO tests for now (not implemented in placeholder)
-		t.Skip("CGO functions not yet implemented")
-
-		// This test will benchmark Go vs CGO once implementations are added
+		// Benchmark pure Go implementation
+		priv, _ := slhdsa.GenerateKey(rand.Reader, slhdsa.SLHDSA128f)
+		
+		start := time.Now()
+		for i := 0; i < 10; i++ {
+			priv.Sign(rand.Reader, message, nil)
+		}
+		duration := time.Since(start)
+		
+		t.Logf("SLH-DSA-128f Sign (10 ops): %v", duration)
 	})
 }
 

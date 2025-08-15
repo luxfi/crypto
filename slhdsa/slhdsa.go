@@ -136,22 +136,32 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 		return nil, errors.New("invalid SLH-DSA mode")
 	}
 
-	// Placeholder: create deterministic signature using hash
+	// Placeholder: create deterministic signature that can be verified
+	// Start with hash of public key and message (what Verify expects)
 	h := sha256.New()
-	h.Write(priv.data)
+	h.Write(priv.PublicKey.data)
 	h.Write(message)
 	hash := h.Sum(nil)
 
 	signature := make([]byte, sigSize)
-	// Fill with deterministic data based on hash
-	for i := 0; i < sigSize; i += len(hash) {
-		end := i + len(hash)
+	// Copy the hash to beginning of signature
+	copy(signature[:32], hash)
+	
+	// Fill rest with deterministic data based on private key
+	// SLH-DSA is stateless so signature should be deterministic
+	h.Reset()
+	h.Write(priv.data)
+	h.Write(message)
+	privHash := h.Sum(nil)
+	
+	for i := 32; i < sigSize; i += len(privHash) {
+		end := i + len(privHash)
 		if end > sigSize {
 			end = sigSize
 		}
-		copy(signature[i:end], hash)
-		h.Write(hash) // Generate more data
-		hash = h.Sum(nil)
+		copy(signature[i:end], privHash)
+		h.Write(privHash) // Generate more data
+		privHash = h.Sum(nil)
 	}
 
 	return signature, nil
@@ -178,8 +188,31 @@ func (pub *PublicKey) Verify(message, signature []byte) bool {
 		return false
 	}
 
-	// Placeholder verification
-	return len(signature) == expectedSigSize && len(message) > 0
+	// Check signature size
+	if len(signature) != expectedSigSize {
+		return false
+	}
+
+	// Placeholder verification for SLH-DSA
+	// Recompute expected signature start based on public key and message
+	h := sha256.New()
+	h.Write(pub.data)
+	h.Write(message)
+	expectedSigStart := h.Sum(nil)
+	
+	// Check if first 32 bytes match
+	if len(signature) < 32 {
+		return false
+	}
+	
+	// Compare first 32 bytes
+	for i := 0; i < 32; i++ {
+		if signature[i] != expectedSigStart[i] {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // Bytes returns the public key as bytes
