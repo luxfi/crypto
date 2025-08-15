@@ -1,0 +1,190 @@
+// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
+// +build cgo
+
+// Package mldsa provides ML-DSA (FIPS 204) post-quantum signatures
+// CGO implementation using pq-crystals/dilithium reference code
+
+package mldsa
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/c -I${SRCDIR}/c/ref -DDILITHIUM_MODE=3 -O3
+#cgo LDFLAGS: -L${SRCDIR}/c -lmldsa
+
+#include <stdlib.h>
+#include <string.h>
+#include "api.h"
+#include "sign.h"
+#include "params.h"
+
+// Wrapper functions for cleaner Go interface
+int mldsa_keypair(unsigned char *pk, unsigned char *sk) {
+    return crypto_sign_keypair(pk, sk);
+}
+
+int mldsa_sign(unsigned char *sig, size_t *siglen,
+               const unsigned char *m, size_t mlen,
+               const unsigned char *sk) {
+    return crypto_sign_signature(sig, siglen, m, mlen, sk);
+}
+
+int mldsa_verify(const unsigned char *sig, size_t siglen,
+                const unsigned char *m, size_t mlen,
+                const unsigned char *pk) {
+    return crypto_sign_verify(sig, siglen, m, mlen, pk);
+}
+
+// Get sizes for different security levels
+int mldsa_publickey_bytes(int mode) {
+    switch(mode) {
+        case 2: return 1312;  // ML-DSA-44 (Dilithium2)
+        case 3: return 1952;  // ML-DSA-65 (Dilithium3)
+        case 5: return 2592;  // ML-DSA-87 (Dilithium5)
+        default: return 0;
+    }
+}
+
+int mldsa_secretkey_bytes(int mode) {
+    switch(mode) {
+        case 2: return 2560;  // ML-DSA-44
+        case 3: return 4032;  // ML-DSA-65
+        case 5: return 4896;  // ML-DSA-87
+        default: return 0;
+    }
+}
+
+int mldsa_signature_bytes(int mode) {
+    switch(mode) {
+        case 2: return 2420;  // ML-DSA-44
+        case 3: return 3309;  // ML-DSA-65
+        case 5: return 4627;  // ML-DSA-87
+        default: return 0;
+    }
+}
+*/
+import "C"
+import (
+	"crypto"
+	"errors"
+	"io"
+	"unsafe"
+)
+
+// CGO-based implementation of ML-DSA
+type cgoMLDSA struct {
+	mode Mode
+}
+
+// GenerateKeyCGO generates a new ML-DSA key pair using C implementation
+func GenerateKeyCGO(rand io.Reader, mode Mode) (*PrivateKey, error) {
+	// Get sizes for the chosen mode
+	var cMode C.int
+	switch mode {
+	case MLDSA44:
+		cMode = 2
+	case MLDSA65:
+		cMode = 3
+	case MLDSA87:
+		cMode = 5
+	default:
+		return nil, errors.New("invalid ML-DSA mode")
+	}
+
+	pkSize := int(C.mldsa_publickey_bytes(cMode))
+	skSize := int(C.mldsa_secretkey_bytes(cMode))
+
+	if pkSize == 0 || skSize == 0 {
+		return nil, errors.New("invalid ML-DSA mode parameters")
+	}
+
+	// Allocate memory for keys
+	pk := make([]byte, pkSize)
+	sk := make([]byte, skSize)
+
+	// Generate key pair
+	ret := C.mldsa_keypair(
+		(*C.uchar)(unsafe.Pointer(&pk[0])),
+		(*C.uchar)(unsafe.Pointer(&sk[0])),
+	)
+
+	if ret != 0 {
+		return nil, errors.New("key generation failed")
+	}
+
+	return &PrivateKey{
+		PublicKey: PublicKey{
+			mode: mode,
+			data: pk,
+		},
+		data: sk,
+	}, nil
+}
+
+// SignCGO signs a message using the C implementation
+func SignCGO(priv *PrivateKey, rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	var cMode C.int
+	switch priv.mode {
+	case MLDSA44:
+		cMode = 2
+	case MLDSA65:
+		cMode = 3
+	case MLDSA87:
+		cMode = 5
+	default:
+		return nil, errors.New("invalid ML-DSA mode")
+	}
+
+	sigSize := int(C.mldsa_signature_bytes(cMode))
+	if sigSize == 0 {
+		return nil, errors.New("invalid signature size")
+	}
+
+	// Allocate memory for signature
+	sig := make([]byte, sigSize)
+	var sigLen C.size_t
+
+	// Sign the message
+	ret := C.mldsa_sign(
+		(*C.uchar)(unsafe.Pointer(&sig[0])),
+		&sigLen,
+		(*C.uchar)(unsafe.Pointer(&message[0])),
+		C.size_t(len(message)),
+		(*C.uchar)(unsafe.Pointer(&priv.data[0])),
+	)
+
+	if ret != 0 {
+		return nil, errors.New("signing failed")
+	}
+
+	return sig[:sigLen], nil
+}
+
+// VerifyCGO verifies a signature using the C implementation
+func VerifyCGO(pub *PublicKey, message, signature []byte) bool {
+	var cMode C.int
+	switch pub.mode {
+	case MLDSA44:
+		cMode = 2
+	case MLDSA65:
+		cMode = 3
+	case MLDSA87:
+		cMode = 5
+	default:
+		return false
+	}
+
+	// Verify the signature
+	ret := C.mldsa_verify(
+		(*C.uchar)(unsafe.Pointer(&signature[0])),
+		C.size_t(len(signature)),
+		(*C.uchar)(unsafe.Pointer(&message[0])),
+		C.size_t(len(message)),
+		(*C.uchar)(unsafe.Pointer(&pub.data[0])),
+	)
+
+	return ret == 0
+}
+
+// UseCGO returns true if CGO implementation is available
+func UseCGO() bool {
+	return true
+}

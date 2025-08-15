@@ -15,7 +15,7 @@ func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes[0] = 0x04 // uncompressed point
 	copy(pubBytes[1:33], p.X.Bytes())
 	copy(pubBytes[33:65], p.Y.Bytes())
-	
+
 	// Ethereum address is last 20 bytes of Keccak256 hash of public key (excluding prefix)
 	hash := Keccak256(pubBytes[1:])
 	return common.BytesToAddress(hash[12:])

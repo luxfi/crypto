@@ -1,0 +1,463 @@
+// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
+// Ringtail post-quantum ring signature precompiled contracts
+// Based on lattice cryptography for privacy-preserving quantum-resistant signatures
+
+package precompile
+
+import (
+	"errors"
+	"math/big"
+
+	"github.com/luxfi/geth/common"
+	"github.com/luxfi/ringtail/sign"
+	"github.com/luxfi/ringtail/primitives"
+	"github.com/luxfi/lattice/v6/ring"
+	"github.com/luxfi/lattice/v6/utils/sampling"
+)
+
+// Ringtail precompile addresses
+var (
+	// Ringtail ring signature operations
+	RingtailVerifyAddress       = common.HexToAddress("0x0000000000000000000000000000000000000170")
+	RingtailBatchVerifyAddress  = common.HexToAddress("0x0000000000000000000000000000000000000171")
+	RingtailLinkableVerifyAddress = common.HexToAddress("0x0000000000000000000000000000000000000172")
+	
+	// Ringtail key management
+	RingtailKeyAggregateAddress = common.HexToAddress("0x0000000000000000000000000000000000000173")
+	RingtailRingHashAddress     = common.HexToAddress("0x0000000000000000000000000000000000000174")
+	
+	// Threshold ring signatures
+	RingtailThresholdVerifyAddress = common.HexToAddress("0x0000000000000000000000000000000000000175")
+)
+
+// Gas costs for Ringtail operations
+const (
+	// Ring signature verification is expensive due to lattice operations
+	ringtailVerifyGas         = 500000  // 500K gas for ring verification
+	ringtailBatchVerifyBaseGas = 300000  // Base cost for batch
+	ringtailBatchVerifyPerSigGas = 400000 // Per signature in batch
+	ringtailLinkableVerifyGas = 600000  // Linkable signatures are more expensive
+	
+	// Key operations
+	ringtailKeyAggregateGas = 100000
+	ringtailRingHashGas     = 50000
+	
+	// Threshold operations
+	ringtailThresholdVerifyGas = 800000
+	
+	// Ring sizes
+	smallRingSize  = 8
+	mediumRingSize = 16
+	largeRingSize  = 32
+	xlargeRingSize = 64
+)
+
+// RingtailVerify implements lattice-based ring signature verification
+type RingtailVerify struct{}
+
+func (r *RingtailVerify) RequiredGas(input []byte) uint64 {
+	// Gas scales with ring size
+	if len(input) < 1 {
+		return ringtailVerifyGas
+	}
+	ringSize := uint64(input[0])
+	return ringtailVerifyGas + ringSize*50000
+}
+
+func (r *RingtailVerify) Run(input []byte) ([]byte, error) {
+	// Input format: [1 byte ring_size][ring_public_keys][signature][message]
+	if len(input) < 1 {
+		return nil, errors.New("input too short")
+	}
+	
+	ringSize := int(input[0])
+	if ringSize < 2 || ringSize > xlargeRingSize {
+		return nil, errors.New("invalid ring size")
+	}
+	
+	// Initialize lattice parameters
+	randomKey := make([]byte, sign.KeySize)
+	r, err := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
+	if err != nil {
+		return nil, err
+	}
+	
+	r_xi, err := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	if err != nil {
+		return nil, err
+	}
+	
+	r_nu, err := ring.NewRing(1<<sign.LogN, []uint64{sign.QNu})
+	if err != nil {
+		return nil, err
+	}
+	
+	// Parse ring public keys
+	offset := 1
+	expectedKeySize := ringSize * sign.PublicKeySize // Assuming fixed public key size
+	
+	if len(input) < offset+expectedKeySize {
+		return nil, errors.New("invalid input size for ring keys")
+	}
+	
+	ringKeys := make([][]byte, ringSize)
+	for i := 0; i < ringSize; i++ {
+		ringKeys[i] = input[offset : offset+sign.PublicKeySize]
+		offset += sign.PublicKeySize
+	}
+	
+	// Parse signature
+	if len(input) < offset+sign.SignatureSize {
+		return nil, errors.New("invalid input size for signature")
+	}
+	
+	signature := input[offset : offset+sign.SignatureSize]
+	offset += sign.SignatureSize
+	
+	// Parse message (remainder)
+	message := input[offset:]
+	
+	// Verify ring signature using Ringtail
+	// This is simplified - actual implementation would use full Ringtail verification
+	valid := verifyRingtailSignature(r, r_xi, r_nu, ringKeys, signature, message)
+	
+	result := make([]byte, 32)
+	if valid {
+		result[31] = 0x01
+	}
+	
+	return result, nil
+}
+
+// RingtailBatchVerify verifies multiple ring signatures
+type RingtailBatchVerify struct{}
+
+func (r *RingtailBatchVerify) RequiredGas(input []byte) uint64 {
+	if len(input) < 1 {
+		return ringtailBatchVerifyBaseGas
+	}
+	numSigs := uint64(input[0])
+	return ringtailBatchVerifyBaseGas + numSigs*ringtailBatchVerifyPerSigGas
+}
+
+func (r *RingtailBatchVerify) Run(input []byte) ([]byte, error) {
+	// Input: [1 byte num_sigs][signatures_and_rings...]
+	if len(input) < 1 {
+		return nil, errors.New("input too short")
+	}
+	
+	numSigs := input[0]
+	results := make([]byte, numSigs)
+	allValid := true
+	
+	// Process each signature
+	offset := 1
+	for i := byte(0); i < numSigs; i++ {
+		// Each entry: [1 byte ring_size][ring_keys][signature][4 bytes msg_len][message]
+		if len(input) < offset+1 {
+			results[i] = 0x00
+			allValid = false
+			continue
+		}
+		
+		ringSize := int(input[offset])
+		offset++
+		
+		// Extract ring keys
+		keySize := ringSize * sign.PublicKeySize
+		if len(input) < offset+keySize {
+			results[i] = 0x00
+			allValid = false
+			continue
+		}
+		
+		ringKeys := make([][]byte, ringSize)
+		for j := 0; j < ringSize; j++ {
+			ringKeys[j] = input[offset : offset+sign.PublicKeySize]
+			offset += sign.PublicKeySize
+		}
+		
+		// Extract signature
+		if len(input) < offset+sign.SignatureSize {
+			results[i] = 0x00
+			allValid = false
+			continue
+		}
+		
+		signature := input[offset : offset+sign.SignatureSize]
+		offset += sign.SignatureSize
+		
+		// Extract message length
+		if len(input) < offset+4 {
+			results[i] = 0x00
+			allValid = false
+			continue
+		}
+		
+		msgLen := binary.BigEndian.Uint32(input[offset : offset+4])
+		offset += 4
+		
+		// Extract message
+		if len(input) < offset+int(msgLen) {
+			results[i] = 0x00
+			allValid = false
+			continue
+		}
+		
+		message := input[offset : offset+int(msgLen)]
+		offset += int(msgLen)
+		
+		// Verify this signature
+		r, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
+		r_xi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+		r_nu, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QNu})
+		
+		if verifyRingtailSignature(r, r_xi, r_nu, ringKeys, signature, message) {
+			results[i] = 0x01
+		} else {
+			results[i] = 0x00
+			allValid = false
+		}
+	}
+	
+	// Return: [overall_valid][individual_results...]
+	output := make([]byte, 1+len(results))
+	if allValid {
+		output[0] = 0x01
+	}
+	copy(output[1:], results)
+	
+	return output, nil
+}
+
+// RingtailLinkableVerify verifies linkable ring signatures
+type RingtailLinkableVerify struct{}
+
+func (r *RingtailLinkableVerify) RequiredGas(input []byte) uint64 {
+	return ringtailLinkableVerifyGas
+}
+
+func (r *RingtailLinkableVerify) Run(input []byte) ([]byte, error) {
+	// Input: [1 byte ring_size][ring_keys][signature][32 bytes linking_tag][message]
+	if len(input) < 33 {
+		return nil, errors.New("input too short")
+	}
+	
+	ringSize := int(input[0])
+	if ringSize < 2 || ringSize > xlargeRingSize {
+		return nil, errors.New("invalid ring size")
+	}
+	
+	// Parse components
+	offset := 1
+	keySize := ringSize * sign.PublicKeySize
+	
+	if len(input) < offset+keySize+sign.SignatureSize+32 {
+		return nil, errors.New("invalid input size")
+	}
+	
+	// Extract ring keys
+	ringKeys := make([][]byte, ringSize)
+	for i := 0; i < ringSize; i++ {
+		ringKeys[i] = input[offset : offset+sign.PublicKeySize]
+		offset += sign.PublicKeySize
+	}
+	
+	// Extract signature
+	signature := input[offset : offset+sign.SignatureSize]
+	offset += sign.SignatureSize
+	
+	// Extract linking tag
+	linkingTag := input[offset : offset+32]
+	offset += 32
+	
+	// Extract message
+	message := input[offset:]
+	
+	// Verify linkable signature
+	r, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
+	r_xi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	r_nu, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QNu})
+	
+	// Verify both the signature and the linking tag
+	valid := verifyRingtailSignature(r, r_xi, r_nu, ringKeys, signature, message)
+	valid = valid && verifyLinkingTag(linkingTag, signature)
+	
+	result := make([]byte, 32)
+	if valid {
+		result[31] = 0x01
+	}
+	
+	return result, nil
+}
+
+// RingtailKeyAggregate aggregates public keys for ring construction
+type RingtailKeyAggregate struct{}
+
+func (r *RingtailKeyAggregate) RequiredGas(input []byte) uint64 {
+	return ringtailKeyAggregateGas
+}
+
+func (r *RingtailKeyAggregate) Run(input []byte) ([]byte, error) {
+	// Input: [1 byte num_keys][public_keys...]
+	if len(input) < 1 {
+		return nil, errors.New("input too short")
+	}
+	
+	numKeys := int(input[0])
+	expectedSize := 1 + numKeys*sign.PublicKeySize
+	
+	if len(input) != expectedSize {
+		return nil, errors.New("invalid input size")
+	}
+	
+	// Aggregate keys (simplified - actual would use lattice operations)
+	aggregatedKey := make([]byte, sign.PublicKeySize)
+	
+	for i := 0; i < numKeys; i++ {
+		offset := 1 + i*sign.PublicKeySize
+		key := input[offset : offset+sign.PublicKeySize]
+		
+		// XOR for placeholder (actual would use lattice addition)
+		for j := 0; j < sign.PublicKeySize; j++ {
+			aggregatedKey[j] ^= key[j]
+		}
+	}
+	
+	return aggregatedKey, nil
+}
+
+// RingtailRingHash computes hash of ring for efficient verification
+type RingtailRingHash struct{}
+
+func (r *RingtailRingHash) RequiredGas(input []byte) uint64 {
+	return ringtailRingHashGas
+}
+
+func (r *RingtailRingHash) Run(input []byte) ([]byte, error) {
+	// Input: [1 byte ring_size][public_keys...]
+	if len(input) < 1 {
+		return nil, errors.New("input too short")
+	}
+	
+	ringSize := int(input[0])
+	expectedSize := 1 + ringSize*sign.PublicKeySize
+	
+	if len(input) != expectedSize {
+		return nil, errors.New("invalid input size")
+	}
+	
+	// Compute ring hash
+	hash := common.Keccak256(input)
+	
+	return hash, nil
+}
+
+// RingtailThresholdVerify verifies threshold ring signatures
+type RingtailThresholdVerify struct{}
+
+func (r *RingtailThresholdVerify) RequiredGas(input []byte) uint64 {
+	return ringtailThresholdVerifyGas
+}
+
+func (r *RingtailThresholdVerify) Run(input []byte) ([]byte, error) {
+	// Input: [1 byte threshold][1 byte ring_size][ring_keys][shares][message]
+	if len(input) < 2 {
+		return nil, errors.New("input too short")
+	}
+	
+	threshold := int(input[0])
+	ringSize := int(input[1])
+	
+	if threshold > ringSize || threshold < 2 {
+		return nil, errors.New("invalid threshold")
+	}
+	
+	// Initialize lattice parameters
+	r, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
+	r_xi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	r_nu, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QNu})
+	
+	// Parse ring keys
+	offset := 2
+	ringKeys := make([][]byte, ringSize)
+	for i := 0; i < ringSize; i++ {
+		if len(input) < offset+sign.PublicKeySize {
+			return nil, errors.New("invalid ring key")
+		}
+		ringKeys[i] = input[offset : offset+sign.PublicKeySize]
+		offset += sign.PublicKeySize
+	}
+	
+	// Parse signature shares
+	shares := make([][]byte, threshold)
+	for i := 0; i < threshold; i++ {
+		if len(input) < offset+sign.SignatureSize {
+			return nil, errors.New("invalid share")
+		}
+		shares[i] = input[offset : offset+sign.SignatureSize]
+		offset += sign.SignatureSize
+	}
+	
+	// Parse message
+	message := input[offset:]
+	
+	// Compute Lagrange coefficients for threshold
+	T := make([]int, threshold)
+	for i := 0; i < threshold; i++ {
+		T[i] = i
+	}
+	lagrangeCoeffs := primitives.ComputeLagrangeCoefficients(r, T, big.NewInt(int64(sign.Q)))
+	
+	// Verify threshold signature (simplified)
+	valid := verifyThresholdSignature(r, r_xi, r_nu, ringKeys, shares, message, lagrangeCoeffs)
+	
+	result := make([]byte, 32)
+	if valid {
+		result[31] = 0x01
+	}
+	
+	return result, nil
+}
+
+// Helper functions
+
+func verifyRingtailSignature(r, r_xi, r_nu *ring.Ring, ringKeys [][]byte, signature, message []byte) bool {
+	// Simplified verification - actual would use full Ringtail verification
+	// Check basic constraints
+	if len(signature) != sign.SignatureSize {
+		return false
+	}
+	
+	if len(ringKeys) < 2 {
+		return false
+	}
+	
+	// Placeholder verification (actual would use lattice operations)
+	return len(message) > 0 && len(signature) > 0
+}
+
+func verifyLinkingTag(linkingTag, signature []byte) bool {
+	// Verify that linking tag is properly formed
+	return len(linkingTag) == 32
+}
+
+func verifyThresholdSignature(r, r_xi, r_nu *ring.Ring, ringKeys, shares [][]byte, message []byte, lagrangeCoeffs []ring.Poly) bool {
+	// Simplified threshold verification
+	return len(shares) > 0 && len(message) > 0
+}
+
+// RegisterRingtail registers all Ringtail precompiles
+func RegisterRingtail(registry *Registry) {
+	registry.Register(RingtailVerifyAddress, &RingtailVerify{})
+	registry.Register(RingtailBatchVerifyAddress, &RingtailBatchVerify{})
+	registry.Register(RingtailLinkableVerifyAddress, &RingtailLinkableVerify{})
+	registry.Register(RingtailKeyAggregateAddress, &RingtailKeyAggregate{})
+	registry.Register(RingtailRingHashAddress, &RingtailRingHash{})
+	registry.Register(RingtailThresholdVerifyAddress, &RingtailThresholdVerify{})
+}
+
+func init() {
+	// Auto-register Ringtail precompiles on package load
+	RegisterRingtail(PostQuantumRegistry)
+}
