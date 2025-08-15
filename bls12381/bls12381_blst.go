@@ -15,7 +15,6 @@ import (
 	blst "github.com/supranational/blst/bindings/go"
 )
 
-
 // PublicKey represents a BLS public key (G1 point)
 type PublicKey struct {
 	point *blst.P1Affine
@@ -77,7 +76,7 @@ func (sk *SecretKey) Sign(message []byte, dst []byte) (*Signature, error) {
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	sig := new(blst.P2Affine)
 	sig.Sign(sk.scalar, message, dst)
 	return &Signature{point: sig}, nil
@@ -91,7 +90,7 @@ func (pk *PublicKey) Verify(message []byte, signature *Signature, dst []byte) bo
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	return signature.point.Verify(true, pk.point, true, message, dst)
 }
 
@@ -103,7 +102,7 @@ func FastAggregateVerify(pubkeys []*PublicKey, message []byte, signature *Signat
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Convert public keys to blst format
 	blstPubkeys := make([]*blst.P1Affine, len(pubkeys))
 	for i, pk := range pubkeys {
@@ -112,7 +111,7 @@ func FastAggregateVerify(pubkeys []*PublicKey, message []byte, signature *Signat
 		}
 		blstPubkeys[i] = pk.point
 	}
-	
+
 	return signature.point.FastAggregateVerify(true, blstPubkeys, message, dst)
 }
 
@@ -124,7 +123,7 @@ func AggregateVerify(pubkeys []*PublicKey, messages [][]byte, signature *Signatu
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Convert public keys to blst format
 	blstPubkeys := make([]*blst.P1Affine, len(pubkeys))
 	for i, pk := range pubkeys {
@@ -133,7 +132,7 @@ func AggregateVerify(pubkeys []*PublicKey, messages [][]byte, signature *Signatu
 		}
 		blstPubkeys[i] = pk.point
 	}
-	
+
 	return signature.point.AggregateVerify(true, blstPubkeys, true, messages, dst)
 }
 
@@ -142,15 +141,15 @@ func AggregatePubKeys(pubkeys []*PublicKey) (*AggregatePublicKey, error) {
 	if len(pubkeys) == 0 {
 		return nil, ErrEmptyInput
 	}
-	
+
 	// Start with first key
 	if pubkeys[0] == nil || pubkeys[0].point == nil {
 		return nil, ErrInvalidPublicKey
 	}
-	
+
 	agg := new(blst.P1Aggregate)
 	agg.Add(pubkeys[0].point, true)
-	
+
 	// Add remaining keys
 	for i := 1; i < len(pubkeys); i++ {
 		if pubkeys[i] == nil || pubkeys[i].point == nil {
@@ -158,7 +157,7 @@ func AggregatePubKeys(pubkeys []*PublicKey) (*AggregatePublicKey, error) {
 		}
 		agg.Add(pubkeys[i].point, true)
 	}
-	
+
 	result := agg.ToAffine()
 	return &AggregatePublicKey{point: result}, nil
 }
@@ -168,15 +167,15 @@ func AggregateSignatures(signatures []*Signature) (*AggregateSignature, error) {
 	if len(signatures) == 0 {
 		return nil, ErrEmptyInput
 	}
-	
+
 	// Start with first signature
 	if signatures[0] == nil || signatures[0].point == nil {
 		return nil, ErrInvalidSignature
 	}
-	
+
 	agg := new(blst.P2Aggregate)
 	agg.Add(signatures[0].point, true)
-	
+
 	// Add remaining signatures
 	for i := 1; i < len(signatures); i++ {
 		if signatures[i] == nil || signatures[i].point == nil {
@@ -184,7 +183,7 @@ func AggregateSignatures(signatures []*Signature) (*AggregateSignature, error) {
 		}
 		agg.Add(signatures[i].point, true)
 	}
-	
+
 	result := agg.ToAffine()
 	return &AggregateSignature{point: result}, nil
 }
@@ -267,7 +266,7 @@ func BatchVerify(pubkeys []*PublicKey, messages [][]byte, signatures []*Signatur
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// For batch verification, we can use individual verification
 	// TODO: Implement proper batch verification with pairing accumulation
 	for i := range pubkeys {
@@ -275,7 +274,7 @@ func BatchVerify(pubkeys []*PublicKey, messages [][]byte, signatures []*Signatur
 			return false
 		}
 	}
-	
+
 	return true
 }
 

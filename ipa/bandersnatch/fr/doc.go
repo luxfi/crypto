@@ -21,23 +21,27 @@
 // The modulus is hardcoded in all the operations.
 //
 // Field elements are represented as an array, and assumed to be in Montgomery form in all methods:
-// 	type Element [4]uint64
+//
+//	type Element [4]uint64
 //
 // Example API signature
-// 	// Mul z = x * y mod q
-// 	func (z *Element) Mul(x, y *Element) *Element
+//
+//	// Mul z = x * y mod q
+//	func (z *Element) Mul(x, y *Element) *Element
 //
 // and can be used like so:
-// 	var a, b Element
-// 	a.SetUint64(2)
-// 	b.SetString("984896738")
-// 	a.Mul(a, b)
-// 	a.Sub(a, a)
-// 	 .Add(a, b)
-// 	 .Inv(a)
-// 	b.Exp(b, new(big.Int).SetUint64(42))
+//
+//	var a, b Element
+//	a.SetUint64(2)
+//	b.SetString("984896738")
+//	a.Mul(a, b)
+//	a.Sub(a, a)
+//	 .Add(a, b)
+//	 .Inv(a)
+//	b.Exp(b, new(big.Int).SetUint64(42))
 //
 // Modulus
-// 	0x1cfb69d4ca675f520cce760202687600ff8f87007419047174fd06b52876e7e1 // base 16
-// 	13108968793781547619861935127046491459309155893440570251786403306729687672801 // base 10
+//
+//	0x1cfb69d4ca675f520cce760202687600ff8f87007419047174fd06b52876e7e1 // base 16
+//	13108968793781547619861935127046491459309155893440570251786403306729687672801 // base 10
 package fr

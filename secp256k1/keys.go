@@ -11,8 +11,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/luxfi/crypto/cb58"
 	"github.com/luxfi/crypto/cache"
+	"github.com/luxfi/crypto/cb58"
 	"github.com/luxfi/crypto/hashing"
 	"github.com/luxfi/ids"
 )
@@ -36,7 +36,7 @@ var (
 	errInvalidPrivateKeyLength = fmt.Errorf("private key has unexpected length, expected %d", PrivateKeyLen)
 	errInvalidPublicKeyLength  = fmt.Errorf("public key has unexpected length, expected %d", PublicKeyLen)
 	errInvalidSigLen           = errors.New("invalid signature length")
-	
+
 	secp256k1N     *big.Int
 	secp256k1halfN *big.Int
 )
@@ -72,7 +72,7 @@ func NewPrivateKey() (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	bytes := PaddedBigBytes(privKey.D, PrivateKeyLen)
 	return &PrivateKey{
 		sk:    privKey,
@@ -85,11 +85,11 @@ func ToPrivateKey(b []byte) (*PrivateKey, error) {
 	if len(b) != PrivateKeyLen {
 		return nil, errInvalidPrivateKeyLength
 	}
-	
+
 	priv := new(ecdsa.PrivateKey)
 	priv.PublicKey.Curve = S256()
 	priv.D = new(big.Int).SetBytes(b)
-	
+
 	// The priv.D must < N
 	if priv.D.Cmp(secp256k1N) >= 0 {
 		return nil, errors.New("invalid private key, >=N")
@@ -98,12 +98,12 @@ func ToPrivateKey(b []byte) (*PrivateKey, error) {
 	if priv.D.Sign() <= 0 {
 		return nil, errors.New("invalid private key, zero or negative")
 	}
-	
+
 	priv.PublicKey.X, priv.PublicKey.Y = S256().ScalarBaseMult(b)
 	if priv.PublicKey.X == nil {
 		return nil, errors.New("invalid private key")
 	}
-	
+
 	return &PrivateKey{
 		sk:    priv,
 		bytes: b,
@@ -115,18 +115,18 @@ func ToPublicKey(b []byte) (*PublicKey, error) {
 	if len(b) != PublicKeyLen {
 		return nil, errInvalidPublicKeyLength
 	}
-	
+
 	x, y := DecompressPubkey(b)
 	if x == nil || y == nil {
 		return nil, errors.New("invalid public key")
 	}
-	
+
 	pub := &ecdsa.PublicKey{
 		Curve: S256(),
 		X:     x,
 		Y:     y,
 	}
-	
+
 	return &PublicKey{
 		pk:    pub,
 		bytes: b,
@@ -254,7 +254,7 @@ func RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
 
 	x := new(big.Int).SetBytes(pubBytes[1:33])
 	y := new(big.Int).SetBytes(pubBytes[33:65])
-	
+
 	pub := &ecdsa.PublicKey{
 		Curve: S256(),
 		X:     x,
@@ -281,30 +281,30 @@ func (k *PrivateKey) UnmarshalText(text []byte) error {
 	if str == nullStr {
 		return nil
 	}
-	
+
 	// Remove quotes if present
 	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
 		str = str[1 : len(str)-1]
 	}
-	
+
 	// Check and remove prefix
 	if !strings.HasPrefix(str, PrivateKeyPrefix) {
 		return fmt.Errorf("private key missing %s prefix", PrivateKeyPrefix)
 	}
 	str = str[len(PrivateKeyPrefix):]
-	
+
 	// Decode from CB58
 	bytes, err := cb58.Decode(str)
 	if err != nil {
 		return err
 	}
-	
+
 	// Convert to private key
 	priv, err := ToPrivateKey(bytes)
 	if err != nil {
 		return err
 	}
-	
+
 	*k = *priv
 	return nil
 }
