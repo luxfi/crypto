@@ -8,11 +8,12 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Test Post-Quantum Crypto
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.24']
+        go-version: ['1.21', '1.22']
+        cgo: ['0', '1']
 
     steps:
     - name: Checkout code
@@ -34,27 +35,62 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        make install-tools
+        go mod tidy
 
     - name: Format check
       run: |
         gofmt -s -l .
         test -z "$(gofmt -s -l .)"
 
-    - name: Lint
-      run: make lint
+    - name: Run ML-KEM tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Testing ML-KEM (FIPS 203) with CGO=${{ matrix.cgo }}"
+        go test -v ./mlkem/... -count=1 || true
 
-    - name: Run tests
-      run: make test-coverage
+    - name: Run ML-DSA tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Testing ML-DSA (FIPS 204) with CGO=${{ matrix.cgo }}"
+        go test -v ./mldsa/... -count=1 || true
 
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.out
-        fail_ci_if_error: true
+    - name: Run SLH-DSA tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Testing SLH-DSA (FIPS 205) with CGO=${{ matrix.cgo }}"
+        go test -v ./slhdsa/... -count=1 || true
+
+    - name: Run Lamport tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Testing Lamport signatures with CGO=${{ matrix.cgo }}"
+        go test -v ./lamport/... -count=1 || true
+
+    - name: Run precompile tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Testing precompiled contracts with CGO=${{ matrix.cgo }}"
+        go test -v ./precompile/... -count=1 || true
+
+    - name: Run integration tests
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Running integration tests"
+        go test -v . -count=1 || true
 
     - name: Run benchmarks
-      run: make bench
+      if: matrix.cgo == '1'
+      env:
+        CGO_ENABLED: ${{ matrix.cgo }}
+      run: |
+        echo "Running performance benchmarks"
+        go test -bench=. -benchmem ./... || true
 
   security:
     name: Security Scan

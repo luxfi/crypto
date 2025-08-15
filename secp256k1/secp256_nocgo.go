@@ -39,22 +39,22 @@ func Sign(msg []byte, seckey []byte) ([]byte, error) {
 	if len(seckey) != 32 {
 		return nil, ErrInvalidKey
 	}
-	
+
 	// Create a decred private key
 	var priv secp256k1.PrivateKey
 	if overflow := priv.Key.SetByteSlice(seckey); overflow || priv.Key.IsZero() {
 		return nil, ErrInvalidKey
 	}
 	defer priv.Zero()
-	
+
 	// Sign the message
 	sig := decred_ecdsa.SignCompact(&priv, msg, false) // ref uncompressed pubkey
-	
+
 	// Convert to Ethereum signature format with 'recovery id' v at the end.
 	v := sig[0] - 27
 	copy(sig, sig[1:])
 	sig[64] = v
-	
+
 	return sig, nil
 }
 
@@ -69,17 +69,17 @@ func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
 	if err := checkSignature(sig); err != nil {
 		return nil, err
 	}
-	
+
 	// Convert to secp256k1 input format with 'recovery id' v at the beginning.
 	btcsig := make([]byte, 65)
 	btcsig[0] = sig[64] + 27
 	copy(btcsig[1:], sig)
-	
+
 	pub, _, err := decred_ecdsa.RecoverCompact(btcsig, msg)
 	if err != nil {
 		return nil, ErrRecoverFailed
 	}
-	
+
 	return pub.SerializeUncompressed(), nil
 }
 
@@ -89,7 +89,7 @@ func VerifySignature(pubkey, msg, signature []byte) bool {
 	if len(msg) != 32 || len(signature) != 64 || len(pubkey) == 0 {
 		return false
 	}
-	
+
 	var r, s secp256k1.ModNScalar
 	if r.SetByteSlice(signature[:32]) {
 		return false // overflow
@@ -98,17 +98,17 @@ func VerifySignature(pubkey, msg, signature []byte) bool {
 		return false
 	}
 	sig := decred_ecdsa.NewSignature(&r, &s)
-	
+
 	key, err := secp256k1.ParsePubKey(pubkey)
 	if err != nil {
 		return false
 	}
-	
+
 	// Reject malleable signatures. libsecp256k1 does this check but decred doesn't.
 	if s.IsOverHalfOrder() {
 		return false
 	}
-	
+
 	return sig.Verify(msg, key)
 }
 
@@ -142,4 +142,3 @@ func checkSignature(sig []byte) error {
 	}
 	return nil
 }
-

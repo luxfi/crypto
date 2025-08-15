@@ -1,0 +1,272 @@
+// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
+// +build cgo
+
+// Package slhdsa provides SLH-DSA (FIPS 205) stateless hash-based signatures
+// CGO implementation using Sloth - high-performance SLH-DSA implementation
+
+package slhdsa
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/c -I${SRCDIR}/c/sloth/include -O3 -march=native -mavx2
+#cgo LDFLAGS: -L${SRCDIR}/c -lslhdsa -lcrypto
+
+#include <stdlib.h>
+#include <string.h>
+
+// Sloth SLH-DSA parameter sets (FIPS 205 compliant)
+// Using SHA2 variants as specified in FIPS 205
+
+// Level 1 (128-bit security)
+#define SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES 32
+#define SLHDSA_SHA2_128S_SECRET_KEY_BYTES 64
+#define SLHDSA_SHA2_128S_SIGNATURE_BYTES 7856
+
+#define SLHDSA_SHA2_128F_PUBLIC_KEY_BYTES 32
+#define SLHDSA_SHA2_128F_SECRET_KEY_BYTES 64
+#define SLHDSA_SHA2_128F_SIGNATURE_BYTES 17088
+
+// Level 3 (192-bit security)
+#define SLHDSA_SHA2_192S_PUBLIC_KEY_BYTES 48
+#define SLHDSA_SHA2_192S_SECRET_KEY_BYTES 96
+#define SLHDSA_SHA2_192S_SIGNATURE_BYTES 16224
+
+#define SLHDSA_SHA2_192F_PUBLIC_KEY_BYTES 48
+#define SLHDSA_SHA2_192F_SECRET_KEY_BYTES 96
+#define SLHDSA_SHA2_192F_SIGNATURE_BYTES 35664
+
+// Level 5 (256-bit security)
+#define SLHDSA_SHA2_256S_PUBLIC_KEY_BYTES 64
+#define SLHDSA_SHA2_256S_SECRET_KEY_BYTES 128
+#define SLHDSA_SHA2_256S_SIGNATURE_BYTES 29792
+
+#define SLHDSA_SHA2_256F_PUBLIC_KEY_BYTES 64
+#define SLHDSA_SHA2_256F_SECRET_KEY_BYTES 128
+#define SLHDSA_SHA2_256F_SIGNATURE_BYTES 49856
+
+// Sloth API functions (high-performance implementations)
+// These would come from sloth headers
+int sloth_slhdsa_sha2_128s_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_128s_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_128s_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+int sloth_slhdsa_sha2_128f_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_128f_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_128f_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+int sloth_slhdsa_sha2_192s_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_192s_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_192s_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+int sloth_slhdsa_sha2_192f_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_192f_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_192f_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+int sloth_slhdsa_sha2_256s_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_256s_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_256s_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+int sloth_slhdsa_sha2_256f_keypair(unsigned char *pk, unsigned char *sk);
+int sloth_slhdsa_sha2_256f_sign(unsigned char *sig, size_t *siglen,
+                                const unsigned char *m, size_t mlen,
+                                const unsigned char *sk);
+int sloth_slhdsa_sha2_256f_verify(const unsigned char *sig, size_t siglen,
+                                  const unsigned char *m, size_t mlen,
+                                  const unsigned char *pk);
+
+// Wrapper functions for unified interface
+int slhdsa_keypair(unsigned char *pk, unsigned char *sk, int mode) {
+    switch(mode) {
+        case 0: return sloth_slhdsa_sha2_128s_keypair(pk, sk);
+        case 1: return sloth_slhdsa_sha2_128f_keypair(pk, sk);
+        case 2: return sloth_slhdsa_sha2_192s_keypair(pk, sk);
+        case 3: return sloth_slhdsa_sha2_192f_keypair(pk, sk);
+        case 4: return sloth_slhdsa_sha2_256s_keypair(pk, sk);
+        case 5: return sloth_slhdsa_sha2_256f_keypair(pk, sk);
+        default: return -1;
+    }
+}
+
+int slhdsa_sign(unsigned char *sig, size_t *siglen,
+               const unsigned char *m, size_t mlen,
+               const unsigned char *sk, int mode) {
+    switch(mode) {
+        case 0: return sloth_slhdsa_sha2_128s_sign(sig, siglen, m, mlen, sk);
+        case 1: return sloth_slhdsa_sha2_128f_sign(sig, siglen, m, mlen, sk);
+        case 2: return sloth_slhdsa_sha2_192s_sign(sig, siglen, m, mlen, sk);
+        case 3: return sloth_slhdsa_sha2_192f_sign(sig, siglen, m, mlen, sk);
+        case 4: return sloth_slhdsa_sha2_256s_sign(sig, siglen, m, mlen, sk);
+        case 5: return sloth_slhdsa_sha2_256f_sign(sig, siglen, m, mlen, sk);
+        default: return -1;
+    }
+}
+
+int slhdsa_verify(const unsigned char *sig, size_t siglen,
+                 const unsigned char *m, size_t mlen,
+                 const unsigned char *pk, int mode) {
+    switch(mode) {
+        case 0: return sloth_slhdsa_sha2_128s_verify(sig, siglen, m, mlen, pk);
+        case 1: return sloth_slhdsa_sha2_128f_verify(sig, siglen, m, mlen, pk);
+        case 2: return sloth_slhdsa_sha2_192s_verify(sig, siglen, m, mlen, pk);
+        case 3: return sloth_slhdsa_sha2_192f_verify(sig, siglen, m, mlen, pk);
+        case 4: return sloth_slhdsa_sha2_256s_verify(sig, siglen, m, mlen, pk);
+        case 5: return sloth_slhdsa_sha2_256f_verify(sig, siglen, m, mlen, pk);
+        default: return -1;
+    }
+}
+
+// Get sizes for different parameter sets
+int slhdsa_publickey_bytes(int mode) {
+    switch(mode) {
+        case 0: case 1: return SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES;
+        case 2: case 3: return SLHDSA_SHA2_192S_PUBLIC_KEY_BYTES;
+        case 4: case 5: return SLHDSA_SHA2_256S_PUBLIC_KEY_BYTES;
+        default: return 0;
+    }
+}
+
+int slhdsa_secretkey_bytes(int mode) {
+    switch(mode) {
+        case 0: case 1: return SLHDSA_SHA2_128S_SECRET_KEY_BYTES;
+        case 2: case 3: return SLHDSA_SHA2_192S_SECRET_KEY_BYTES;
+        case 4: case 5: return SLHDSA_SHA2_256S_SECRET_KEY_BYTES;
+        default: return 0;
+    }
+}
+
+int slhdsa_signature_bytes(int mode) {
+    switch(mode) {
+        case 0: return SLHDSA_SHA2_128S_SIGNATURE_BYTES;
+        case 1: return SLHDSA_SHA2_128F_SIGNATURE_BYTES;
+        case 2: return SLHDSA_SHA2_192S_SIGNATURE_BYTES;
+        case 3: return SLHDSA_SHA2_192F_SIGNATURE_BYTES;
+        case 4: return SLHDSA_SHA2_256S_SIGNATURE_BYTES;
+        case 5: return SLHDSA_SHA2_256F_SIGNATURE_BYTES;
+        default: return 0;
+    }
+}
+*/
+import "C"
+import (
+	"crypto"
+	"errors"
+	"io"
+	"unsafe"
+)
+
+// CGO-based implementation of SLH-DSA using Sloth high-performance library
+
+// GenerateKeyCGO generates a new SLH-DSA key pair using Sloth implementation
+func GenerateKeyCGO(rand io.Reader, mode Mode) (*PrivateKey, error) {
+	// Map mode to C parameter
+	cMode := C.int(mode)
+
+	pkSize := int(C.slhdsa_publickey_bytes(cMode))
+	skSize := int(C.slhdsa_secretkey_bytes(cMode))
+
+	if pkSize == 0 || skSize == 0 {
+		return nil, errors.New("invalid SLH-DSA mode")
+	}
+
+	// Allocate memory for keys
+	pk := make([]byte, pkSize)
+	sk := make([]byte, skSize)
+
+	// Generate key pair using Sloth
+	ret := C.slhdsa_keypair(
+		(*C.uchar)(unsafe.Pointer(&pk[0])),
+		(*C.uchar)(unsafe.Pointer(&sk[0])),
+		cMode,
+	)
+
+	if ret != 0 {
+		return nil, errors.New("key generation failed")
+	}
+
+	return &PrivateKey{
+		PublicKey: PublicKey{
+			mode: mode,
+			data: pk,
+		},
+		data: sk,
+	}, nil
+}
+
+// SignCGO signs a message using the Sloth implementation
+func SignCGO(priv *PrivateKey, rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	cMode := C.int(priv.mode)
+
+	sigSize := int(C.slhdsa_signature_bytes(cMode))
+	if sigSize == 0 {
+		return nil, errors.New("invalid signature size")
+	}
+
+	// Allocate memory for signature
+	sig := make([]byte, sigSize)
+	var sigLen C.size_t
+
+	// Sign the message using Sloth
+	ret := C.slhdsa_sign(
+		(*C.uchar)(unsafe.Pointer(&sig[0])),
+		&sigLen,
+		(*C.uchar)(unsafe.Pointer(&message[0])),
+		C.size_t(len(message)),
+		(*C.uchar)(unsafe.Pointer(&priv.data[0])),
+		cMode,
+	)
+
+	if ret != 0 {
+		return nil, errors.New("signing failed")
+	}
+
+	return sig[:sigLen], nil
+}
+
+// VerifyCGO verifies a signature using the Sloth implementation
+func VerifyCGO(pub *PublicKey, message, signature []byte) bool {
+	cMode := C.int(pub.mode)
+
+	// Verify the signature using Sloth
+	ret := C.slhdsa_verify(
+		(*C.uchar)(unsafe.Pointer(&signature[0])),
+		C.size_t(len(signature)),
+		(*C.uchar)(unsafe.Pointer(&message[0])),
+		C.size_t(len(message)),
+		(*C.uchar)(unsafe.Pointer(&pub.data[0])),
+		cMode,
+	)
+
+	return ret == 0
+}
+
+// UseCGO returns true if CGO implementation is available
+func UseCGO() bool {
+	return true
+}
+
+// BenchmarkMode returns the best mode for benchmarking
+// Sloth is optimized for fast variants on modern CPUs with AVX2
+func BenchmarkMode() Mode {
+	// Check CPU capabilities at runtime
+	// For now, default to fast variants if CGO is available
+	return SLHDSA128f // Fast variant optimized by Sloth
+}

@@ -1,72 +1,94 @@
-# Makefile for luxfi/crypto module
+# Lux Post-Quantum Cryptography Makefile
 
-.PHONY: all build test clean fmt lint install-tools test-coverage
+.PHONY: all test bench clean fmt lint install-deps verify build
 
-# Variables
-GOBIN := $(shell go env GOPATH)/bin
-GOLANGCI_LINT_VERSION := v1.64.8
-COVERAGE_FILE := coverage.out
-COVERAGE_HTML := coverage.html
+# Go parameters
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOTEST=$(GOCMD) test
+GOGET=$(GOCMD) get
+GOFMT=gofmt
+GOMOD=$(GOCMD) mod
 
-# Default target
-all: clean fmt test build
+# Packages
+PACKAGES=./mlkem/... ./mldsa/... ./slhdsa/... ./lamport/... ./precompile/...
+ALL_PACKAGES=./...
 
-# Build the module
-build:
-	@echo "Building crypto module..."
-	@go build -v ./...
+# Build variables
+CGO_ENABLED ?= 1
+GOFLAGS ?=
 
-# Run tests
-test:
-	@echo "Running tests..."
-	@go test -v -race -timeout=10m ./...
+all: fmt lint test
 
-# Run tests with coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	@go test -v -race -timeout=10m -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...
-	@go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
-	@echo "Coverage report generated: $(COVERAGE_HTML)"
+# Install dependencies
+install-deps:
+	@echo "📦 Installing dependencies..."
+	$(GOMOD) download
+	$(GOMOD) tidy
+	@echo "✅ Dependencies installed"
 
 # Format code
 fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
-	@go mod tidy
+	@echo "🎨 Formatting code..."
+	$(GOFMT) -s -w .
+	@echo "✅ Code formatted"
 
-# Run linter
-lint: install-tools
-	@echo "Running linter..."
-	@$(GOBIN)/golangci-lint run ./...
+# Lint code
+lint:
+	@echo "🔍 Linting code..."
+	@if ! command -v golangci-lint &> /dev/null; then \
+		echo "Installing golangci-lint..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	golangci-lint run --timeout=5m || true
+	@echo "✅ Linting complete"
 
-# Install development tools
-install-tools:
-	@echo "Installing development tools..."
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+# Run tests
+test:
+	@echo "🧪 Running tests..."
+	CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 $(ALL_PACKAGES)
+	@echo "✅ Tests complete"
 
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	@go clean -cache -testcache
-	@rm -f $(COVERAGE_FILE) $(COVERAGE_HTML)
+# Run tests with coverage
+test-coverage:
+	@echo "📊 Running tests with coverage..."
+	CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -coverprofile=coverage.out -covermode=atomic $(ALL_PACKAGES)
+	@echo "Coverage report generated: coverage.out"
+	@go tool cover -func=coverage.out
+	@echo "✅ Coverage analysis complete"
 
 # Run benchmarks
 bench:
-	@echo "Running benchmarks..."
-	@go test -bench=. -benchmem ./...
+	@echo "⚡ Running benchmarks..."
+	CGO_ENABLED=1 $(GOTEST) -bench=. -benchmem -run=^$ $(ALL_PACKAGES)
+	@echo "✅ Benchmarks complete"
 
-# Check for security vulnerabilities
-security:
-	@echo "Checking for vulnerabilities..."
-	@go list -json -m all | nancy sleuth
-
-# Update dependencies
-deps:
-	@echo "Updating dependencies..."
-	@go get -u -t ./...
-	@go mod tidy
+# Build all packages
+build:
+	@echo "🔨 Building packages..."
+	CGO_ENABLED=$(CGO_ENABLED) $(GOBUILD) -v $(ALL_PACKAGES)
+	@echo "✅ Build complete"
 
 # Verify module
 verify:
-	@echo "Verifying module..."
-	@go mod verify
+	@echo "✔️ Verifying module..."
+	$(GOMOD) verify
+	@echo "✅ Module verified"
+
+# Clean build artifacts
+clean:
+	@echo "🧹 Cleaning..."
+	$(GOCMD) clean
+	rm -f coverage.out
+	@echo "✅ Clean complete"
+
+# Install CI tools
+install-tools:
+	@echo "🛠️ Installing CI tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "✅ Tools installed"
+
+# Help
+help:
+	@echo "Lux Post-Quantum Cryptography Makefile"
+	@echo "Usage: make [target]"

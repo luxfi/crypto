@@ -121,7 +121,7 @@ var (
 	Big0 = big.NewInt(0)
 	// Big1 is 1 represented as a big.Int
 	Big1 = big.NewInt(1)
-	
+
 	secp256k1N     = S256().Params().N
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )

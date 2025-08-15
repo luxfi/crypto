@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	
+
 	"golang.org/x/crypto/sha3"
 )
 

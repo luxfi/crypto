@@ -25,9 +25,9 @@ import (
 
 // Various big integer limit values.
 var (
-	tt256   = new(big.Int).Lsh(big.NewInt(1), 256)
-	tt256m1 = new(big.Int).Sub(tt256, big.NewInt(1))
-	tt255   = new(big.Int).Lsh(big.NewInt(1), 255)
+	tt256     = new(big.Int).Lsh(big.NewInt(1), 256)
+	tt256m1   = new(big.Int).Sub(tt256, big.NewInt(1))
+	tt255     = new(big.Int).Lsh(big.NewInt(1), 255)
 	MaxBig256 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	MaxBig63  = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 63), big.NewInt(1))
 )

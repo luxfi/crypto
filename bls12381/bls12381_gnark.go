@@ -67,12 +67,12 @@ func (sk *SecretKey) GetPublicKey() *PublicKey {
 	if sk == nil || sk.scalar == nil {
 		return nil
 	}
-	
+
 	_, _, g1Gen, _ := bls12381.Generators()
-	
+
 	var pk bls12381.G1Affine
 	pk.ScalarMultiplication(&g1Gen, sk.scalar)
-	
+
 	return &PublicKey{point: &pk}
 }
 
@@ -84,17 +84,17 @@ func (sk *SecretKey) Sign(message []byte, dst []byte) (*Signature, error) {
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Hash message to G2
 	msgPoint, err := bls12381.HashToG2(message, dst)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Multiply by secret key
 	var sig bls12381.G2Affine
 	sig.ScalarMultiplication(&msgPoint, sk.scalar)
-	
+
 	return &Signature{point: &sig}, nil
 }
 
@@ -106,26 +106,26 @@ func (pk *PublicKey) Verify(message []byte, signature *Signature, dst []byte) bo
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Hash message to G2
 	msgPoint, err := bls12381.HashToG2(message, dst)
 	if err != nil {
 		return false
 	}
-	
+
 	// Get generators
 	_, _, g1Gen, _ := bls12381.Generators()
-	
+
 	// Prepare pairing check: e(pk, msgPoint) == e(g1, sig)
 	var negG1 bls12381.G1Affine
 	negG1.Neg(&g1Gen)
-	
+
 	// Check e(pk, msgPoint) * e(-g1, sig) == 1
 	result, err := bls12381.PairingCheck(
 		[]bls12381.G1Affine{*pk.point, negG1},
 		[]bls12381.G2Affine{msgPoint, *signature.point},
 	)
-	
+
 	return err == nil && result
 }
 
@@ -137,13 +137,13 @@ func FastAggregateVerify(pubkeys []*PublicKey, message []byte, signature *Signat
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Aggregate public keys
 	aggPk, err := AggregatePubKeys(pubkeys)
 	if err != nil {
 		return false
 	}
-	
+
 	// Verify aggregated signature
 	pk := &PublicKey{point: aggPk.point}
 	return pk.Verify(message, signature, dst)
@@ -157,7 +157,7 @@ func AggregateVerify(pubkeys []*PublicKey, messages [][]byte, signature *Signatu
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// For different messages, we need to verify each pairing
 	// This is a simplified implementation
 	for i := range pubkeys {
@@ -165,7 +165,7 @@ func AggregateVerify(pubkeys []*PublicKey, messages [][]byte, signature *Signatu
 			return false
 		}
 	}
-	
+
 	// TODO: Implement proper aggregate verification for different messages
 	return false
 }
@@ -175,11 +175,11 @@ func AggregatePubKeys(pubkeys []*PublicKey) (*AggregatePublicKey, error) {
 	if len(pubkeys) == 0 {
 		return nil, ErrEmptyInput
 	}
-	
+
 	// Start with identity
 	var result bls12381.G1Jac
 	result.FromAffine(pubkeys[0].point)
-	
+
 	// Add remaining keys
 	for i := 1; i < len(pubkeys); i++ {
 		if pubkeys[i] == nil || pubkeys[i].point == nil {
@@ -189,7 +189,7 @@ func AggregatePubKeys(pubkeys []*PublicKey) (*AggregatePublicKey, error) {
 		pk.FromAffine(pubkeys[i].point)
 		result.AddAssign(&pk)
 	}
-	
+
 	var resultAffine bls12381.G1Affine
 	resultAffine.FromJacobian(&result)
 	return &AggregatePublicKey{point: &resultAffine}, nil
@@ -200,11 +200,11 @@ func AggregateSignatures(signatures []*Signature) (*AggregateSignature, error) {
 	if len(signatures) == 0 {
 		return nil, ErrEmptyInput
 	}
-	
+
 	// Start with identity
 	var result bls12381.G2Jac
 	result.FromAffine(signatures[0].point)
-	
+
 	// Add remaining signatures
 	for i := 1; i < len(signatures); i++ {
 		if signatures[i] == nil || signatures[i].point == nil {
@@ -214,7 +214,7 @@ func AggregateSignatures(signatures []*Signature) (*AggregateSignature, error) {
 		sig.FromAffine(signatures[i].point)
 		result.AddAssign(&sig)
 	}
-	
+
 	var resultAffine bls12381.G2Affine
 	resultAffine.FromJacobian(&result)
 	return &AggregateSignature{point: &resultAffine}, nil
@@ -231,14 +231,14 @@ func BatchVerify(pubkeys []*PublicKey, messages [][]byte, signatures []*Signatur
 	if dst == nil {
 		dst = []byte(DefaultDST)
 	}
-	
+
 	// Simple implementation: verify each individually
 	for i := range pubkeys {
 		if !pubkeys[i].Verify(messages[i], signatures[i], dst) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -360,7 +360,7 @@ func (sig *Signature) Equal(other *Signature) bool {
 // Fp is a field element in Fp
 type Fp = fp.Element
 
-// Fr is a field element in Fr  
+// Fr is a field element in Fr
 type Fr = fr.Element
 
 // G1Affine re-exports for compatibility
