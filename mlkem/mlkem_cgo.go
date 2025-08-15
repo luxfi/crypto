@@ -3,27 +3,11 @@
 
 package mlkem
 
-import "io"
-
-// UseCGO returns whether CGO optimizations are available
-func UseCGO() bool {
-	return true
-}
-
-// GenerateKeyPairCGO generates a key pair using CGO optimizations
-func GenerateKeyPairCGO(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	// TODO: Implement actual CGO version
-	return GenerateKeyPair(rand, mode)
-}
-
-// EncapsulateCGO encapsulates using CGO optimizations
-func EncapsulateCGO(pub *PublicKey, rand io.Reader) (*EncapsulationResult, error) {
-	// TODO: Implement actual CGO version
-	return pub.Encapsulate(rand)
-}
-
-// DecapsulateCGO decapsulates using CGO optimizations
-func DecapsulateCGO(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
-	// TODO: Implement actual CGO version
-	return priv.Decapsulate(ciphertext)
-}
+// This file contains CGO-optimized implementations that are only compiled
+// when CGO is explicitly enabled with CGO_ENABLED=1
+// 
+// TODO: Implement actual CGO optimizations using C libraries for:
+// - ML-KEM-512/768/1024 from NIST reference implementation
+// - CRYSTALS-Kyber optimized implementations
+// - AVX2/AVX512 optimizations for x86_64
+// - NEON optimizations for ARM64
