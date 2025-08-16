@@ -26,10 +26,3 @@ func TestMLKEM(t *testing.T) {
 		}
 	})
 }
-
-func BenchmarkMLKEM768(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		// Placeholder benchmark
-		_ = MLKEM768
-	}
-}
