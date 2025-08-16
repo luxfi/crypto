@@ -149,6 +149,15 @@ func (pub *PublicKey) Verify(message []byte, sig *Signature) bool {
 	hasher.Write(message)
 	msgHash := hasher.Sum(nil)
 
+	return pub.VerifyHash(msgHash, sig)
+}
+
+// VerifyHash checks if a signature is valid for the given message hash
+func (pub *PublicKey) VerifyHash(msgHash []byte, sig *Signature) bool {
+	if pub.hashFunc != sig.hashFunc {
+		return false
+	}
+
 	hashSize, numBits := getHashParams(pub.hashFunc)
 
 	if len(sig.values) != numBits {
@@ -156,6 +165,7 @@ func (pub *PublicKey) Verify(message []byte, sig *Signature) bool {
 	}
 
 	// Verify each signature value
+	hasher := getHasher(pub.hashFunc)
 	for i := 0; i < numBits; i++ {
 		byteIndex := i / 8
 		bitIndex := uint(i % 8)
