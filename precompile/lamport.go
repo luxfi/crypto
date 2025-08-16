@@ -69,8 +69,8 @@ func (l *LamportVerifySHA256) Run(input []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Verify
-	valid := pubKey.Verify(message, sig)
+	// Verify using pre-hashed message
+	valid := pubKey.VerifyHash(message, sig)
 
 	result := make([]byte, 32)
 	if valid {
@@ -117,8 +117,8 @@ func (l *LamportVerifySHA512) Run(input []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Verify
-	valid := pubKey.Verify(message, sig)
+	// Verify using pre-hashed message
+	valid := pubKey.VerifyHash(message, sig)
 
 	result := make([]byte, 32)
 	if valid {
