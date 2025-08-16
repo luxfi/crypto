@@ -138,6 +138,44 @@ func (priv *PrivateKey) Sign(message []byte) (*Signature, error) {
 	}, nil
 }
 
+// SignHash creates a signature for the given message hash
+// WARNING: The message must already be hashed with the appropriate hash function
+// IMPORTANT: Each private key can only be used ONCE
+func (priv *PrivateKey) SignHash(msgHash []byte) (*Signature, error) {
+	_, numBits := getHashParams(priv.hashFunc)
+
+	// Select private key values based on message bits
+	values := make([][]byte, numBits)
+	for i := 0; i < numBits; i++ {
+		byteIndex := i / 8
+		bitIndex := uint(i % 8)
+
+		if byteIndex >= len(msgHash) {
+			// Pad with zeros if message hash is shorter
+			values[i] = priv.keys[2*i] // Use the "0" value
+		} else {
+			bit := (msgHash[byteIndex] >> (7 - bitIndex)) & 1
+			if bit == 0 {
+				values[i] = priv.keys[2*i] // Use the "0" value
+			} else {
+				values[i] = priv.keys[2*i+1] // Use the "1" value
+			}
+		}
+	}
+
+	// Clear private key after use (one-time signature)
+	for i := range priv.keys {
+		for j := range priv.keys[i] {
+			priv.keys[i][j] = 0
+		}
+	}
+
+	return &Signature{
+		hashFunc: priv.hashFunc,
+		values:   values,
+	}, nil
+}
+
 // Verify checks if a signature is valid for the given message
 func (pub *PublicKey) Verify(message []byte, sig *Signature) bool {
 	if pub.hashFunc != sig.hashFunc {
