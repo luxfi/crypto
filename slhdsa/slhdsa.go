@@ -95,6 +95,11 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid SLH-DSA mode")
 	}
 
+	// Check for nil random source
+	if rand == nil {
+		return nil, errors.New("random source is nil")
+	}
+
 	// Placeholder implementation - generate random keys
 	pubBytes := make([]byte, pubKeySize)
 	privBytes := make([]byte, privKeySize)
@@ -146,14 +151,14 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 	signature := make([]byte, sigSize)
 	// Copy the hash to beginning of signature
 	copy(signature[:32], hash)
-	
+
 	// Fill rest with deterministic data based on private key
 	// SLH-DSA is stateless so signature should be deterministic
 	h.Reset()
 	h.Write(priv.data)
 	h.Write(message)
 	privHash := h.Sum(nil)
-	
+
 	for i := 32; i < sigSize; i += len(privHash) {
 		end := i + len(privHash)
 		if end > sigSize {
@@ -199,19 +204,19 @@ func (pub *PublicKey) Verify(message, signature []byte) bool {
 	h.Write(pub.data)
 	h.Write(message)
 	expectedSigStart := h.Sum(nil)
-	
+
 	// Check if first 32 bytes match
 	if len(signature) < 32 {
 		return false
 	}
-	
+
 	// Compare first 32 bytes
 	for i := 0; i < 32; i++ {
 		if signature[i] != expectedSigStart[i] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 

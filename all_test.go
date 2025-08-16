@@ -263,7 +263,7 @@ func testPrecompiles(t *testing.T) {
 func testCGOPerformance(t *testing.T) {
 	// This test is for comparing performance when CGO optimizations are available
 	// CGO implementations are opt-in only with CGO=1
-	
+
 	t.Run("ML-KEM Performance", func(t *testing.T) {
 		message := make([]byte, 32)
 		rand.Read(message)
@@ -276,7 +276,7 @@ func testCGOPerformance(t *testing.T) {
 			priv.PublicKey.Encapsulate(rand.Reader)
 		}
 		duration := time.Since(start)
-		
+
 		t.Logf("ML-KEM-768 Encapsulate (100 ops): %v", duration)
 	})
 
@@ -292,7 +292,7 @@ func testCGOPerformance(t *testing.T) {
 			priv.Sign(rand.Reader, message, nil)
 		}
 		duration := time.Since(start)
-		
+
 		t.Logf("ML-DSA-65 Sign (100 ops): %v", duration)
 	})
 
@@ -308,7 +308,7 @@ func testCGOPerformance(t *testing.T) {
 			priv.Sign(rand.Reader, message, nil)
 		}
 		duration := time.Since(start)
-		
+
 		t.Logf("SLH-DSA-128f Sign (10 ops): %v", duration)
 	})
 }
