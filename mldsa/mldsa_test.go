@@ -26,10 +26,3 @@ func TestMLDSA(t *testing.T) {
 		}
 	})
 }
-
-func BenchmarkMLDSA65(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		// Placeholder benchmark
-		_ = MLDSA65
-	}
-}

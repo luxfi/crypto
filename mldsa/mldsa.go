@@ -68,19 +68,24 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid ML-DSA mode")
 	}
 
+	// Check for nil random source
+	if rand == nil {
+		return nil, errors.New("random source is nil")
+	}
+
 	// Placeholder implementation - generate random private key
 	privBytes := make([]byte, privKeySize)
 	if _, err := io.ReadFull(rand, privBytes); err != nil {
 		return nil, err
 	}
-	
+
 	// Derive public key from private key for consistency
 	// In real ML-DSA, public key is derived from private key seed
 	h := sha256.New()
 	h.Write(privBytes[:32]) // Use first 32 bytes as seed
 	h.Write([]byte("public"))
 	pubSeed := h.Sum(nil)
-	
+
 	pubBytes := make([]byte, pubKeySize)
 	// Fill public key with deterministic data
 	for i := 0; i < pubKeySize; i += 32 {
@@ -129,13 +134,13 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 	signature := make([]byte, sigSize)
 	// Copy the hash to the beginning of signature
 	copy(signature[:32], hash)
-	
+
 	// Fill rest with deterministic data based on private key
 	h.Reset()
 	h.Write(priv.data)
 	h.Write(message)
 	privHash := h.Sum(nil)
-	
+
 	for i := 32; i < sigSize; i += len(privHash) {
 		end := i + len(privHash)
 		if end > sigSize {
@@ -175,20 +180,20 @@ func (pub *PublicKey) Verify(message, signature []byte) bool {
 	h.Write(pub.data)
 	h.Write(message)
 	expectedSigStart := h.Sum(nil)
-	
+
 	// Check if first 32 bytes of signature match expected
 	// This is a simplified check for our placeholder
 	if len(signature) < 32 {
 		return false
 	}
-	
+
 	// Compare first 32 bytes
 	for i := 0; i < 32; i++ {
 		if signature[i] != expectedSigStart[i] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -262,7 +267,7 @@ func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
 	h.Write(privData[:32]) // Use first 32 bytes as seed
 	h.Write([]byte("public"))
 	pubSeed := h.Sum(nil)
-	
+
 	pubData := make([]byte, expectedPubSize)
 	// Fill public key with deterministic data
 	for i := 0; i < expectedPubSize; i += 32 {

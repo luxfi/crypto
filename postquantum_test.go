@@ -159,13 +159,13 @@ func TestPerformance(t *testing.T) {
 
 		// Benchmark pure Go implementation
 		priv, _ := slhdsa.GenerateKey(rand.Reader, slhdsa.SLHDSA128f)
-		
+
 		start := time.Now()
 		for i := 0; i < 10; i++ {
 			priv.Sign(rand.Reader, message, nil)
 		}
 		duration := time.Since(start)
-		
+
 		t.Logf("SLH-DSA-128f Sign (10 ops): %v", duration)
 	})
 }
