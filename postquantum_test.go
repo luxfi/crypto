@@ -68,18 +68,18 @@ func TestMLDSA(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify signature
-			valid := priv.PublicKey.Verify(message, signature)
+			valid := priv.PublicKey.Verify(message, signature, nil)
 			assert.True(t, valid)
 
 			// Test wrong message
 			wrongMsg := []byte("Wrong message")
-			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature))
+			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature, nil))
 
 			// Test corrupted signature
 			corruptedSig := make([]byte, len(signature))
 			copy(corruptedSig, signature)
 			corruptedSig[0] ^= 0xFF
-			assert.False(t, priv.PublicKey.Verify(message, corruptedSig))
+			assert.False(t, priv.PublicKey.Verify(message, corruptedSig, nil))
 		})
 	}
 }
@@ -103,7 +103,7 @@ func TestSLHDSA(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify signature
-			valid := priv.PublicKey.Verify(message, signature)
+			valid := priv.PublicKey.Verify(message, signature, nil)
 			assert.True(t, valid)
 
 			// Test stateless property - same signature for same message
@@ -113,7 +113,7 @@ func TestSLHDSA(t *testing.T) {
 
 			// Test wrong message
 			wrongMsg := []byte("Wrong message")
-			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature))
+			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature, nil))
 		})
 	}
 }
@@ -209,7 +209,7 @@ func TestHybridCrypto(t *testing.T) {
 		classicalValid := true
 
 		// PQ verification
-		pqValid := priv.PublicKey.Verify(message, pqSig)
+		pqValid := priv.PublicKey.Verify(message, pqSig, nil)
 
 		// Both must be valid
 		assert.True(t, classicalValid && pqValid)
@@ -248,7 +248,7 @@ func BenchmarkPostQuantum(b *testing.B) {
 		sig, _ := priv.Sign(rand.Reader, message, nil)
 		b.Run("Verify", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				priv.PublicKey.Verify(message, sig)
+				priv.PublicKey.Verify(message, sig, nil)
 			}
 		})
 	})
@@ -266,7 +266,7 @@ func BenchmarkPostQuantum(b *testing.B) {
 		sig, _ := priv.Sign(rand.Reader, message, nil)
 		b.Run("Verify", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				priv.PublicKey.Verify(message, sig)
+				priv.PublicKey.Verify(message, sig, nil)
 			}
 		})
 	})

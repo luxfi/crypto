@@ -111,6 +111,10 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 
 // Sign creates a signature for the given message
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if priv == nil || priv.PublicKey == nil {
+		return nil, errors.New("private key is nil")
+	}
+	
 	var sigSize int
 
 	switch priv.PublicKey.mode {
@@ -155,7 +159,11 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 }
 
 // Verify verifies a signature using the public key
-func (pub *PublicKey) Verify(message, signature []byte) bool {
+func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) bool {
+	if pub == nil {
+		return false
+	}
+	
 	var expectedSigSize int
 
 	switch pub.mode {
@@ -195,6 +203,85 @@ func (pub *PublicKey) Verify(message, signature []byte) bool {
 	}
 
 	return true
+}
+
+// String returns the string representation of the mode
+func (m Mode) String() string {
+	switch m {
+	case MLDSA44:
+		return "ML-DSA-44"
+	case MLDSA65:
+		return "ML-DSA-65"
+	case MLDSA87:
+		return "ML-DSA-87"
+	default:
+		return "Unknown"
+	}
+}
+
+// NewPrivateKey creates a new private key with the given mode
+func NewPrivateKey(mode Mode) *PrivateKey {
+	return &PrivateKey{
+		PublicKey: NewPublicKey(mode),
+		data:      make([]byte, getPrivateKeySize(mode)),
+	}
+}
+
+// NewPublicKey creates a new public key with the given mode
+func NewPublicKey(mode Mode) *PublicKey {
+	return &PublicKey{
+		mode: mode,
+		data: make([]byte, getPublicKeySize(mode)),
+	}
+}
+
+// SetBytes sets the key data from bytes
+func (sk *PrivateKey) SetBytes(data []byte) {
+	if sk.data == nil || len(sk.data) != len(data) {
+		sk.data = make([]byte, len(data))
+	}
+	copy(sk.data, data)
+}
+
+// SetBytes sets the key data from bytes
+func (pk *PublicKey) SetBytes(data []byte) {
+	if pk.data == nil || len(pk.data) != len(data) {
+		pk.data = make([]byte, len(data))
+	}
+	copy(pk.data, data)
+}
+
+// IsDeterministic returns whether the signature scheme is deterministic
+func (sk *PrivateKey) IsDeterministic() bool {
+	// ML-DSA uses randomized signing by default
+	// Can be made deterministic by using nil rand
+	return false
+}
+
+func getPrivateKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PrivateKeySize
+	case MLDSA65:
+		return MLDSA65PrivateKeySize
+	case MLDSA87:
+		return MLDSA87PrivateKeySize
+	default:
+		return 0
+	}
+}
+
+func getPublicKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PublicKeySize
+	case MLDSA65:
+		return MLDSA65PublicKeySize
+	case MLDSA87:
+		return MLDSA87PublicKeySize
+	default:
+		return 0
+	}
 }
 
 // Bytes returns the public key as bytes
