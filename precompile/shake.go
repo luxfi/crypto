@@ -45,7 +45,7 @@ func (s *SHAKE128) RequiredGas(input []byte) uint64 {
 		return shakeBaseGas
 	}
 	outputLen := uint32(input[0])<<24 | uint32(input[1])<<16 | uint32(input[2])<<8 | uint32(input[3])
-	inputWords := uint64((len(input) - 4 + 31) / 32)
+	inputWords := uint64((len(input) + 31) / 32)  // Include the 4-byte length in gas calculation
 	outputWords := uint64((outputLen + 31) / 32)
 	return shakeBaseGas + inputWords*shakePerWordGas + outputWords*shakeOutputGas
 }
@@ -76,7 +76,7 @@ func (s *SHAKE256) RequiredGas(input []byte) uint64 {
 		return shakeBaseGas
 	}
 	outputLen := uint32(input[0])<<24 | uint32(input[1])<<16 | uint32(input[2])<<8 | uint32(input[3])
-	inputWords := uint64((len(input) - 4 + 31) / 32)
+	inputWords := uint64((len(input) + 31) / 32)  // Include the 4-byte length in gas calculation
 	outputWords := uint64((outputLen + 31) / 32)
 	return shakeBaseGas + inputWords*shakePerWordGas + outputWords*shakeOutputGas
 }
