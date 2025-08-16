@@ -257,7 +257,9 @@ func TestLamportPrecompiles(t *testing.T) {
 		// Test verification (should succeed)
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{1}, output, "Valid signature should return 1")
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, output, "Valid signature should return 1")
 		
 		// Test with wrong message
 		wrongHash := sha256.Sum256([]byte("wrong message"))
@@ -265,7 +267,8 @@ func TestLamportPrecompiles(t *testing.T) {
 		
 		output, err = verifier.Run(input)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{0}, output, "Invalid signature should return 0")
+		expected = make([]byte, 32)
+		assert.Equal(t, expected, output, "Invalid signature should return 0")
 	})
 
 	t.Run("LamportVerifySHA512", func(t *testing.T) {
@@ -296,7 +299,9 @@ func TestLamportPrecompiles(t *testing.T) {
 		// Test verification
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{1}, output, "Valid signature should return 1")
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, output, "Valid signature should return 1")
 	})
 
 	t.Run("LamportBatchVerify", func(t *testing.T) {
@@ -356,7 +361,9 @@ func TestLamportPrecompiles(t *testing.T) {
 		// Test batch verification
 		output, err := batchVerifier.Run(input)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{1}, output, "All valid signatures should return 1")
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, output, "All valid signatures should return 1")
 		
 		// Corrupt one signature
 		input[5+hashSize] ^= 0xFF
@@ -772,7 +779,9 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		// Verify
 		result, err := lamportVerify.Run(verifyInput)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{1}, result, "Cross-precompile signature should verify")
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, result, "Cross-precompile signature should verify")
 	})
 
 	t.Run("MerkleAndBatch", func(t *testing.T) {
@@ -841,7 +850,9 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		
 		result, err := batchVerify.Run(batchInput)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{1}, result, "Batch verification should succeed")
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, result, "Batch verification should succeed")
 		
 		t.Logf("Merkle root: %x", root)
 		t.Log("All signatures verified in batch")
