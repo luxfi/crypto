@@ -95,18 +95,18 @@ func testMLDSA(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify signature
-			valid := priv.PublicKey.Verify(message, signature)
+			valid := priv.PublicKey.Verify(message, signature, nil)
 			assert.True(t, valid)
 
 			// Test wrong message
 			wrongMsg := []byte("Wrong message")
-			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature))
+			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature, nil))
 
 			// Test corrupted signature
 			corruptedSig := make([]byte, len(signature))
 			copy(corruptedSig, signature)
 			corruptedSig[0] ^= 0xFF
-			assert.False(t, priv.PublicKey.Verify(message, corruptedSig))
+			assert.False(t, priv.PublicKey.Verify(message, corruptedSig, nil))
 
 			// Test serialization
 			pubBytes := priv.PublicKey.Bytes()
@@ -121,7 +121,7 @@ func testMLDSA(t *testing.T) {
 			// Sign with deserialized key
 			sig2, err := priv2.Sign(rand.Reader, message, nil)
 			require.NoError(t, err)
-			assert.True(t, pub2.Verify(message, sig2))
+			assert.True(t, pub2.Verify(message, sig2, nil))
 		})
 	}
 }
@@ -143,7 +143,7 @@ func testSLHDSA(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify signature
-			valid := priv.PublicKey.Verify(message, signature)
+			valid := priv.PublicKey.Verify(message, signature, nil)
 			assert.True(t, valid)
 
 			// Test stateless property - same signature for same message
@@ -153,13 +153,13 @@ func testSLHDSA(t *testing.T) {
 
 			// Test wrong message
 			wrongMsg := []byte("Wrong message")
-			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature))
+			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature, nil))
 
 			// Test serialization
 			pubBytes := priv.PublicKey.Bytes()
 			pub2, err := slhdsa.PublicKeyFromBytes(pubBytes, mode)
 			require.NoError(t, err)
-			assert.True(t, pub2.Verify(message, signature))
+			assert.True(t, pub2.Verify(message, signature, nil))
 		})
 	}
 }
@@ -345,7 +345,7 @@ func BenchmarkCrypto(b *testing.B) {
 		sig, _ := priv.Sign(rand.Reader, message, nil)
 		b.Run("Verify", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				priv.PublicKey.Verify(message, sig)
+				priv.PublicKey.Verify(message, sig, nil)
 			}
 		})
 	})

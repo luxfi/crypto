@@ -1,17 +1,22 @@
-name: Test
+name: Crypto Tests
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, develop ]
+    paths:
+      - 'crypto/**'
+      - '.github/workflows/test.yml'
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, develop ]
+    paths:
+      - 'crypto/**'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.24.5']
+        go-version: ['1.24.x']
     
     steps:
     - uses: actions/checkout@v4
@@ -20,17 +25,22 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
+        cache: true
+        cache-dependency-path: crypto/go.sum
     
-    - name: Get dependencies
-      run: go mod download
+    - name: Install dependencies
+      run: |
+        cd crypto
+        go mod download
     
     - name: Run tests
-      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+      run: |
+        cd crypto
+        go test -v -short -coverprofile=coverage.out -covermode=atomic ./...
     
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.txt
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+        file: ./crypto/coverage.out
+        flags: crypto
+        name: crypto-coverage

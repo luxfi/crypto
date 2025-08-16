@@ -118,6 +118,10 @@ func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, error) {
 
 // Encapsulate generates a shared secret and ciphertext
 func (pub *PublicKey) Encapsulate(rand io.Reader) (*EncapsulationResult, error) {
+	if pub == nil {
+		return nil, errors.New("public key is nil")
+	}
+	
 	var ctSize int
 
 	switch pub.mode {
@@ -155,6 +159,10 @@ func (pub *PublicKey) Encapsulate(rand io.Reader) (*EncapsulationResult, error) 
 
 // Decapsulate recovers the shared secret from ciphertext
 func (priv *PrivateKey) Decapsulate(ciphertext []byte) ([]byte, error) {
+	if priv == nil {
+		return nil, errors.New("private key is nil")
+	}
+	
 	var expectedCtSize int
 
 	switch priv.PublicKey.mode {

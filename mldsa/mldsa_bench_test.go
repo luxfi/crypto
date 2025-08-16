@@ -55,7 +55,7 @@ func benchmarkMLDSA(b *testing.B, mode Mode) {
 	b.Run("Verify", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			valid := priv.PublicKey.Verify(message, sig)
+			valid := priv.PublicKey.Verify(message, sig, nil)
 			if !valid {
 				b.Fatal("verification failed")
 			}
@@ -118,7 +118,7 @@ func BenchmarkMLDSABatchVerify(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// Verify all signatures
 				for j := 0; j < numSigs; j++ {
-					if !priv.PublicKey.Verify(messages[j], signatures[j]) {
+					if !priv.PublicKey.Verify(messages[j], signatures[j], nil) {
 						b.Fatal("verification failed")
 					}
 				}
@@ -140,7 +140,7 @@ func BenchmarkMLDSAMessageSizes(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sig, _ := priv.Sign(rand.Reader, message, nil)
-				if !priv.PublicKey.Verify(message, sig) {
+				if !priv.PublicKey.Verify(message, sig, nil) {
 					b.Fatal("verification failed")
 				}
 			}
