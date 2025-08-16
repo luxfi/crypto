@@ -236,14 +236,18 @@ func TestLamportPrecompiles(t *testing.T) {
 		priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 		require.NoError(t, err)
 		
+		// Get public key BEFORE signing (one-time signature clears private key)
+		pubBytes := priv.Public().Bytes()
+		
 		message := []byte("test message for lamport")
-		sig, err := priv.Sign(message)
+		messageHash := sha256.Sum256(message)
+		
+		// Sign the hash directly (precompile expects pre-hashed input)
+		sig, err := priv.SignHash(messageHash[:])
 		require.NoError(t, err)
 		
 		// Build precompile input
-		messageHash := sha256.Sum256(message)
 		sigBytes := sig.Bytes()
-		pubBytes := priv.Public().Bytes()
 		
 		input := make([]byte, 32+len(sigBytes)+len(pubBytes))
 		copy(input[:32], messageHash[:])
@@ -278,14 +282,18 @@ func TestLamportPrecompiles(t *testing.T) {
 		priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA512)
 		require.NoError(t, err)
 		
+		// Get public key BEFORE signing (one-time signature clears private key)
+		pubBytes := priv.Public().Bytes()
+		
 		message := []byte("test message for lamport sha512")
-		sig, err := priv.Sign(message)
+		messageHash := sha512.Sum512(message)
+		
+		// Sign the hash directly (precompile expects pre-hashed input)
+		sig, err := priv.SignHash(messageHash[:])
 		require.NoError(t, err)
 		
 		// Build precompile input
-		messageHash := sha512.Sum512(message)
 		sigBytes := sig.Bytes()
-		pubBytes := priv.Public().Bytes()
 		
 		input := make([]byte, 64+len(sigBytes)+len(pubBytes))
 		copy(input[:64], messageHash[:])
@@ -317,17 +325,22 @@ func TestLamportPrecompiles(t *testing.T) {
 			priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 			require.NoError(t, err)
 			
+			// Get public key BEFORE signing
+			pub := priv.Public()
+			pubs = append(pubs, pub)
+			
 			message := []byte(fmt.Sprintf("message %d", i))
 			messages = append(messages, message)
 			
-			sig, err := priv.Sign(message)
+			// Sign the hash directly
+			msgHash := sha256.Sum256(message)
+			sig, err := priv.SignHash(msgHash[:])
 			require.NoError(t, err)
 			sigs = append(sigs, sig)
-			pubs = append(pubs, priv.Public())
 		}
 		
 		// Build batch input
-		// Format: [num_sigs(4)][hash_type(1)][data...]
+		// Format: [num_sigs(1)][hash_type(1)][data...]
 		// data = [msg_hash][sig][pubkey] repeated
 		
 		// Calculate total size
@@ -336,11 +349,11 @@ func TestLamportPrecompiles(t *testing.T) {
 		pubSize := len(pubs[0].Bytes())
 		dataSize := numSigs * (hashSize + sigSize + pubSize)
 		
-		input := make([]byte, 5+dataSize)
-		binary.BigEndian.PutUint32(input[:4], uint32(numSigs))
-		input[4] = 0 // SHA256
+		input := make([]byte, 2+dataSize)
+		input[0] = byte(numSigs)
+		input[1] = 0 // SHA256
 		
-		offset := 5
+		offset := 2
 		for i := 0; i < numSigs; i++ {
 			hash := sha256.Sum256(messages[i])
 			copy(input[offset:], hash[:])
@@ -361,16 +374,20 @@ func TestLamportPrecompiles(t *testing.T) {
 		// Test batch verification
 		output, err := batchVerifier.Run(input)
 		require.NoError(t, err)
-		expected := make([]byte, 32)
-		expected[31] = 1
-		assert.Equal(t, expected, output, "All valid signatures should return 1")
+		// Output format: [overall_valid][individual_results...]
+		assert.Len(t, output, 1+numSigs, "Output should be 1+numSigs bytes")
+		assert.Equal(t, byte(1), output[0], "All valid signatures should return overall 1")
+		for i := 1; i <= numSigs; i++ {
+			assert.Equal(t, byte(1), output[i], fmt.Sprintf("Signature %d should be valid", i-1))
+		}
 		
 		// Corrupt one signature
-		input[5+hashSize] ^= 0xFF
+		input[2+hashSize] ^= 0xFF
 		
 		output, err = batchVerifier.Run(input)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{0}, output, "Any invalid signature should return 0")
+		assert.Equal(t, byte(0), output[0], "Any invalid signature should return overall 0")
+		assert.Equal(t, byte(0), output[1], "First signature should be invalid")
 	})
 
 	t.Run("LamportMerkleRoot", func(t *testing.T) {
@@ -387,13 +404,13 @@ func TestLamportPrecompiles(t *testing.T) {
 		}
 		
 		// Build input
-		// Format: [num_keys(4)][hash_type(1)][pubkeys...]
+		// Format: [num_keys(1)][hash_type(1)][pubkeys...]
 		pubSize := len(pubs[0].Bytes())
-		input := make([]byte, 5+numKeys*pubSize)
-		binary.BigEndian.PutUint32(input[:4], uint32(numKeys))
-		input[4] = 0 // SHA256
+		input := make([]byte, 2+numKeys*pubSize)
+		input[0] = byte(numKeys)
+		input[1] = 0 // SHA256
 		
-		offset := 5
+		offset := 2
 		for _, pub := range pubs {
 			copy(input[offset:], pub.Bytes())
 			offset += pubSize
@@ -451,17 +468,17 @@ func TestBLSPrecompiles(t *testing.T) {
 		aggVerifier := &BLSAggregateVerify{}
 		
 		// Build aggregate input
-		// Format: [num_sigs(4)][signatures][pubkeys][encoded_messages]
+		// Format: [num_sigs(1)][signatures][pubkeys][encoded_messages]
 		numSigs := 3
 		sigSize := 96
 		pubSize := 48
 		msgSize := 32
 		
-		totalSize := 4 + numSigs*(sigSize+pubSize+4+msgSize)
+		totalSize := 1 + numSigs*(sigSize+pubSize+4+msgSize)
 		input := make([]byte, totalSize)
-		binary.BigEndian.PutUint32(input[:4], uint32(numSigs))
+		input[0] = byte(numSigs)
 		
-		offset := 4
+		offset := 1
 		// Add signatures
 		for i := 0; i < numSigs; i++ {
 			rand.Read(input[offset : offset+sigSize])
@@ -484,7 +501,8 @@ func TestBLSPrecompiles(t *testing.T) {
 		
 		// Test gas
 		gas := aggVerifier.RequiredGas(input)
-		expectedGas := uint64(200000 + 30000*uint64(numSigs))
+		// blsAggregateVerifyGas = 100000, blsPerSignatureGas = 10000
+		expectedGas := uint64(100000 + 10000*uint64(numSigs))
 		assert.Equal(t, expectedGas, gas)
 		
 		// Test run
@@ -803,11 +821,11 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		
 		// Compute merkle root
 		pubSize := len(pubKeys[0].Bytes())
-		rootInput := make([]byte, 5+numKeys*pubSize)
-		binary.BigEndian.PutUint32(rootInput[:4], uint32(numKeys))
-		rootInput[4] = 0 // SHA256
+		rootInput := make([]byte, 2+numKeys*pubSize)
+		rootInput[0] = byte(numKeys)
+		rootInput[1] = 0 // SHA256
 		
-		offset := 5
+		offset := 2
 		for _, pub := range pubKeys {
 			copy(rootInput[offset:], pub.Bytes())
 			offset += pubSize

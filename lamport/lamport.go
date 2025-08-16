@@ -112,17 +112,21 @@ func (priv *PrivateKey) Sign(message []byte) (*Signature, error) {
 		byteIndex := i / 8
 		bitIndex := uint(i % 8)
 
+		var selectedKey []byte
 		if byteIndex >= len(msgHash) {
 			// Pad with zeros if message hash is shorter
-			values[i] = priv.keys[2*i] // Use the "0" value
+			selectedKey = priv.keys[2*i] // Use the "0" value
 		} else {
 			bit := (msgHash[byteIndex] >> (7 - bitIndex)) & 1
 			if bit == 0 {
-				values[i] = priv.keys[2*i] // Use the "0" value
+				selectedKey = priv.keys[2*i] // Use the "0" value
 			} else {
-				values[i] = priv.keys[2*i+1] // Use the "1" value
+				selectedKey = priv.keys[2*i+1] // Use the "1" value
 			}
 		}
+		// Make a copy of the selected key value
+		values[i] = make([]byte, len(selectedKey))
+		copy(values[i], selectedKey)
 	}
 
 	// Clear private key after use (one-time signature)
@@ -150,17 +154,21 @@ func (priv *PrivateKey) SignHash(msgHash []byte) (*Signature, error) {
 		byteIndex := i / 8
 		bitIndex := uint(i % 8)
 
+		var selectedKey []byte
 		if byteIndex >= len(msgHash) {
 			// Pad with zeros if message hash is shorter
-			values[i] = priv.keys[2*i] // Use the "0" value
+			selectedKey = priv.keys[2*i] // Use the "0" value
 		} else {
 			bit := (msgHash[byteIndex] >> (7 - bitIndex)) & 1
 			if bit == 0 {
-				values[i] = priv.keys[2*i] // Use the "0" value
+				selectedKey = priv.keys[2*i] // Use the "0" value
 			} else {
-				values[i] = priv.keys[2*i+1] // Use the "1" value
+				selectedKey = priv.keys[2*i+1] // Use the "1" value
 			}
 		}
+		// Make a copy of the selected key value
+		values[i] = make([]byte, len(selectedKey))
+		copy(values[i], selectedKey)
 	}
 
 	// Clear private key after use (one-time signature)

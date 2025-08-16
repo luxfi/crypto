@@ -192,7 +192,8 @@ func (l *LamportBatchVerify) Run(input []byte) ([]byte, error) {
 			continue
 		}
 
-		if pubKey.Verify(message, sig) {
+		// message is actually a pre-hashed value  
+		if pubKey.VerifyHash(message, sig) {
 			results[i] = 0x01
 		} else {
 			results[i] = 0x00
