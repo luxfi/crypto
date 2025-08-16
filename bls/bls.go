@@ -95,6 +95,27 @@ func (sk *SecretKey) PublicKey() *PublicKey {
 	return &PublicKey{pk: sk.sk.PublicKey()}
 }
 
+// From creates a PublicKey from a BLST SecretKey
+func (pk *PublicKey) From(blstSK interface{}) *PublicKey {
+	// Handle the BLST secret key type
+	type blstSecretKey interface {
+		PublicKey() interface {
+			Compress() []byte
+		}
+	}
+	
+	if sk, ok := blstSK.(blstSecretKey); ok {
+		pkBytes := sk.PublicKey().Compress()
+		newPk, err := PublicKeyFromCompressedBytes(pkBytes)
+		if err != nil {
+			return nil
+		}
+		return newPk
+	}
+	
+	return nil
+}
+
 // Sign [msg] to authorize that this private key signed [msg].
 func (sk *SecretKey) Sign(msg []byte) *Signature {
 	if sk == nil || sk.sk == nil {
@@ -245,6 +266,28 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 	}
 
 	return &Signature{sig: sigBytes}, nil
+}
+
+// Sign creates a signature from a BLST secret key, message and DST
+func (sig *Signature) Sign(blstSK interface{}, msg []byte, dst []byte) *Signature {
+	// Handle the BLST secret key type
+	type blstSecretKey interface {
+		Sign(msg []byte, dst []byte, aug []byte) interface {
+			Compress() []byte
+		}
+	}
+	
+	if sk, ok := blstSK.(blstSecretKey); ok {
+		blstSig := sk.Sign(msg, dst, nil)
+		sigBytes := blstSig.Compress()
+		newSig, err := SignatureFromBytes(sigBytes)
+		if err != nil {
+			return nil
+		}
+		return newSig
+	}
+	
+	return nil
 }
 
 // AggregateSignatures aggregates a non-zero number of signatures into a single
