@@ -76,6 +76,11 @@ func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid ML-KEM mode")
 	}
 
+	// Check for nil random source
+	if rand == nil {
+		return nil, errors.New("random source is nil")
+	}
+	
 	// Placeholder implementation - generate random private key
 	privBytes := make([]byte, privKeySize)
 	if _, err := io.ReadFull(rand, privBytes); err != nil {
@@ -264,4 +269,3 @@ func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
 		data: data,
 	}, nil
 }
-
