@@ -101,14 +101,30 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	}
 
 	// Placeholder implementation - generate random keys
-	pubBytes := make([]byte, pubKeySize)
+	// In real SLH-DSA, public key is derived from private key
 	privBytes := make([]byte, privKeySize)
-
-	if _, err := io.ReadFull(rand, pubBytes); err != nil {
-		return nil, err
-	}
 	if _, err := io.ReadFull(rand, privBytes); err != nil {
 		return nil, err
+	}
+	
+	// Derive public key from private key for consistency
+	h := sha256.New()
+	h.Write(privBytes[:32]) // Use first part as seed
+	h.Write([]byte("slhdsa-public"))
+	pubSeed := h.Sum(nil)
+	
+	pubBytes := make([]byte, pubKeySize)
+	// Fill public key with deterministic data
+	for i := 0; i < pubKeySize; i += 32 {
+		h.Reset()
+		h.Write(pubSeed)
+		h.Write([]byte{byte(i / 32)})
+		hash := h.Sum(nil)
+		end := i + 32
+		if end > pubKeySize {
+			end = pubKeySize
+		}
+		copy(pubBytes[i:end], hash)
 	}
 
 	return &PrivateKey{
@@ -122,6 +138,10 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 
 // Sign signs a message using the private key
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if priv == nil {
+		return nil, errors.New("private key is nil")
+	}
+	
 	var sigSize int
 
 	switch priv.PublicKey.mode {
@@ -173,7 +193,11 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 }
 
 // Verify verifies a signature using the public key
-func (pub *PublicKey) Verify(message, signature []byte) bool {
+func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) bool {
+	if pub == nil {
+		return false
+	}
+	
 	var expectedSigSize int
 
 	switch pub.mode {
@@ -278,9 +302,25 @@ func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
 		return nil, errors.New("invalid private key size")
 	}
 
-	// Extract public key from private key (simplified)
+	// Derive public key from private key (same as GenerateKey)
+	h := sha256.New()
+	h.Write(data[:32]) // Use first part as seed
+	h.Write([]byte("slhdsa-public"))
+	pubSeed := h.Sum(nil)
+	
 	pubData := make([]byte, pubKeySize)
-	copy(pubData, data[:pubKeySize])
+	// Fill public key with deterministic data
+	for i := 0; i < pubKeySize; i += 32 {
+		h.Reset()
+		h.Write(pubSeed)
+		h.Write([]byte{byte(i / 32)})
+		hash := h.Sum(nil)
+		end := i + 32
+		if end > pubKeySize {
+			end = pubKeySize
+		}
+		copy(pubData[i:end], hash)
+	}
 
 	return &PrivateKey{
 		PublicKey: PublicKey{

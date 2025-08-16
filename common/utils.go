@@ -2,7 +2,6 @@
 package common
 
 import (
-	"crypto/rand"
 	"errors"
 	"io"
 )

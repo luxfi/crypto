@@ -88,7 +88,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 		sig, err := priv.Sign(rand.Reader, []byte{}, nil)
 		require.NoError(t, err)
-		assert.True(t, priv.PublicKey.Verify([]byte{}, sig))
+		assert.True(t, priv.PublicKey.Verify([]byte{}, sig, nil))
 	})
 
 	t.Run("Large Message", func(t *testing.T) {
@@ -98,7 +98,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		
 		sig, err := priv.Sign(rand.Reader, largeMsg, nil)
 		require.NoError(t, err)
-		assert.True(t, priv.PublicKey.Verify(largeMsg, sig))
+		assert.True(t, priv.PublicKey.Verify(largeMsg, sig, nil))
 	})
 
 	t.Run("Signature Malleability", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		msg := []byte("test")
 		
 		wrongSig := make([]byte, 100) // Wrong size
-		assert.False(t, priv.PublicKey.Verify(msg, wrongSig))
+		assert.False(t, priv.PublicKey.Verify(msg, wrongSig, nil))
 	})
 
 	t.Run("Cross Mode Verification", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		sig44, _ := priv44.Sign(rand.Reader, msg, nil)
 		
 		// ML-DSA65 key shouldn't verify ML-DSA44 signature
-		assert.False(t, priv65.PublicKey.Verify(msg, sig44))
+		assert.False(t, priv65.PublicKey.Verify(msg, sig44, nil))
 	})
 }
 
@@ -199,7 +199,7 @@ func TestConcurrency(t *testing.T) {
 				msg := []byte(fmt.Sprintf("message %d", id))
 				sig, err := priv.Sign(rand.Reader, msg, nil)
 				assert.NoError(t, err)
-				assert.True(t, priv.PublicKey.Verify(msg, sig))
+				assert.True(t, priv.PublicKey.Verify(msg, sig, nil))
 				done <- true
 			}(i)
 		}

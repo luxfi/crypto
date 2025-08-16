@@ -5,6 +5,7 @@
 package precompile
 
 import (
+	"encoding/binary"
 	"errors"
 )
 
@@ -304,20 +305,6 @@ func (b *BLSHashToPoint) Run(input []byte) ([]byte, error) {
 	return g2Point, nil
 }
 
-// Helper for binary encoding
-var binary = struct {
-	BigEndian struct {
-		Uint32 func([]byte) uint32
-	}
-}{
-	BigEndian: struct {
-		Uint32 func([]byte) uint32
-	}{
-		Uint32: func(b []byte) uint32 {
-			return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-		},
-	},
-}
 
 // RegisterBLS registers all BLS precompiles
 func RegisterBLS(registry *Registry) {

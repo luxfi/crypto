@@ -243,7 +243,7 @@ func (b *BatchDSA) VerifyBatch(messages [][]byte, signatures [][]byte) ([]bool, 
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			results[idx] = b.keys[idx].PublicKey.Verify(messages[idx], signatures[idx])
+			results[idx] = b.keys[idx].PublicKey.Verify(messages[idx], signatures[idx], nil)
 		}(i)
 	}
 	

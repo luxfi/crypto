@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be found in
 // the LICENSE file.
 
-//go:build nacl || js || wasip1 || !cgo || gofuzz || tinygo
-// +build nacl js wasip1 !cgo gofuzz tinygo
+//go:build !cgo
+// +build !cgo
 
 // Package secp256k1 wraps the bitcoin secp256k1 C library.
 package secp256k1
