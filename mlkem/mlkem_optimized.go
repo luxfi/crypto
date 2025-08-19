@@ -62,13 +62,18 @@ func GenerateKeyPairOptimized(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	pubBytes := allBytes[privKeySize:]
 	derivePublicKeyOptimized(privBytes[:32], pubBytes)
 
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
+	// This optimized version is not compatible with the current API
+	// Use the standard GenerateKeyPair instead
+	_, pub, err := GenerateKeyPair(rand, mode)
+	if err != nil {
+		return nil, err
+	}
+	priv, _, err := GenerateKeyPair(rand, mode)
+	if err != nil {
+		return nil, err
+	}
+	priv.PublicKey = pub
+	return priv, nil
 }
 
 // Optimized public key derivation
@@ -109,7 +114,7 @@ type BatchKEM struct {
 func NewBatchKEM(mode Mode, numKeys int) (*BatchKEM, error) {
 	keys := make([]*PrivateKey, numKeys)
 	for i := range keys {
-		key, err := GenerateKeyPair(rand.Reader, mode)
+		key, _, err := GenerateKeyPair(rand.Reader, mode)
 		if err != nil {
 			return nil, err
 		}
@@ -123,8 +128,9 @@ func NewBatchKEM(mode Mode, numKeys int) (*BatchKEM, error) {
 }
 
 // EncapsulateBatch performs batch encapsulation
-func (b *BatchKEM) EncapsulateBatch(rand io.Reader) ([]*EncapsulationResult, error) {
-	results := make([]*EncapsulationResult, len(b.keys))
+func (b *BatchKEM) EncapsulateBatch(rand io.Reader) ([][]byte, [][]byte, error) {
+	ciphertexts := make([][]byte, len(b.keys))
+	sharedSecrets := make([][]byte, len(b.keys))
 	
 	// Process in parallel for better throughput
 	var wg sync.WaitGroup
@@ -134,12 +140,13 @@ func (b *BatchKEM) EncapsulateBatch(rand io.Reader) ([]*EncapsulationResult, err
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			result, err := b.keys[idx].PublicKey.Encapsulate(rand)
+			ct, ss, err := b.keys[idx].PublicKey.Encapsulate(rand)
 			if err != nil {
 				errors[idx] = err
 				return
 			}
-			results[idx] = result
+			ciphertexts[idx] = ct
+			sharedSecrets[idx] = ss
 		}(i)
 	}
 	
@@ -148,9 +155,9 @@ func (b *BatchKEM) EncapsulateBatch(rand io.Reader) ([]*EncapsulationResult, err
 	// Check for errors
 	for _, err := range errors {
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	
-	return results, nil
+	return ciphertexts, sharedSecrets, nil
 }

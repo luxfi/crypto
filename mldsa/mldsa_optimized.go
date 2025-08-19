@@ -75,13 +75,9 @@ func GenerateKeyOptimized(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	pubBytes := allBytes[privKeySize:]
 	derivePublicKeyOptimized(privBytes[:32], pubBytes)
 
-	return &PrivateKey{
-		PublicKey: &PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
+	// This optimized version is not compatible with the current API
+	// Use the standard GenerateKey instead
+	return GenerateKey(rand, mode)
 }
 
 // Optimized public key derivation
@@ -135,38 +131,10 @@ func (priv *PrivateKey) OptimizedSign(rand io.Reader, message []byte, opts crypt
 	hashBuf := hashBufferPool.Get().([]byte)
 	defer hashBufferPool.Put(hashBuf)
 	
-	h := sha256.New()
-	h.Write(priv.PublicKey.data)
-	h.Write(message)
-	copy(hashBuf, h.Sum(nil))
-	
-	// Copy hash to signature
-	copy(signature[:32], hashBuf)
-	
-	// Fill rest with deterministic data
-	h.Reset()
-	h.Write(priv.data[:32])
-	h.Write(message)
-	deterministicBytes := h.Sum(nil)
-	
-	for i := 32; i < sigSize; i += 32 {
-		end := i + 32
-		if end > sigSize {
-			end = sigSize
-		}
-		copy(signature[i:end], deterministicBytes)
-		if end < sigSize {
-			h.Reset()
-			h.Write(deterministicBytes)
-			h.Write([]byte{byte(i / 32)})
-			deterministicBytes = h.Sum(deterministicBytes[:0])
-		}
-	}
-	
-	// Return a copy since we're returning the pooled buffer
-	result := make([]byte, sigSize)
-	copy(result, signature)
-	return result, nil
+	// This optimized version is not compatible with the current API
+	// Use the standard Sign method instead
+	defer putSignatureBuffer(signature)
+	return priv.Sign(rand, message, opts)
 }
 
 // BatchDSA provides batch signing operations

@@ -181,6 +181,11 @@ func (k *PrivateKey) Bytes() []byte {
 	return k.bytes
 }
 
+// ToECDSA returns the underlying ecdsa.PrivateKey
+func (k *PrivateKey) ToECDSA() *ecdsa.PrivateKey {
+	return k.sk
+}
+
 // Address returns the address of the private key (via its public key)
 func (k *PrivateKey) Address() ids.ShortID {
 	return k.PublicKey().Address()
