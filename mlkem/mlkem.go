@@ -1,279 +1,395 @@
 // Copyright (C) 2025, Lux Industries Inc. All rights reserved.
-// Package mlkem provides ML-KEM (FIPS 203) key encapsulation mechanism
-// This is a placeholder implementation for CI testing
+// Package mlkem provides REAL ML-KEM (FIPS 203) implementation using circl
 
 package mlkem
 
 import (
-	"crypto/sha256"
+	crypto_rand "crypto/rand"
 	"errors"
 	"io"
-)
 
-// Security parameters for ML-KEM (Module Lattice Key Encapsulation Mechanism)
-const (
-	// ML-KEM-512 (Level 1 security)
-	MLKEM512PublicKeySize    = 800
-	MLKEM512PrivateKeySize   = 1632
-	MLKEM512CiphertextSize   = 768
-	MLKEM512SharedSecretSize = 32
-
-	// ML-KEM-768 (Level 3 security)
-	MLKEM768PublicKeySize    = 1184
-	MLKEM768PrivateKeySize   = 2400
-	MLKEM768CiphertextSize   = 1088
-	MLKEM768SharedSecretSize = 32
-
-	// ML-KEM-1024 (Level 5 security)
-	MLKEM1024PublicKeySize    = 1568
-	MLKEM1024PrivateKeySize   = 3168
-	MLKEM1024CiphertextSize   = 1568
-	MLKEM1024SharedSecretSize = 32
+	"github.com/cloudflare/circl/kem/mlkem/mlkem512"
+	"github.com/cloudflare/circl/kem/mlkem/mlkem768"
+	"github.com/cloudflare/circl/kem/mlkem/mlkem1024"
 )
 
 // Mode represents the ML-KEM parameter set
 type Mode int
 
 const (
-	MLKEM512 Mode = iota + 1
-	MLKEM768
-	MLKEM1024
+	MLKEM512  Mode = iota // Level 1 security
+	MLKEM768              // Level 3 security
+	MLKEM1024             // Level 5 security
+)
+
+// Security parameters for ML-KEM (Module Lattice Key Encapsulation Mechanism)
+const (
+	// ML-KEM-512 (Level 1 security)
+	MLKEM512PublicKeySize   = mlkem512.PublicKeySize
+	MLKEM512PrivateKeySize  = mlkem512.PrivateKeySize
+	MLKEM512CiphertextSize  = mlkem512.CiphertextSize
+	MLKEM512SharedSecretSize = mlkem512.SharedKeySize
+
+	// ML-KEM-768 (Level 3 security)
+	MLKEM768PublicKeySize   = mlkem768.PublicKeySize
+	MLKEM768PrivateKeySize  = mlkem768.PrivateKeySize
+	MLKEM768CiphertextSize  = mlkem768.CiphertextSize
+	MLKEM768SharedSecretSize = mlkem768.SharedKeySize
+
+	// ML-KEM-1024 (Level 5 security)
+	MLKEM1024PublicKeySize   = mlkem1024.PublicKeySize
+	MLKEM1024PrivateKeySize  = mlkem1024.PrivateKeySize
+	MLKEM1024CiphertextSize  = mlkem1024.CiphertextSize
+	MLKEM1024SharedSecretSize = mlkem1024.SharedKeySize
 )
 
 // PublicKey represents an ML-KEM public key
 type PublicKey struct {
 	mode Mode
-	data []byte
+	key  interface{} // Can be mlkem512.PublicKey, mlkem768.PublicKey, or mlkem1024.PublicKey
 }
 
 // PrivateKey represents an ML-KEM private key
 type PrivateKey struct {
-	PublicKey PublicKey
-	data      []byte
+	PublicKey *PublicKey
+	mode      Mode
+	key       interface{} // Can be mlkem512.PrivateKey, mlkem768.PrivateKey, or mlkem1024.PrivateKey
 }
 
-// EncapsulationResult contains the ciphertext and shared secret
-type EncapsulationResult struct {
-	Ciphertext   []byte
-	SharedSecret []byte
-}
-
-// GenerateKeyPair generates a new ML-KEM key pair
-func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	var pubKeySize, privKeySize int
+// GenerateKeyPair generates a new ML-KEM key pair using REAL implementation
+func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, *PublicKey, error) {
+	if rand == nil {
+		rand = crypto_rand.Reader
+	}
 
 	switch mode {
 	case MLKEM512:
-		pubKeySize = MLKEM512PublicKeySize
-		privKeySize = MLKEM512PrivateKeySize
-	case MLKEM768:
-		pubKeySize = MLKEM768PublicKeySize
-		privKeySize = MLKEM768PrivateKeySize
-	case MLKEM1024:
-		pubKeySize = MLKEM1024PublicKeySize
-		privKeySize = MLKEM1024PrivateKeySize
-	default:
-		return nil, errors.New("invalid ML-KEM mode")
-	}
-
-	// Check for nil random source
-	if rand == nil {
-		return nil, errors.New("random source is nil")
-	}
-	
-	// Placeholder implementation - generate random private key
-	privBytes := make([]byte, privKeySize)
-	if _, err := io.ReadFull(rand, privBytes); err != nil {
-		return nil, err
-	}
-
-	// Derive public key from private key deterministically
-	h := sha256.New()
-	h.Write(privBytes[:32]) // Use first 32 bytes as seed
-	h.Write([]byte("public"))
-	pubSeed := h.Sum(nil)
-
-	pubBytes := make([]byte, pubKeySize)
-	// Fill public key with deterministic data
-	for i := 0; i < pubKeySize; i += 32 {
-		h.Reset()
-		h.Write(pubSeed)
-		h.Write([]byte{byte(i / 32)})
-		hash := h.Sum(nil)
-		end := i + 32
-		if end > pubKeySize {
-			end = pubKeySize
+		pub, priv, err := mlkem512.GenerateKeyPair(rand)
+		if err != nil {
+			return nil, nil, err
 		}
-		copy(pubBytes[i:end], hash)
-	}
+		
+		return &PrivateKey{
+				PublicKey: &PublicKey{
+					mode: mode,
+					key:  pub,
+				},
+				mode: mode,
+				key:  priv,
+			}, &PublicKey{
+				mode: mode,
+				key:  pub,
+			}, nil
 
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
+	case MLKEM768:
+		pub, priv, err := mlkem768.GenerateKeyPair(rand)
+		if err != nil {
+			return nil, nil, err
+		}
+		
+		return &PrivateKey{
+				PublicKey: &PublicKey{
+					mode: mode,
+					key:  pub,
+				},
+				mode: mode,
+				key:  priv,
+			}, &PublicKey{
+				mode: mode,
+				key:  pub,
+			}, nil
+
+	case MLKEM1024:
+		pub, priv, err := mlkem1024.GenerateKeyPair(rand)
+		if err != nil {
+			return nil, nil, err
+		}
+		
+		return &PrivateKey{
+				PublicKey: &PublicKey{
+					mode: mode,
+					key:  pub,
+				},
+				mode: mode,
+				key:  priv,
+			}, &PublicKey{
+				mode: mode,
+				key:  pub,
+			}, nil
+
+	default:
+		return nil, nil, errors.New("invalid ML-KEM mode")
+	}
 }
 
-// Encapsulate generates a shared secret and ciphertext
-func (pub *PublicKey) Encapsulate(rand io.Reader) (*EncapsulationResult, error) {
+// Encapsulate generates a ciphertext and shared secret using REAL implementation
+func (pub *PublicKey) Encapsulate(rand io.Reader) (ciphertext, sharedSecret []byte, err error) {
 	if pub == nil {
-		return nil, errors.New("public key is nil")
+		return nil, nil, errors.New("public key is nil")
 	}
-	
-	var ctSize int
+
+	if rand == nil {
+		rand = crypto_rand.Reader
+	}
 
 	switch pub.mode {
 	case MLKEM512:
-		ctSize = MLKEM512CiphertextSize
+		if key, ok := pub.key.(*mlkem512.PublicKey); ok {
+			seed := make([]byte, mlkem512.EncapsulationSeedSize)
+			if _, err := io.ReadFull(rand, seed); err != nil {
+				return nil, nil, err
+			}
+			ct := make([]byte, mlkem512.CiphertextSize)
+			ss := make([]byte, mlkem512.SharedKeySize)
+			key.EncapsulateTo(ct, ss, seed)
+			return ct, ss, nil
+		}
+
 	case MLKEM768:
-		ctSize = MLKEM768CiphertextSize
+		if key, ok := pub.key.(*mlkem768.PublicKey); ok {
+			seed := make([]byte, mlkem768.EncapsulationSeedSize)
+			if _, err := io.ReadFull(rand, seed); err != nil {
+				return nil, nil, err
+			}
+			ct := make([]byte, mlkem768.CiphertextSize)
+			ss := make([]byte, mlkem768.SharedKeySize)
+			key.EncapsulateTo(ct, ss, seed)
+			return ct, ss, nil
+		}
+
 	case MLKEM1024:
-		ctSize = MLKEM1024CiphertextSize
-	default:
-		return nil, errors.New("invalid ML-KEM mode")
+		if key, ok := pub.key.(*mlkem1024.PublicKey); ok {
+			seed := make([]byte, mlkem1024.EncapsulationSeedSize)
+			if _, err := io.ReadFull(rand, seed); err != nil {
+				return nil, nil, err
+			}
+			ct := make([]byte, mlkem1024.CiphertextSize)
+			ss := make([]byte, mlkem1024.SharedKeySize)
+			key.EncapsulateTo(ct, ss, seed)
+			return ct, ss, nil
+		}
 	}
 
-	// Placeholder: generate random ciphertext
-	ct := make([]byte, ctSize)
-	if _, err := io.ReadFull(rand, ct); err != nil {
-		return nil, err
-	}
-
-	// Placeholder: derive shared secret deterministically
-	// Use SHA256(pubkey || ciphertext) for consistency
-	h := sha256.New()
-	h.Write(pub.data)
-	h.Write(ct)
-	ss := h.Sum(nil)
-
-	// Store the ciphertext hash for later decapsulation
-	// In real implementation, this would be proper KEM
-
-	return &EncapsulationResult{
-		Ciphertext:   ct,
-		SharedSecret: ss,
-	}, nil
+	return nil, nil, errors.New("invalid key type")
 }
 
-// Decapsulate recovers the shared secret from ciphertext
-func (priv *PrivateKey) Decapsulate(ciphertext []byte) ([]byte, error) {
+// Decapsulate recovers the shared secret from ciphertext using REAL implementation
+func (priv *PrivateKey) Decapsulate(ciphertext []byte) (sharedSecret []byte, err error) {
 	if priv == nil {
 		return nil, errors.New("private key is nil")
 	}
-	
-	var expectedCtSize int
 
-	switch priv.PublicKey.mode {
+	switch priv.mode {
 	case MLKEM512:
-		expectedCtSize = MLKEM512CiphertextSize
+		if key, ok := priv.key.(*mlkem512.PrivateKey); ok {
+			if len(ciphertext) != mlkem512.CiphertextSize {
+				return nil, errors.New("invalid ciphertext size for ML-KEM-512")
+			}
+			ss := make([]byte, mlkem512.SharedKeySize)
+			key.DecapsulateTo(ss, ciphertext)
+			return ss, nil
+		}
+
 	case MLKEM768:
-		expectedCtSize = MLKEM768CiphertextSize
+		if key, ok := priv.key.(*mlkem768.PrivateKey); ok {
+			if len(ciphertext) != mlkem768.CiphertextSize {
+				return nil, errors.New("invalid ciphertext size for ML-KEM-768")
+			}
+			ss := make([]byte, mlkem768.SharedKeySize)
+			key.DecapsulateTo(ss, ciphertext)
+			return ss, nil
+		}
+
 	case MLKEM1024:
-		expectedCtSize = MLKEM1024CiphertextSize
-	default:
-		return nil, errors.New("invalid ML-KEM mode")
+		if key, ok := priv.key.(*mlkem1024.PrivateKey); ok {
+			if len(ciphertext) != mlkem1024.CiphertextSize {
+				return nil, errors.New("invalid ciphertext size for ML-KEM-1024")
+			}
+			ss := make([]byte, mlkem1024.SharedKeySize)
+			key.DecapsulateTo(ss, ciphertext)
+			return ss, nil
+		}
 	}
 
-	if len(ciphertext) != expectedCtSize {
-		return nil, errors.New("invalid ciphertext size")
-	}
-
-	// Placeholder: derive shared secret deterministically
-	// Use same formula as Encapsulate: SHA256(pubkey || ciphertext)
-	// This ensures matching shared secrets
-	h := sha256.New()
-	h.Write(priv.PublicKey.data)
-	h.Write(ciphertext)
-	ss := h.Sum(nil)
-
-	return ss, nil
+	return nil, errors.New("invalid key type")
 }
 
 // Bytes returns the public key as bytes
 func (pub *PublicKey) Bytes() []byte {
-	return pub.data
+	switch pub.mode {
+	case MLKEM512:
+		if key, ok := pub.key.(*mlkem512.PublicKey); ok {
+			data := make([]byte, MLKEM512PublicKeySize)
+			key.Pack(data)
+			return data
+		}
+	case MLKEM768:
+		if key, ok := pub.key.(*mlkem768.PublicKey); ok {
+			data := make([]byte, MLKEM768PublicKeySize)
+			key.Pack(data)
+			return data
+		}
+	case MLKEM1024:
+		if key, ok := pub.key.(*mlkem1024.PublicKey); ok {
+			data := make([]byte, MLKEM1024PublicKeySize)
+			key.Pack(data)
+			return data
+		}
+	}
+	return nil
 }
 
 // Bytes returns the private key as bytes
 func (priv *PrivateKey) Bytes() []byte {
-	return priv.data
+	switch priv.mode {
+	case MLKEM512:
+		if key, ok := priv.key.(*mlkem512.PrivateKey); ok {
+			data := make([]byte, MLKEM512PrivateKeySize)
+			key.Pack(data)
+			return data
+		}
+	case MLKEM768:
+		if key, ok := priv.key.(*mlkem768.PrivateKey); ok {
+			data := make([]byte, MLKEM768PrivateKeySize)
+			key.Pack(data)
+			return data
+		}
+	case MLKEM1024:
+		if key, ok := priv.key.(*mlkem1024.PrivateKey); ok {
+			data := make([]byte, MLKEM1024PrivateKeySize)
+			key.Pack(data)
+			return data
+		}
+	}
+	return nil
 }
 
 // PublicKeyFromBytes reconstructs a public key from bytes
 func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
-	var expectedSize int
-
 	switch mode {
 	case MLKEM512:
-		expectedSize = MLKEM512PublicKeySize
+		if len(data) != MLKEM512PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-KEM-512")
+		}
+		var key mlkem512.PublicKey
+		if err := key.Unpack(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
 	case MLKEM768:
-		expectedSize = MLKEM768PublicKeySize
+		if len(data) != MLKEM768PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-KEM-768")
+		}
+		var key mlkem768.PublicKey
+		if err := key.Unpack(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
 	case MLKEM1024:
-		expectedSize = MLKEM1024PublicKeySize
+		if len(data) != MLKEM1024PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-KEM-1024")
+		}
+		var key mlkem1024.PublicKey
+		if err := key.Unpack(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
 	default:
 		return nil, errors.New("invalid ML-KEM mode")
 	}
-
-	if len(data) != expectedSize {
-		return nil, errors.New("invalid public key size")
-	}
-
-	return &PublicKey{
-		mode: mode,
-		data: data,
-	}, nil
 }
 
 // PrivateKeyFromBytes reconstructs a private key from bytes
 func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
-	var expectedPrivSize, expectedPubSize int
-
 	switch mode {
 	case MLKEM512:
-		expectedPrivSize = MLKEM512PrivateKeySize
-		expectedPubSize = MLKEM512PublicKeySize
+		if len(data) != MLKEM512PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-KEM-512")
+		}
+		var privKey mlkem512.PrivateKey
+		if err := privKey.Unpack(data); err != nil {
+			return nil, err
+		}
+		
+		// Extract public key from private key
+		pubKey := privKey.Public().(*mlkem512.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
 	case MLKEM768:
-		expectedPrivSize = MLKEM768PrivateKeySize
-		expectedPubSize = MLKEM768PublicKeySize
+		if len(data) != MLKEM768PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-KEM-768")
+		}
+		var privKey mlkem768.PrivateKey
+		if err := privKey.Unpack(data); err != nil {
+			return nil, err
+		}
+		
+		pubKey := privKey.Public().(*mlkem768.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
 	case MLKEM1024:
-		expectedPrivSize = MLKEM1024PrivateKeySize
-		expectedPubSize = MLKEM1024PublicKeySize
+		if len(data) != MLKEM1024PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-KEM-1024")
+		}
+		var privKey mlkem1024.PrivateKey
+		if err := privKey.Unpack(data); err != nil {
+			return nil, err
+		}
+		
+		pubKey := privKey.Public().(*mlkem1024.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
 	default:
 		return nil, errors.New("invalid ML-KEM mode")
 	}
+}
 
-	if len(data) != expectedPrivSize {
-		return nil, errors.New("invalid private key size")
+// String returns the string representation of the mode
+func (m Mode) String() string {
+	switch m {
+	case MLKEM512:
+		return "ML-KEM-512"
+	case MLKEM768:
+		return "ML-KEM-768"
+	case MLKEM1024:
+		return "ML-KEM-1024"
+	default:
+		return "Unknown"
 	}
-
-	// For placeholder: derive public key from private key deterministically
-	// Use first part of private key as seed for public key
-	h := sha256.New()
-	h.Write(data[:32]) // Use first 32 bytes as seed
-	h.Write([]byte("public"))
-	pubSeed := h.Sum(nil)
-
-	pubData := make([]byte, expectedPubSize)
-	// Fill public key with deterministic data
-	for i := 0; i < expectedPubSize; i += 32 {
-		h.Reset()
-		h.Write(pubSeed)
-		h.Write([]byte{byte(i / 32)})
-		hash := h.Sum(nil)
-		end := i + 32
-		if end > expectedPubSize {
-			end = expectedPubSize
-		}
-		copy(pubData[i:end], hash)
-	}
-
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode: mode,
-			data: pubData,
-		},
-		data: data,
-	}, nil
 }

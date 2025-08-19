@@ -55,113 +55,14 @@ func putHasher(h hash.Hash) {
 
 // OptimizedGenerateKey generates keys with optimized memory usage
 func OptimizedGenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	var pubKeySize, privKeySize int
-
-	switch mode {
-	case SLHDSA128s:
-		pubKeySize = SLHDSA128sPublicKeySize
-		privKeySize = SLHDSA128sPrivateKeySize
-	case SLHDSA128f:
-		pubKeySize = SLHDSA128fPublicKeySize
-		privKeySize = SLHDSA128fPrivateKeySize
-	case SLHDSA192s:
-		pubKeySize = SLHDSA192sPublicKeySize
-		privKeySize = SLHDSA192sPrivateKeySize
-	case SLHDSA192f:
-		pubKeySize = SLHDSA192fPublicKeySize
-		privKeySize = SLHDSA192fPrivateKeySize
-	case SLHDSA256s:
-		pubKeySize = SLHDSA256sPublicKeySize
-		privKeySize = SLHDSA256sPrivateKeySize
-	case SLHDSA256f:
-		pubKeySize = SLHDSA256fPublicKeySize
-		privKeySize = SLHDSA256fPrivateKeySize
-	default:
-		return nil, errors.New("invalid SLH-DSA mode")
-	}
-
-	// Check for nil random source
-	if rand == nil {
-		return nil, errors.New("random source is nil")
-	}
-
-	// Single allocation for both keys
-	totalSize := privKeySize + pubKeySize
-	allBytes := make([]byte, totalSize)
-	
-	// Fill with random data
-	if _, err := io.ReadFull(rand, allBytes); err != nil {
-		return nil, err
-	}
-	
-	// Split into public and private
-	pubBytes := allBytes[:pubKeySize]
-	privBytes := allBytes[pubKeySize:]
-
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
+	// Use the standard GenerateKey function which uses the proper SPHINCS+ library
+	return GenerateKey(rand, mode)
 }
 
 // OptimizedSign performs signing with buffer pooling
 func (priv *PrivateKey) OptimizedSign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
-	var sigSize int
-	
-	switch priv.PublicKey.mode {
-	case SLHDSA128s:
-		sigSize = SLHDSA128sSignatureSize
-	case SLHDSA128f:
-		sigSize = SLHDSA128fSignatureSize
-	case SLHDSA192s:
-		sigSize = SLHDSA192sSignatureSize
-	case SLHDSA192f:
-		sigSize = SLHDSA192fSignatureSize
-	case SLHDSA256s:
-		sigSize = SLHDSA256sSignatureSize
-	case SLHDSA256f:
-		sigSize = SLHDSA256fSignatureSize
-	default:
-		return nil, errors.New("invalid SLH-DSA mode")
-	}
-
-	// Get buffer from pool for large signature
-	signature := getSlhBuffer(sigSize)
-	defer putSlhBuffer(signature)
-	
-	// Use pooled hasher
-	h := getHasher()
-	defer putHasher(h)
-	
-	// Deterministic signature generation
-	h.Write(priv.data[:32])
-	h.Write(message)
-	hash := h.Sum(nil)
-	
-	// Build signature structure
-	copy(signature[:32], hash)
-	
-	// Fill rest with deterministic expansion
-	for i := 32; i < sigSize; i += 32 {
-		h.Reset()
-		h.Write(hash)
-		h.Write([]byte{byte(i / 32)})
-		hash = h.Sum(hash[:0])
-		
-		end := i + 32
-		if end > sigSize {
-			end = sigSize
-		}
-		copy(signature[i:end], hash)
-	}
-	
-	// Return a copy since we're returning the pooled buffer
-	result := make([]byte, sigSize)
-	copy(result, signature)
-	return result, nil
+	// Use the standard Sign function which uses the proper SPHINCS+ library
+	return priv.Sign(rand, message, opts)
 }
 
 // MerkleTree represents an optimized Merkle tree for SLH-DSA
