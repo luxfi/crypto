@@ -1,32 +1,16 @@
 // Copyright (C) 2025, Lux Industries Inc. All rights reserved.
-// Package mldsa provides ML-DSA (FIPS 204) digital signature algorithm
-// This is a placeholder implementation for CI testing
+// Package mldsa provides REAL ML-DSA (FIPS 204) implementation using circl
 
 package mldsa
 
 import (
 	"crypto"
-	"crypto/sha256"
 	"errors"
 	"io"
-)
 
-// Security parameters for ML-DSA (Module Lattice Digital Signature Algorithm)
-const (
-	// ML-DSA-44 (Level 2 security)
-	MLDSA44PublicKeySize  = 1312
-	MLDSA44PrivateKeySize = 2528
-	MLDSA44SignatureSize  = 2420
-
-	// ML-DSA-65 (Level 3 security)
-	MLDSA65PublicKeySize  = 1952
-	MLDSA65PrivateKeySize = 4000
-	MLDSA65SignatureSize  = 3293
-
-	// ML-DSA-87 (Level 5 security)
-	MLDSA87PublicKeySize  = 2592
-	MLDSA87PrivateKeySize = 4864
-	MLDSA87SignatureSize  = 4595
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
 )
 
 // Mode represents the ML-DSA parameter set
@@ -38,171 +22,298 @@ const (
 	MLDSA87 Mode = 5 // Level 5
 )
 
+// Security parameters for ML-DSA (Module Lattice Digital Signature Algorithm)
+const (
+	// ML-DSA-44 (Level 2 security)
+	MLDSA44PublicKeySize  = mldsa44.PublicKeySize
+	MLDSA44PrivateKeySize = mldsa44.PrivateKeySize
+	MLDSA44SignatureSize  = mldsa44.SignatureSize
+
+	// ML-DSA-65 (Level 3 security)
+	MLDSA65PublicKeySize  = mldsa65.PublicKeySize
+	MLDSA65PrivateKeySize = mldsa65.PrivateKeySize
+	MLDSA65SignatureSize  = mldsa65.SignatureSize
+
+	// ML-DSA-87 (Level 5 security)
+	MLDSA87PublicKeySize  = mldsa87.PublicKeySize
+	MLDSA87PrivateKeySize = mldsa87.PrivateKeySize
+	MLDSA87SignatureSize  = mldsa87.SignatureSize
+)
+
 // PublicKey represents an ML-DSA public key
 type PublicKey struct {
 	mode Mode
-	data []byte
+	key  interface{} // Can be mldsa44.PublicKey, mldsa65.PublicKey, or mldsa87.PublicKey
 }
 
 // PrivateKey represents an ML-DSA private key
 type PrivateKey struct {
 	PublicKey *PublicKey
-	data      []byte
+	mode      Mode
+	key       interface{} // Can be mldsa44.PrivateKey, mldsa65.PrivateKey, or mldsa87.PrivateKey
 }
 
-// GenerateKey generates a new ML-DSA key pair
+// GenerateKey generates a new ML-DSA key pair using REAL implementation
 func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	var pubKeySize, privKeySize int
-
-	switch mode {
-	case MLDSA44:
-		pubKeySize = MLDSA44PublicKeySize
-		privKeySize = MLDSA44PrivateKeySize
-	case MLDSA65:
-		pubKeySize = MLDSA65PublicKeySize
-		privKeySize = MLDSA65PrivateKeySize
-	case MLDSA87:
-		pubKeySize = MLDSA87PublicKeySize
-		privKeySize = MLDSA87PrivateKeySize
-	default:
-		return nil, errors.New("invalid ML-DSA mode")
-	}
-
-	// Check for nil random source
 	if rand == nil {
 		return nil, errors.New("random source is nil")
 	}
 
-	// Placeholder implementation - generate random private key
-	privBytes := make([]byte, privKeySize)
-	if _, err := io.ReadFull(rand, privBytes); err != nil {
-		return nil, err
-	}
-
-	// Derive public key from private key for consistency
-	// In real ML-DSA, public key is derived from private key seed
-	h := sha256.New()
-	h.Write(privBytes[:32]) // Use first 32 bytes as seed
-	h.Write([]byte("public"))
-	pubSeed := h.Sum(nil)
-
-	pubBytes := make([]byte, pubKeySize)
-	// Fill public key with deterministic data
-	for i := 0; i < pubKeySize; i += 32 {
-		h.Reset()
-		h.Write(pubSeed)
-		h.Write([]byte{byte(i / 32)})
-		hash := h.Sum(nil)
-		end := i + 32
-		if end > pubKeySize {
-			end = pubKeySize
-		}
-		copy(pubBytes[i:end], hash)
-	}
-
-	return &PrivateKey{
-		PublicKey: &PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
-}
-
-// Sign creates a signature for the given message
-func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if priv == nil || priv.PublicKey == nil {
-		return nil, errors.New("private key is nil")
-	}
-	
-	var sigSize int
-
-	switch priv.PublicKey.mode {
+	switch mode {
 	case MLDSA44:
-		sigSize = MLDSA44SignatureSize
+		pub, priv, err := mldsa44.GenerateKey(rand)
+		if err != nil {
+			return nil, err
+		}
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pub,
+			},
+			mode: mode,
+			key:  priv,
+		}, nil
+
 	case MLDSA65:
-		sigSize = MLDSA65SignatureSize
+		pub, priv, err := mldsa65.GenerateKey(rand)
+		if err != nil {
+			return nil, err
+		}
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pub,
+			},
+			mode: mode,
+			key:  priv,
+		}, nil
+
 	case MLDSA87:
-		sigSize = MLDSA87SignatureSize
+		pub, priv, err := mldsa87.GenerateKey(rand)
+		if err != nil {
+			return nil, err
+		}
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pub,
+			},
+			mode: mode,
+			key:  priv,
+		}, nil
+
 	default:
 		return nil, errors.New("invalid ML-DSA mode")
 	}
-
-	// Placeholder: create deterministic signature that can be verified
-	// Start with hash of public key and message (what Verify expects)
-	h := sha256.New()
-	h.Write(priv.PublicKey.data)
-	h.Write(message)
-	hash := h.Sum(nil)
-
-	signature := make([]byte, sigSize)
-	// Copy the hash to the beginning of signature
-	copy(signature[:32], hash)
-
-	// Fill rest with deterministic data based on private key
-	h.Reset()
-	h.Write(priv.data)
-	h.Write(message)
-	privHash := h.Sum(nil)
-
-	for i := 32; i < sigSize; i += len(privHash) {
-		end := i + len(privHash)
-		if end > sigSize {
-			end = sigSize
-		}
-		copy(signature[i:end], privHash)
-		h.Write(privHash) // Generate more data
-		privHash = h.Sum(nil)
-	}
-
-	return signature, nil
 }
 
-// Verify verifies a signature using the public key
+// Sign creates a REAL signature for the given message
+func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if priv == nil {
+		return nil, errors.New("private key is nil")
+	}
+
+	switch priv.mode {
+	case MLDSA44:
+		if key, ok := priv.key.(*mldsa44.PrivateKey); ok {
+			return key.Sign(rand, message, opts)
+		}
+	case MLDSA65:
+		if key, ok := priv.key.(*mldsa65.PrivateKey); ok {
+			return key.Sign(rand, message, opts)
+		}
+	case MLDSA87:
+		if key, ok := priv.key.(*mldsa87.PrivateKey); ok {
+			return key.Sign(rand, message, opts)
+		}
+	}
+
+	return nil, errors.New("invalid key type")
+}
+
+// Verify verifies a REAL signature using the public key
 func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) bool {
 	if pub == nil {
 		return false
 	}
-	
-	var expectedSigSize int
 
+	// Use empty context (nil) for ML-DSA verification
 	switch pub.mode {
 	case MLDSA44:
-		expectedSigSize = MLDSA44SignatureSize
+		if key, ok := pub.key.(*mldsa44.PublicKey); ok {
+			return mldsa44.Verify(key, message, nil, signature)  // nil context
+		}
 	case MLDSA65:
-		expectedSigSize = MLDSA65SignatureSize
+		if key, ok := pub.key.(*mldsa65.PublicKey); ok {
+			return mldsa65.Verify(key, message, nil, signature)  // nil context
+		}
 	case MLDSA87:
-		expectedSigSize = MLDSA87SignatureSize
-	default:
-		return false
-	}
-
-	// Check signature size
-	if len(signature) != expectedSigSize {
-		return false
-	}
-
-	// Placeholder verification: recompute expected signature based on public key and message
-	// In real implementation, this would use lattice-based verification
-	h := sha256.New()
-	h.Write(pub.data)
-	h.Write(message)
-	expectedSigStart := h.Sum(nil)
-
-	// Check if first 32 bytes of signature match expected
-	// This is a simplified check for our placeholder
-	if len(signature) < 32 {
-		return false
-	}
-
-	// Compare first 32 bytes
-	for i := 0; i < 32; i++ {
-		if signature[i] != expectedSigStart[i] {
-			return false
+		if key, ok := pub.key.(*mldsa87.PublicKey); ok {
+			return mldsa87.Verify(key, message, nil, signature)  // nil context
 		}
 	}
 
-	return true
+	return false
+}
+
+// Bytes returns the public key as bytes
+func (pub *PublicKey) Bytes() []byte {
+	switch pub.mode {
+	case MLDSA44:
+		if key, ok := pub.key.(*mldsa44.PublicKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	case MLDSA65:
+		if key, ok := pub.key.(*mldsa65.PublicKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	case MLDSA87:
+		if key, ok := pub.key.(*mldsa87.PublicKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	}
+	return nil
+}
+
+// Bytes returns the private key as bytes
+func (priv *PrivateKey) Bytes() []byte {
+	switch priv.mode {
+	case MLDSA44:
+		if key, ok := priv.key.(*mldsa44.PrivateKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	case MLDSA65:
+		if key, ok := priv.key.(*mldsa65.PrivateKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	case MLDSA87:
+		if key, ok := priv.key.(*mldsa87.PrivateKey); ok {
+			data, _ := key.MarshalBinary()
+			return data
+		}
+	}
+	return nil
+}
+
+// PublicKeyFromBytes reconstructs a public key from bytes
+func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
+	switch mode {
+	case MLDSA44:
+		if len(data) != MLDSA44PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-DSA-44")
+		}
+		var key mldsa44.PublicKey
+		if err := key.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
+	case MLDSA65:
+		if len(data) != MLDSA65PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-DSA-65")
+		}
+		var key mldsa65.PublicKey
+		if err := key.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
+	case MLDSA87:
+		if len(data) != MLDSA87PublicKeySize {
+			return nil, errors.New("invalid public key size for ML-DSA-87")
+		}
+		var key mldsa87.PublicKey
+		if err := key.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		return &PublicKey{
+			mode: mode,
+			key:  &key,
+		}, nil
+
+	default:
+		return nil, errors.New("invalid ML-DSA mode")
+	}
+}
+
+// PrivateKeyFromBytes reconstructs a private key from bytes
+func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
+	switch mode {
+	case MLDSA44:
+		if len(data) != MLDSA44PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-DSA-44")
+		}
+		var privKey mldsa44.PrivateKey
+		if err := privKey.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		
+		// Extract public key from private key
+		pubKey := privKey.Public().(*mldsa44.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
+	case MLDSA65:
+		if len(data) != MLDSA65PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-DSA-65")
+		}
+		var privKey mldsa65.PrivateKey
+		if err := privKey.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		
+		pubKey := privKey.Public().(*mldsa65.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
+	case MLDSA87:
+		if len(data) != MLDSA87PrivateKeySize {
+			return nil, errors.New("invalid private key size for ML-DSA-87")
+		}
+		var privKey mldsa87.PrivateKey
+		if err := privKey.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		
+		pubKey := privKey.Public().(*mldsa87.PublicKey)
+		
+		return &PrivateKey{
+			PublicKey: &PublicKey{
+				mode: mode,
+				key:  pubKey,
+			},
+			mode: mode,
+			key:  &privKey,
+		}, nil
+
+	default:
+		return nil, errors.New("invalid ML-DSA mode")
+	}
 }
 
 // String returns the string representation of the mode
@@ -217,163 +328,4 @@ func (m Mode) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-// NewPrivateKey creates a new private key with the given mode
-func NewPrivateKey(mode Mode) *PrivateKey {
-	return &PrivateKey{
-		PublicKey: NewPublicKey(mode),
-		data:      make([]byte, getPrivateKeySize(mode)),
-	}
-}
-
-// NewPublicKey creates a new public key with the given mode
-func NewPublicKey(mode Mode) *PublicKey {
-	return &PublicKey{
-		mode: mode,
-		data: make([]byte, getPublicKeySize(mode)),
-	}
-}
-
-// SetBytes sets the key data from bytes
-func (sk *PrivateKey) SetBytes(data []byte) {
-	if sk.data == nil || len(sk.data) != len(data) {
-		sk.data = make([]byte, len(data))
-	}
-	copy(sk.data, data)
-}
-
-// SetBytes sets the key data from bytes
-func (pk *PublicKey) SetBytes(data []byte) {
-	if pk.data == nil || len(pk.data) != len(data) {
-		pk.data = make([]byte, len(data))
-	}
-	copy(pk.data, data)
-}
-
-// IsDeterministic returns whether the signature scheme is deterministic
-func (sk *PrivateKey) IsDeterministic() bool {
-	// ML-DSA uses randomized signing by default
-	// Can be made deterministic by using nil rand
-	return false
-}
-
-func getPrivateKeySize(mode Mode) int {
-	switch mode {
-	case MLDSA44:
-		return MLDSA44PrivateKeySize
-	case MLDSA65:
-		return MLDSA65PrivateKeySize
-	case MLDSA87:
-		return MLDSA87PrivateKeySize
-	default:
-		return 0
-	}
-}
-
-func getPublicKeySize(mode Mode) int {
-	switch mode {
-	case MLDSA44:
-		return MLDSA44PublicKeySize
-	case MLDSA65:
-		return MLDSA65PublicKeySize
-	case MLDSA87:
-		return MLDSA87PublicKeySize
-	default:
-		return 0
-	}
-}
-
-// Bytes returns the public key as bytes
-func (pub *PublicKey) Bytes() []byte {
-	return pub.data
-}
-
-// Bytes returns the private key as bytes
-func (priv *PrivateKey) Bytes() []byte {
-	return priv.data
-}
-
-// PublicKeyFromBytes reconstructs a public key from bytes
-func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
-	var expectedSize int
-
-	switch mode {
-	case MLDSA44:
-		expectedSize = MLDSA44PublicKeySize
-	case MLDSA65:
-		expectedSize = MLDSA65PublicKeySize
-	case MLDSA87:
-		expectedSize = MLDSA87PublicKeySize
-	default:
-		return nil, errors.New("invalid ML-DSA mode")
-	}
-
-	if len(data) != expectedSize {
-		return nil, errors.New("invalid public key size")
-	}
-
-	// Make a copy of the data
-	pubData := make([]byte, expectedSize)
-	copy(pubData, data)
-
-	return &PublicKey{
-		mode: mode,
-		data: pubData,
-	}, nil
-}
-
-// PrivateKeyFromBytes reconstructs a private key from bytes
-func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
-	var expectedPrivSize, expectedPubSize int
-
-	switch mode {
-	case MLDSA44:
-		expectedPrivSize = MLDSA44PrivateKeySize
-		expectedPubSize = MLDSA44PublicKeySize
-	case MLDSA65:
-		expectedPrivSize = MLDSA65PrivateKeySize
-		expectedPubSize = MLDSA65PublicKeySize
-	case MLDSA87:
-		expectedPrivSize = MLDSA87PrivateKeySize
-		expectedPubSize = MLDSA87PublicKeySize
-	default:
-		return nil, errors.New("invalid ML-DSA mode")
-	}
-
-	if len(data) != expectedPrivSize {
-		return nil, errors.New("invalid private key size")
-	}
-
-	// Make a copy of private key data
-	privData := make([]byte, expectedPrivSize)
-	copy(privData, data)
-
-	// Derive public key from private key (same as GenerateKey)
-	h := sha256.New()
-	h.Write(privData[:32]) // Use first 32 bytes as seed
-	h.Write([]byte("public"))
-	pubSeed := h.Sum(nil)
-
-	pubData := make([]byte, expectedPubSize)
-	// Fill public key with deterministic data
-	for i := 0; i < expectedPubSize; i += 32 {
-		h.Reset()
-		h.Write(pubSeed)
-		h.Write([]byte{byte(i / 32)})
-		hash := h.Sum(nil)
-		end := i + 32
-		if end > expectedPubSize {
-			end = expectedPubSize
-		}
-		copy(pubData[i:end], hash)
-	}
-
-	return &PrivateKey{
-		PublicKey: &PublicKey{
-			mode: mode,
-			data: pubData,
-		},
-		data: privData,
-	}, nil
 }
