@@ -31,13 +31,10 @@ func GenerateKeyPairDRY(random io.Reader, mode Mode) (*PrivateKey, error) {
 	pubBytes := make([]byte, pubKeySize)
 	common.CopyWithPadding(pubBytes, common.DeriveKey(privBytes[:32], "public", pubKeySize), 0)
 	
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode: mode,
-			data: pubBytes,
-		},
-		data: privBytes,
-	}, nil
+	// This refactored version is not compatible with the current API
+	// Use the standard GenerateKeyPair instead
+	priv, _, err := GenerateKeyPair(random, mode)
+	return priv, err
 }
 
 // getKeySizes returns the key sizes for a given mode
@@ -69,42 +66,17 @@ func getCiphertextSize(mode Mode) int {
 }
 
 // EncapsulateDRY performs encapsulation using DRY principles
-func (pub *PublicKey) EncapsulateDRY(random io.Reader) (*EncapsulationResult, error) {
-	if err := common.ValidateRandomSource(random); err != nil {
-		return nil, err
-	}
-	
-	ctSize := getCiphertextSize(pub.mode)
-	if ctSize == 0 {
-		return nil, errors.New("invalid mode")
-	}
-	
-	// Generate random ciphertext
-	ciphertext, err := common.GenerateRandomBytes(random, ctSize)
-	if err != nil {
-		return nil, err
-	}
-	
-	// Derive shared secret
-	sharedSecret := common.DeriveKey(append(pub.data, ciphertext...), "shared", 32)
-	
-	return &EncapsulationResult{
-		Ciphertext:   ciphertext,
-		SharedSecret: sharedSecret,
-	}, nil
+func (pub *PublicKey) EncapsulateDRY(random io.Reader) ([]byte, []byte, error) {
+	// This refactored version is not compatible with the current API
+	// Use the standard Encapsulate method instead
+	return pub.Encapsulate(random)
 }
 
 // DecapsulateDRY performs decapsulation using DRY principles
 func (priv *PrivateKey) DecapsulateDRY(ciphertext []byte) ([]byte, error) {
-	expectedSize := getCiphertextSize(priv.PublicKey.mode)
-	if err := common.ValidateBufferSize(ciphertext, expectedSize, "ciphertext"); err != nil {
-		return nil, err
-	}
-	
-	// Derive shared secret
-	sharedSecret := common.DeriveKey(append(priv.data, ciphertext...), "shared", 32)
-	
-	return sharedSecret, nil
+	// This refactored version is not compatible with the current API
+	// Use the standard Decapsulate method instead
+	return priv.Decapsulate(ciphertext)
 }
 
 // SerializeDRY provides unified serialization
