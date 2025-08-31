@@ -69,7 +69,11 @@ func getCiphertextSize(mode Mode) int {
 func (pub *PublicKey) EncapsulateDRY(random io.Reader) ([]byte, []byte, error) {
 	// This refactored version is not compatible with the current API
 	// Use the standard Encapsulate method instead
-	return pub.Encapsulate(random)
+	result, err := pub.Encapsulate(random)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result.Ciphertext, result.SharedSecret, nil
 }
 
 // DecapsulateDRY performs decapsulation using DRY principles

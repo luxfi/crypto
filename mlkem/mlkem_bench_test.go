@@ -21,14 +21,14 @@ func benchmarkMLKEM(b *testing.B, mode Mode) {
 	b.Run("GenerateKeyPair", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			_, err := GenerateKeyPair(rand.Reader, mode)
+			_, _, err := GenerateKeyPair(rand.Reader, mode)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
 
-	priv, err := GenerateKeyPair(rand.Reader, mode)
+	priv, _, err := GenerateKeyPair(rand.Reader, mode)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func BenchmarkMLKEMMemory(b *testing.B) {
 	for _, m := range modes {
 		b.Run(m.name, func(b *testing.B) {
 			b.ReportAllocs()
-			priv, _ := GenerateKeyPair(rand.Reader, m.mode)
+			priv, _, _ := GenerateKeyPair(rand.Reader, m.mode)
 			result, _ := priv.PublicKey.Encapsulate(rand.Reader)
 			
 			b.ResetTimer()
