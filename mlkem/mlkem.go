@@ -56,6 +56,12 @@ type PrivateKey struct {
 	key       interface{} // Can be mlkem512.PrivateKey, mlkem768.PrivateKey, or mlkem1024.PrivateKey
 }
 
+// EncapsulationResult holds the result of encapsulation
+type EncapsulationResult struct {
+	Ciphertext   []byte
+	SharedSecret []byte
+}
+
 // GenerateKeyPair generates a new ML-KEM key pair using REAL implementation
 func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, *PublicKey, error) {
 	if rand == nil {
@@ -123,9 +129,9 @@ func GenerateKeyPair(rand io.Reader, mode Mode) (*PrivateKey, *PublicKey, error)
 }
 
 // Encapsulate generates a ciphertext and shared secret using REAL implementation
-func (pub *PublicKey) Encapsulate(rand io.Reader) (ciphertext, sharedSecret []byte, err error) {
+func (pub *PublicKey) Encapsulate(rand io.Reader) (*EncapsulationResult, error) {
 	if pub == nil {
-		return nil, nil, errors.New("public key is nil")
+		return nil, errors.New("public key is nil")
 	}
 
 	if rand == nil {
@@ -137,40 +143,49 @@ func (pub *PublicKey) Encapsulate(rand io.Reader) (ciphertext, sharedSecret []by
 		if key, ok := pub.key.(*mlkem512.PublicKey); ok {
 			seed := make([]byte, mlkem512.EncapsulationSeedSize)
 			if _, err := io.ReadFull(rand, seed); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			ct := make([]byte, mlkem512.CiphertextSize)
 			ss := make([]byte, mlkem512.SharedKeySize)
 			key.EncapsulateTo(ct, ss, seed)
-			return ct, ss, nil
+			return &EncapsulationResult{
+				Ciphertext:   ct,
+				SharedSecret: ss,
+			}, nil
 		}
 
 	case MLKEM768:
 		if key, ok := pub.key.(*mlkem768.PublicKey); ok {
 			seed := make([]byte, mlkem768.EncapsulationSeedSize)
 			if _, err := io.ReadFull(rand, seed); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			ct := make([]byte, mlkem768.CiphertextSize)
 			ss := make([]byte, mlkem768.SharedKeySize)
 			key.EncapsulateTo(ct, ss, seed)
-			return ct, ss, nil
+			return &EncapsulationResult{
+				Ciphertext:   ct,
+				SharedSecret: ss,
+			}, nil
 		}
 
 	case MLKEM1024:
 		if key, ok := pub.key.(*mlkem1024.PublicKey); ok {
 			seed := make([]byte, mlkem1024.EncapsulationSeedSize)
 			if _, err := io.ReadFull(rand, seed); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			ct := make([]byte, mlkem1024.CiphertextSize)
 			ss := make([]byte, mlkem1024.SharedKeySize)
 			key.EncapsulateTo(ct, ss, seed)
-			return ct, ss, nil
+			return &EncapsulationResult{
+				Ciphertext:   ct,
+				SharedSecret: ss,
+			}, nil
 		}
 	}
 
-	return nil, nil, errors.New("invalid key type")
+	return nil, errors.New("invalid key type")
 }
 
 // Decapsulate recovers the shared secret from ciphertext using REAL implementation
