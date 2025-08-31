@@ -140,13 +140,13 @@ func (b *BatchKEM) EncapsulateBatch(rand io.Reader) ([][]byte, [][]byte, error) 
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			ct, ss, err := b.keys[idx].PublicKey.Encapsulate(rand)
+			result, err := b.keys[idx].PublicKey.Encapsulate(rand)
 			if err != nil {
 				errors[idx] = err
 				return
 			}
-			ciphertexts[idx] = ct
-			sharedSecrets[idx] = ss
+			ciphertexts[idx] = result.Ciphertext
+			sharedSecrets[idx] = result.SharedSecret
 		}(i)
 	}
 	
