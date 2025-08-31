@@ -23,7 +23,7 @@ func TestMLKEMKeyGeneration(t *testing.T) {
 	for _, tt := range modes {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test key generation
-			privKey, err := GenerateKeyPair(rand.Reader, tt.mode)
+			privKey, _, err := GenerateKeyPair(rand.Reader, tt.mode)
 			if err != nil {
 				t.Fatalf("GenerateKeyPair failed: %v", err)
 			}
@@ -40,7 +40,7 @@ func TestMLKEMKeyGeneration(t *testing.T) {
 			}
 
 			// Test nil reader
-			_, err = GenerateKeyPair(nil, tt.mode)
+			_, _, err = GenerateKeyPair(nil, tt.mode)
 			if err == nil {
 				t.Error("GenerateKeyPair should fail with nil reader")
 			}
@@ -48,7 +48,7 @@ func TestMLKEMKeyGeneration(t *testing.T) {
 	}
 
 	// Test invalid mode
-	_, err := GenerateKeyPair(rand.Reader, Mode(99))
+	_, _, err := GenerateKeyPair(rand.Reader, Mode(99))
 	if err == nil {
 		t.Error("GenerateKeyPair should fail with invalid mode")
 	}
@@ -60,7 +60,7 @@ func TestMLKEMEncapsulateDecapsulate(t *testing.T) {
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			// Generate key pair
-			privKey, err := GenerateKeyPair(rand.Reader, mode)
+			privKey, _, err := GenerateKeyPair(rand.Reader, mode)
 			if err != nil {
 				t.Fatalf("GenerateKeyPair failed: %v", err)
 			}
@@ -133,7 +133,7 @@ func TestMLKEMKeySerialization(t *testing.T) {
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			// Generate original key
-			origKey, err := GenerateKeyPair(rand.Reader, mode)
+			origKey, _, err := GenerateKeyPair(rand.Reader, mode)
 			if err != nil {
 				t.Fatalf("GenerateKeyPair failed: %v", err)
 			}
@@ -184,7 +184,7 @@ func TestMLKEMMultipleEncapsulations(t *testing.T) {
 
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
-			privKey, err := GenerateKeyPair(rand.Reader, mode)
+			privKey, _, err := GenerateKeyPair(rand.Reader, mode)
 			if err != nil {
 				t.Fatalf("GenerateKeyPair failed: %v", err)
 			}
@@ -229,7 +229,7 @@ func TestMLKEMMultipleEncapsulations(t *testing.T) {
 
 func TestMLKEMEdgeCases(t *testing.T) {
 	t.Run("InvalidMode", func(t *testing.T) {
-		_, err := GenerateKeyPair(rand.Reader, Mode(99))
+		_, _, err := GenerateKeyPair(rand.Reader, Mode(99))
 		if err == nil {
 			t.Error("GenerateKeyPair should fail with invalid mode")
 		}
@@ -252,7 +252,7 @@ func TestMLKEMEdgeCases(t *testing.T) {
 	})
 
 	t.Run("EmptyCiphertext", func(t *testing.T) {
-		privKey, _ := GenerateKeyPair(rand.Reader, MLKEM512)
+		privKey, _, _ := GenerateKeyPair(rand.Reader, MLKEM512)
 		_, err := privKey.Decapsulate([]byte{})
 		if err == nil {
 			t.Error("Decapsulate should fail with empty ciphertext")
@@ -260,7 +260,7 @@ func TestMLKEMEdgeCases(t *testing.T) {
 	})
 
 	t.Run("WrongSizeCiphertext", func(t *testing.T) {
-		privKey, _ := GenerateKeyPair(rand.Reader, MLKEM512)
+		privKey, _, _ := GenerateKeyPair(rand.Reader, MLKEM512)
 		wrongCt := make([]byte, 100)
 		rand.Read(wrongCt)
 		_, err := privKey.Decapsulate(wrongCt)
@@ -285,7 +285,7 @@ func TestMLKEMEdgeCases(t *testing.T) {
 }
 
 func TestMLKEMConcurrency(t *testing.T) {
-	privKey, err := GenerateKeyPair(rand.Reader, MLKEM768)
+	privKey, _, err := GenerateKeyPair(rand.Reader, MLKEM768)
 	if err != nil {
 		t.Fatalf("GenerateKeyPair failed: %v", err)
 	}
@@ -344,32 +344,21 @@ func TestMLKEMConcurrency(t *testing.T) {
 	})
 }
 
-// Helper function for Mode.String()
-func (m Mode) String() string {
-	switch m {
-	case MLKEM512:
-		return "ML-KEM-512"
-	case MLKEM768:
-		return "ML-KEM-768"
-	case MLKEM1024:
-		return "ML-KEM-1024"
-	default:
-		return "Unknown"
-	}
-}
+
 
 // Helper functions that were missing
 func NewPrivateKey(mode Mode) *PrivateKey {
 	return &PrivateKey{
-		PublicKey: *NewPublicKey(mode),
-		data:      make([]byte, getPrivateKeySize(mode)),
+		PublicKey: NewPublicKey(mode),
+		mode:      mode,
+		key:       nil, // This is just a placeholder, real key would be generated
 	}
 }
 
 func NewPublicKey(mode Mode) *PublicKey {
 	return &PublicKey{
 		mode: mode,
-		data: make([]byte, getPublicKeySize(mode)),
+		key:  nil, // This is just a placeholder, real key would be generated
 	}
 }
 
@@ -413,7 +402,7 @@ func BenchmarkMLKEMKeyGen(b *testing.B) {
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := GenerateKeyPair(rand.Reader, m.mode)
+				_, _, err := GenerateKeyPair(rand.Reader, m.mode)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -433,7 +422,7 @@ func BenchmarkMLKEMEncapsulate(b *testing.B) {
 	}
 
 	for _, m := range modes {
-		privKey, _ := GenerateKeyPair(rand.Reader, m.mode)
+		privKey, _, _ := GenerateKeyPair(rand.Reader, m.mode)
 		
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
@@ -458,7 +447,7 @@ func BenchmarkMLKEMDecapsulate(b *testing.B) {
 	}
 
 	for _, m := range modes {
-		privKey, _ := GenerateKeyPair(rand.Reader, m.mode)
+		privKey, _, _ := GenerateKeyPair(rand.Reader, m.mode)
 		encapResult, _ := privKey.PublicKey.Encapsulate(rand.Reader)
 		
 		b.Run(m.name, func(b *testing.B) {

@@ -329,3 +329,73 @@ func (m Mode) String() string {
 		return "Unknown"
 	}
 }
+
+// IsDeterministic returns whether the private key uses deterministic signing
+func (priv *PrivateKey) IsDeterministic() bool {
+	// ML-DSA is randomized by default, deterministic only when rand is nil
+	return false
+}
+
+// SetBytes sets the private key from bytes
+func (priv *PrivateKey) SetBytes(data []byte) error {
+	newPriv, err := PrivateKeyFromBytes(data, priv.mode)
+	if err != nil {
+		return err
+	}
+	priv.key = newPriv.key
+	priv.PublicKey = newPriv.PublicKey
+	return nil
+}
+
+// SetBytes sets the public key from bytes
+func (pub *PublicKey) SetBytes(data []byte) error {
+	newPub, err := PublicKeyFromBytes(data, pub.mode)
+	if err != nil {
+		return err
+	}
+	pub.key = newPub.key
+	return nil
+}
+
+// Helper functions for creating keys
+func NewPrivateKey(mode Mode) *PrivateKey {
+	return &PrivateKey{
+		PublicKey: NewPublicKey(mode),
+		mode:      mode,
+		key:       nil,
+	}
+}
+
+func NewPublicKey(mode Mode) *PublicKey {
+	return &PublicKey{
+		mode: mode,
+		key:  nil,
+	}
+}
+
+// Helper functions for getting key sizes
+func getPrivateKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PrivateKeySize
+	case MLDSA65:
+		return MLDSA65PrivateKeySize
+	case MLDSA87:
+		return MLDSA87PrivateKeySize
+	default:
+		return 0
+	}
+}
+
+func getPublicKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PublicKeySize
+	case MLDSA65:
+		return MLDSA65PublicKeySize
+	case MLDSA87:
+		return MLDSA87PublicKeySize
+	default:
+		return 0
+	}
+}
