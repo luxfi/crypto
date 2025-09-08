@@ -1,0 +1,342 @@
+// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
+// Unified Signer for all Lux cryptographic operations
+
+package unified
+
+import (
+	"crypto"
+	"crypto/rand"
+	"errors"
+	"fmt"
+	
+	"github.com/luxfi/crypto/bls"
+	"github.com/luxfi/crypto/mldsa"
+	"github.com/luxfi/crypto/mlkem"
+	"github.com/luxfi/crypto/slhdsa"
+)
+
+// Signer provides unified interface for all signature types
+type Signer interface {
+	// Sign creates a signature
+	Sign(message []byte) ([]byte, error)
+	
+	// Verify checks a signature
+	Verify(message, signature []byte) bool
+	
+	// PublicKey returns the public key bytes
+	PublicKey() []byte
+	
+	// Type returns the signature type
+	Type() string
+}
+
+// BLSSigner implements Signer for BLS signatures
+type BLSSigner struct {
+	privKey *bls.SecretKey
+	pubKey  *bls.PublicKey
+}
+
+// NewBLSSigner creates a new BLS signer
+func NewBLSSigner() (*BLSSigner, error) {
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		return nil, err
+	}
+	
+	privKey, err := bls.SecretKeyFromBytes(seed)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &BLSSigner{
+		privKey: privKey,
+		pubKey:  privKey.PublicKey(),
+	}, nil
+}
+
+func (s *BLSSigner) Sign(message []byte) ([]byte, error) {
+	sig := s.privKey.Sign(message)
+	return bls.SignatureToBytes(sig), nil
+}
+
+func (s *BLSSigner) Verify(message, signature []byte) bool {
+	sig, err := bls.SignatureFromBytes(signature)
+	if err != nil {
+		return false
+	}
+	return bls.Verify(s.pubKey, message, sig)
+}
+
+func (s *BLSSigner) PublicKey() []byte {
+	return bls.PublicKeyToBytes(s.pubKey)
+}
+
+func (s *BLSSigner) Type() string {
+	return "BLS"
+}
+
+// MLDSASigner implements Signer for ML-DSA signatures
+type MLDSASigner struct {
+	privKey *mldsa.PrivateKey
+	pubKey  *mldsa.PublicKey
+	mode    mldsa.Mode
+}
+
+// NewMLDSASigner creates a new ML-DSA signer
+func NewMLDSASigner(mode mldsa.Mode) (*MLDSASigner, error) {
+	privKey, err := mldsa.GenerateKey(rand.Reader, mode)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &MLDSASigner{
+		privKey: privKey,
+		pubKey:  privKey.PublicKey(),
+		mode:    mode,
+	}, nil
+}
+
+func (s *MLDSASigner) Sign(message []byte) ([]byte, error) {
+	// ML-DSA requires opts, use crypto.Hash(0) for default
+	return s.privKey.Sign(rand.Reader, message, crypto.Hash(0))
+}
+
+func (s *MLDSASigner) Verify(message, signature []byte) bool {
+	return s.pubKey.Verify(message, signature, crypto.Hash(0))
+}
+
+func (s *MLDSASigner) PublicKey() []byte {
+	return s.pubKey.Bytes()
+}
+
+func (s *MLDSASigner) Type() string {
+	switch s.mode {
+	case mldsa.MLDSA44:
+		return "ML-DSA-44"
+	case mldsa.MLDSA65:
+		return "ML-DSA-65"
+	case mldsa.MLDSA87:
+		return "ML-DSA-87"
+	default:
+		return "ML-DSA"
+	}
+}
+
+// SLHDSASigner implements Signer for SLH-DSA signatures
+type SLHDSASigner struct {
+	privKey *slhdsa.PrivateKey
+	pubKey  *slhdsa.PublicKey
+	mode    slhdsa.Mode
+}
+
+// NewSLHDSASigner creates a new SLH-DSA signer
+func NewSLHDSASigner(mode slhdsa.Mode) (*SLHDSASigner, error) {
+	privKey, err := slhdsa.GenerateKey(rand.Reader, mode)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &SLHDSASigner{
+		privKey: privKey,
+		pubKey:  privKey.PublicKey(),
+		mode:    mode,
+	}, nil
+}
+
+func (s *SLHDSASigner) Sign(message []byte) ([]byte, error) {
+	return s.privKey.Sign(rand.Reader, message, crypto.Hash(0))
+}
+
+func (s *SLHDSASigner) Verify(message, signature []byte) bool {
+	return s.pubKey.Verify(message, signature, crypto.Hash(0))
+}
+
+func (s *SLHDSASigner) PublicKey() []byte {
+	return s.pubKey.Bytes()
+}
+
+func (s *SLHDSASigner) Type() string {
+	switch s.mode {
+	case slhdsa.SLHDSA128f:
+		return "SLH-DSA-128f"
+	case slhdsa.SLHDSA192f:
+		return "SLH-DSA-192f"
+	case slhdsa.SLHDSA256f:
+		return "SLH-DSA-256f"
+	default:
+		return "SLH-DSA"
+	}
+}
+
+// HybridSigner combines BLS and ML-DSA for quantum-safe signatures
+type HybridSigner struct {
+	bls   *BLSSigner
+	mldsa *MLDSASigner
+}
+
+// NewHybridSigner creates a signer with both BLS and ML-DSA
+func NewHybridSigner() (*HybridSigner, error) {
+	blsSigner, err := NewBLSSigner()
+	if err != nil {
+		return nil, err
+	}
+	
+	mldsaSigner, err := NewMLDSASigner(mldsa.MLDSA65)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &HybridSigner{
+		bls:   blsSigner,
+		mldsa: mldsaSigner,
+	}, nil
+}
+
+func (s *HybridSigner) Sign(message []byte) ([]byte, error) {
+	blsSig, err := s.bls.Sign(message)
+	if err != nil {
+		return nil, fmt.Errorf("BLS sign failed: %w", err)
+	}
+	
+	mldsaSig, err := s.mldsa.Sign(message)
+	if err != nil {
+		return nil, fmt.Errorf("ML-DSA sign failed: %w", err)
+	}
+	
+	// Combine signatures: [2-byte BLS len][BLS sig][ML-DSA sig]
+	result := make([]byte, 2+len(blsSig)+len(mldsaSig))
+	result[0] = byte(len(blsSig) >> 8)
+	result[1] = byte(len(blsSig))
+	copy(result[2:], blsSig)
+	copy(result[2+len(blsSig):], mldsaSig)
+	
+	return result, nil
+}
+
+func (s *HybridSigner) Verify(message, signature []byte) bool {
+	if len(signature) < 2 {
+		return false
+	}
+	
+	blsLen := int(signature[0])<<8 | int(signature[1])
+	if len(signature) < 2+blsLen {
+		return false
+	}
+	
+	blsSig := signature[2 : 2+blsLen]
+	mldsaSig := signature[2+blsLen:]
+	
+	return s.bls.Verify(message, blsSig) && s.mldsa.Verify(message, mldsaSig)
+}
+
+func (s *HybridSigner) PublicKey() []byte {
+	blsPub := s.bls.PublicKey()
+	mldsaPub := s.mldsa.PublicKey()
+	
+	// Combine public keys
+	result := make([]byte, 2+len(blsPub)+len(mldsaPub))
+	result[0] = byte(len(blsPub) >> 8)
+	result[1] = byte(len(blsPub))
+	copy(result[2:], blsPub)
+	copy(result[2+len(blsPub):], mldsaPub)
+	
+	return result
+}
+
+func (s *HybridSigner) Type() string {
+	return "Hybrid-BLS-MLDSA"
+}
+
+// KEMProvider handles key encapsulation
+type KEMProvider interface {
+	Encapsulate() (ciphertext, sharedSecret []byte, err error)
+	Decapsulate(ciphertext []byte) (sharedSecret []byte, err error)
+}
+
+// MLKEMProvider implements KEMProvider for ML-KEM
+type MLKEMProvider struct {
+	privKey *mlkem.PrivateKey
+	pubKey  *mlkem.PublicKey
+	mode    mlkem.Mode
+}
+
+// NewMLKEMProvider creates a new ML-KEM provider
+func NewMLKEMProvider(mode mlkem.Mode) (*MLKEMProvider, error) {
+	priv, pub, err := mlkem.GenerateKeyPair(rand.Reader, mode)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &MLKEMProvider{
+		privKey: priv,
+		pubKey:  pub,
+		mode:    mode,
+	}, nil
+}
+
+func (k *MLKEMProvider) Encapsulate() ([]byte, []byte, error) {
+	return mlkem.Encapsulate(k.pubKey, rand.Reader)
+}
+
+func (k *MLKEMProvider) Decapsulate(ciphertext []byte) ([]byte, error) {
+	return mlkem.Decapsulate(k.privKey, ciphertext)
+}
+
+// UnifiedProvider combines signing and KEM operations
+type UnifiedProvider struct {
+	signer Signer
+	kem    KEMProvider
+}
+
+// NewUnifiedProvider creates a provider with both signing and KEM
+func NewUnifiedProvider(signerType string) (*UnifiedProvider, error) {
+	var signer Signer
+	var err error
+	
+	switch signerType {
+	case "BLS":
+		signer, err = NewBLSSigner()
+	case "ML-DSA":
+		signer, err = NewMLDSASigner(mldsa.MLDSA65)
+	case "SLH-DSA":
+		signer, err = NewSLHDSASigner(slhdsa.SLHDSA128f)
+	case "Hybrid":
+		signer, err = NewHybridSigner()
+	default:
+		return nil, errors.New("unknown signer type")
+	}
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	kem, err := NewMLKEMProvider(mlkem.MLKEM768)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &UnifiedProvider{
+		signer: signer,
+		kem:    kem,
+	}, nil
+}
+
+func (u *UnifiedProvider) Sign(message []byte) ([]byte, error) {
+	return u.signer.Sign(message)
+}
+
+func (u *UnifiedProvider) Verify(message, signature []byte) bool {
+	return u.signer.Verify(message, signature)
+}
+
+func (u *UnifiedProvider) Encapsulate() ([]byte, []byte, error) {
+	return u.kem.Encapsulate()
+}
+
+func (u *UnifiedProvider) Decapsulate(ciphertext []byte) ([]byte, error) {
+	return u.kem.Decapsulate(ciphertext)
+}
+
+func (u *UnifiedProvider) Type() string {
+	return u.signer.Type()
+}

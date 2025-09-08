@@ -1,0 +1,255 @@
+package unified
+
+import (
+	"bytes"
+	"testing"
+	
+	"github.com/luxfi/crypto/mldsa"
+	"github.com/luxfi/crypto/mlkem"
+	"github.com/luxfi/crypto/slhdsa"
+)
+
+func TestBLSSigner(t *testing.T) {
+	signer, err := NewBLSSigner()
+	if err != nil {
+		t.Fatalf("Failed to create BLS signer: %v", err)
+	}
+	
+	message := []byte("Test message for BLS")
+	
+	sig, err := signer.Sign(message)
+	if err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+	
+	if !signer.Verify(message, sig) {
+		t.Fatalf("Signature verification failed")
+	}
+	
+	if signer.Verify([]byte("wrong message"), sig) {
+		t.Fatalf("Signature should not verify for wrong message")
+	}
+	
+	t.Logf("BLS signature size: %d bytes", len(sig))
+	t.Logf("BLS public key size: %d bytes", len(signer.PublicKey()))
+}
+
+func TestMLDSASigner(t *testing.T) {
+	modes := []struct {
+		name string
+		mode mldsa.Mode
+	}{
+		{"ML-DSA-44", mldsa.MLDSA44},
+		{"ML-DSA-65", mldsa.MLDSA65},
+		{"ML-DSA-87", mldsa.MLDSA87},
+	}
+	
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			signer, err := NewMLDSASigner(m.mode)
+			if err != nil {
+				t.Fatalf("Failed to create %s signer: %v", m.name, err)
+			}
+			
+			message := []byte("Test message for ML-DSA")
+			
+			sig, err := signer.Sign(message)
+			if err != nil {
+				t.Fatalf("Failed to sign: %v", err)
+			}
+			
+			if !signer.Verify(message, sig) {
+				t.Fatalf("Signature verification failed")
+			}
+			
+			if signer.Type() != m.name {
+				t.Fatalf("Expected type %s, got %s", m.name, signer.Type())
+			}
+			
+			t.Logf("%s signature size: %d bytes", m.name, len(sig))
+			t.Logf("%s public key size: %d bytes", m.name, len(signer.PublicKey()))
+		})
+	}
+}
+
+func TestSLHDSASigner(t *testing.T) {
+	modes := []struct {
+		name string
+		mode slhdsa.Mode
+	}{
+		{"SLH-DSA-128f", slhdsa.SLHDSA128f},
+		{"SLH-DSA-192f", slhdsa.SLHDSA192f},
+		{"SLH-DSA-256f", slhdsa.SLHDSA256f},
+	}
+	
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			signer, err := NewSLHDSASigner(m.mode)
+			if err != nil {
+				t.Fatalf("Failed to create %s signer: %v", m.name, err)
+			}
+			
+			message := []byte("Test message for SLH-DSA")
+			
+			sig, err := signer.Sign(message)
+			if err != nil {
+				t.Fatalf("Failed to sign: %v", err)
+			}
+			
+			if !signer.Verify(message, sig) {
+				t.Fatalf("Signature verification failed")
+			}
+			
+			t.Logf("%s signature size: %d bytes", m.name, len(sig))
+			t.Logf("%s public key size: %d bytes", m.name, len(signer.PublicKey()))
+		})
+	}
+}
+
+func TestHybridSigner(t *testing.T) {
+	signer, err := NewHybridSigner()
+	if err != nil {
+		t.Fatalf("Failed to create hybrid signer: %v", err)
+	}
+	
+	message := []byte("Test message for hybrid signing")
+	
+	sig, err := signer.Sign(message)
+	if err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+	
+	if !signer.Verify(message, sig) {
+		t.Fatalf("Signature verification failed")
+	}
+	
+	if signer.Verify([]byte("wrong message"), sig) {
+		t.Fatalf("Signature should not verify for wrong message")
+	}
+	
+	t.Logf("Hybrid signature size: %d bytes", len(sig))
+	t.Logf("Hybrid public key size: %d bytes", len(signer.PublicKey()))
+	t.Logf("Hybrid type: %s", signer.Type())
+}
+
+func TestMLKEMProvider(t *testing.T) {
+	modes := []struct {
+		name string
+		mode mlkem.Mode
+	}{
+		{"ML-KEM-512", mlkem.MLKEM512},
+		{"ML-KEM-768", mlkem.MLKEM768},
+		{"ML-KEM-1024", mlkem.MLKEM1024},
+	}
+	
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			kem, err := NewMLKEMProvider(m.mode)
+			if err != nil {
+				t.Fatalf("Failed to create %s provider: %v", m.name, err)
+			}
+			
+			ciphertext, sharedSecret1, err := kem.Encapsulate()
+			if err != nil {
+				t.Fatalf("Encapsulation failed: %v", err)
+			}
+			
+			sharedSecret2, err := kem.Decapsulate(ciphertext)
+			if err != nil {
+				t.Fatalf("Decapsulation failed: %v", err)
+			}
+			
+			if !bytes.Equal(sharedSecret1, sharedSecret2) {
+				t.Fatalf("Shared secrets don't match")
+			}
+			
+			t.Logf("%s ciphertext size: %d bytes", m.name, len(ciphertext))
+			t.Logf("%s shared secret size: %d bytes", m.name, len(sharedSecret1))
+		})
+	}
+}
+
+func TestUnifiedProvider(t *testing.T) {
+	signerTypes := []string{"BLS", "ML-DSA", "SLH-DSA", "Hybrid"}
+	
+	for _, signerType := range signerTypes {
+		t.Run(signerType, func(t *testing.T) {
+			provider, err := NewUnifiedProvider(signerType)
+			if err != nil {
+				t.Fatalf("Failed to create unified provider: %v", err)
+			}
+			
+			message := []byte("Test message for unified provider")
+			
+			// Test signing
+			sig, err := provider.Sign(message)
+			if err != nil {
+				t.Fatalf("Failed to sign: %v", err)
+			}
+			
+			if !provider.Verify(message, sig) {
+				t.Fatalf("Signature verification failed")
+			}
+			
+			// Test KEM
+			ciphertext, sharedSecret1, err := provider.Encapsulate()
+			if err != nil {
+				t.Fatalf("Encapsulation failed: %v", err)
+			}
+			
+			sharedSecret2, err := provider.Decapsulate(ciphertext)
+			if err != nil {
+				t.Fatalf("Decapsulation failed: %v", err)
+			}
+			
+			if !bytes.Equal(sharedSecret1, sharedSecret2) {
+				t.Fatalf("Shared secrets don't match")
+			}
+			
+			t.Logf("%s provider signature size: %d bytes", signerType, len(sig))
+			t.Logf("%s provider type: %s", signerType, provider.Type())
+		})
+	}
+}
+
+func BenchmarkSigners(b *testing.B) {
+	benchmarks := []struct {
+		name   string
+		create func() (Signer, error)
+	}{
+		{"BLS", func() (Signer, error) { return NewBLSSigner() }},
+		{"ML-DSA-65", func() (Signer, error) { return NewMLDSASigner(mldsa.MLDSA65) }},
+		{"SLH-DSA-128f", func() (Signer, error) { return NewSLHDSASigner(slhdsa.SLHDSA128f) }},
+		{"Hybrid", func() (Signer, error) { return NewHybridSigner() }},
+	}
+	
+	message := []byte("Benchmark message for signing performance testing")
+	
+	for _, bm := range benchmarks {
+		signer, err := bm.create()
+		if err != nil {
+			b.Fatal(err)
+		}
+		
+		b.Run(bm.name+"_Sign", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := signer.Sign(message)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		
+		sig, _ := signer.Sign(message)
+		
+		b.Run(bm.name+"_Verify", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if !signer.Verify(message, sig) {
+					b.Fatal("Verification failed")
+				}
+			}
+		})
+	}
+}
