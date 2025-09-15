@@ -1,6 +1,7 @@
 package slhdsa
 
 import (
+	"crypto/rand"
 	"fmt"
 	"runtime"
 	"testing"
@@ -26,10 +27,12 @@ func TestOptimizedPerformance(t *testing.T) {
 			opt := NewOptimized(mode)
 			
 			// Generate test key pair
-			sk, pk, err := GenerateKey(mode)
+			priv, err := GenerateKey(rand.Reader, mode)
 			if err != nil {
 				t.Fatalf("Key generation failed: %v", err)
 			}
+			sk := priv.Bytes()
+			pk := priv.Public().(PublicKey).Bytes()
 			
 			message := []byte("Test message for optimization benchmarks")
 			
@@ -119,7 +122,9 @@ func BenchmarkOptimizedVerification(b *testing.B) {
 func BenchmarkComparison(b *testing.B) {
 	mode := SLHDSA128f
 	message := make([]byte, 32)
-	sk, pk, _ := GenerateKey(mode)
+	priv, _ := GenerateKey(rand.Reader, mode)
+	sk := priv.Bytes()
+	pk := priv.Public().(PublicKey).Bytes()
 	
 	b.Run("Standard", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -146,7 +151,9 @@ func TestParallelPerformance(t *testing.T) {
 	opt := NewOptimized(mode)
 	InitPrecomputation()
 	
-	sk, pk, _ := GenerateKey(mode)
+	priv, _ := GenerateKey(rand.Reader, mode)
+	sk := priv.Bytes()
+	pk := priv.Public().(PublicKey).Bytes()
 	message := make([]byte, 32)
 	
 	// Test different CPU counts
@@ -186,7 +193,9 @@ func TestMemoryUsage(t *testing.T) {
 	for _, mode := range modes {
 		t.Run(fmt.Sprintf("Mode_%v", mode), func(t *testing.T) {
 			opt := NewOptimized(mode)
-			sk, pk, _ := GenerateKey(mode)
+			priv, _ := GenerateKey(rand.Reader, mode)
+	sk := priv.Bytes()
+	pk := priv.Public().(PublicKey).Bytes()
 			message := make([]byte, 32)
 			
 			// Measure memory allocations
