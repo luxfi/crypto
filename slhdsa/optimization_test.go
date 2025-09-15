@@ -153,10 +153,10 @@ func TestParallelPerformance(t *testing.T) {
 	mode := SLHDSA128f
 	opt := NewOptimized(mode)
 	InitPrecomputation()
-	
+
 	priv, _ := GenerateKey(rand.Reader, mode)
 	sk := priv
-	pk := priv.PublicKey.Bytes()
+	pk := &priv.PublicKey
 	message := make([]byte, 32)
 	
 	// Test different CPU counts
@@ -197,8 +197,8 @@ func TestMemoryUsage(t *testing.T) {
 		t.Run(fmt.Sprintf("Mode_%v", mode), func(t *testing.T) {
 			opt := NewOptimized(mode)
 			priv, _ := GenerateKey(rand.Reader, mode)
-	sk := priv
-	pk := priv.PublicKey.Bytes()
+			sk := priv
+			pk := &priv.PublicKey
 			message := make([]byte, 32)
 			
 			// Measure memory allocations
