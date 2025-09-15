@@ -1,6 +1,7 @@
 package slhdsa
 
 import (
+	"crypto/rand"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -71,108 +72,53 @@ func (o *OptimizedSLHDSA) OptimizedSign(privateKey *PrivateKey, message []byte) 
 // optimizedSign128f implements fast signing for 128-bit security
 func (o *OptimizedSLHDSA) optimizedSign128f(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// Fast variant optimizations:
+	// For now, use the standard signing method
+	// Future optimizations could include:
 	// 1. Parallel Merkle tree construction
 	// 2. SIMD-accelerated hash functions
 	// 3. Cache-friendly memory access patterns
-	
-	const (
-		n           = 16  // Hash output size
-		w           = 16  // Winternitz parameter
-		h           = 60  // Tree height
-		d           = 12  // Number of layers
-		k           = 10  // Number of FORS trees
-		treeHeight  = h / d
-	)
-	
-	// Pre-allocate signature buffer
-	sigSize := o.getSignatureSize()
-	signature := make([]byte, sigSize)
-	
-	// Parallel hash computation using goroutines
-	var wg sync.WaitGroup
-	numTrees := 1 << d
-	
-	// Process trees in parallel batches
-	batchSize := numTrees / runtime.NumCPU()
-	if batchSize < 1 {
-		batchSize = 1
-	}
-	
-	for i := 0; i < numTrees; i += batchSize {
-		wg.Add(1)
-		go func(start int) {
-			defer wg.Done()
-			
-			end := start + batchSize
-			if end > numTrees {
-				end = numTrees
-			}
-			
-			// Process batch of trees
-			for j := start; j < end; j++ {
-				// Optimized tree processing with cache
-				o.processTreeOptimized(j, sk, msg, signature, cache)
-			}
-		}(i)
-	}
-	
-	wg.Wait()
-	
-	return signature, nil
+
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 // optimizedSign128s implements size-optimized signing
 func (o *OptimizedSLHDSA) optimizedSign128s(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// Size variant optimizations:
+	// For now, use the standard signing method
+	// Future optimizations could include:
 	// 1. Sequential processing with minimal memory
 	// 2. Compressed intermediate values
 	// 3. Streaming hash computation
-	
-	sigSize := o.getSignatureSize()
-	signature := make([]byte, sigSize)
-	
-	// Use streaming approach to minimize memory
-	// Process one tree at a time
-	o.processTreesSequential(sk, msg, signature, cache)
-	
-	return signature, nil
+
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 // Similar implementations for other security levels...
 func (o *OptimizedSLHDSA) optimizedSign192f(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// 192-bit fast variant
-	return o.optimizedSignGeneric(sk, msg, cache, 24, 16, 63, 9)
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 func (o *OptimizedSLHDSA) optimizedSign192s(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// 192-bit size variant
-	return o.optimizedSignGeneric(sk, msg, cache, 24, 16, 63, 9)
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 func (o *OptimizedSLHDSA) optimizedSign256f(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// 256-bit fast variant
-	return o.optimizedSignGeneric(sk, msg, cache, 32, 16, 64, 8)
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 func (o *OptimizedSLHDSA) optimizedSign256s(sk *PrivateKey, msg []byte, cache []byte) ([]byte, error) {
 	// 256-bit size variant
-	return o.optimizedSignGeneric(sk, msg, cache, 32, 16, 64, 8)
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 // optimizedSignGeneric provides generic optimized signing
 func (o *OptimizedSLHDSA) optimizedSignGeneric(sk *PrivateKey, msg []byte, cache []byte, n, w, h, d int) ([]byte, error) {
-	sigSize := o.getSignatureSize()
-	signature := make([]byte, sigSize)
-	
-	if o.simdEnable {
-		// Use SIMD-accelerated path
-		o.signWithSIMD(sk, msg, signature, cache, n, w, h, d)
-	} else {
-		// Use standard optimized path
-		o.signOptimized(sk, msg, signature, cache, n, w, h, d)
-	}
-	
-	return signature, nil
+	// For now, use the standard signing method
+	// Future optimizations will implement SIMD and other improvements
+	return sk.Sign(rand.Reader, msg, nil)
 }
 
 // processTreeOptimized processes a single tree with optimizations
@@ -248,8 +194,8 @@ func (o *OptimizedSLHDSA) verifyOptimized(pk *PublicKey, msg []byte, sig []byte,
 	// 1. Parallel path verification
 	// 2. Early rejection on invalid paths
 	// 3. Cache-friendly traversal
-	
-	// Placeholder - real implementation would verify signature
+
+	// Use the actual Verify method from PublicKey
 	return pk.Verify(msg, sig, nil)
 }
 
@@ -289,9 +235,9 @@ func (o *OptimizedSLHDSA) RunBenchmark(config BenchmarkConfig) BenchmarkResult {
 		Mode:        config.Mode,
 		MessageSize: config.MessageSize,
 	}
-	
+
 	// Generate test key pair
-	sk, _ := GenerateKey(nil, config.Mode)
+	sk, _ := GenerateKey(rand.Reader, config.Mode)
 	pk := &sk.PublicKey
 	message := make([]byte, config.MessageSize)
 	
