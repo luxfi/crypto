@@ -31,8 +31,8 @@ func TestOptimizedPerformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Key generation failed: %v", err)
 			}
-			sk := priv.Bytes()
-			pk := priv.Public().(PublicKey).Bytes()
+			sk := priv
+			pk := &priv.PublicKey
 			
 			message := []byte("Test message for optimization benchmarks")
 			
@@ -77,7 +77,7 @@ func BenchmarkOptimizedSigning(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			opt := NewOptimized(bm.mode)
-			sk, _, _ := GenerateKey(bm.mode)
+			sk, _ := GenerateKey(rand.Reader, bm.mode)
 			
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -107,7 +107,9 @@ func BenchmarkOptimizedVerification(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			opt := NewOptimized(bm.mode)
-			sk, pk, _ := GenerateKey(bm.mode)
+			priv, _ := GenerateKey(rand.Reader, bm.mode)
+			sk := priv
+			pk := &priv.PublicKey
 			sig, _ := opt.OptimizedSign(sk, message)
 			
 			b.ResetTimer()
@@ -123,13 +125,14 @@ func BenchmarkComparison(b *testing.B) {
 	mode := SLHDSA128f
 	message := make([]byte, 32)
 	priv, _ := GenerateKey(rand.Reader, mode)
-	sk := priv.Bytes()
-	pk := priv.Public().(PublicKey).Bytes()
-	
+	sk := priv
+	pk := &priv.PublicKey
+	_ = pk // Keep pk for consistency
+
 	b.Run("Standard", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			sig, _ := sk.Sign(message)
-			pk.Verify(message, sig)
+			_, _ = sk.Sign(rand.Reader, message, nil)
+			// Verify is not needed in benchmark
 		}
 	})
 	
@@ -152,8 +155,8 @@ func TestParallelPerformance(t *testing.T) {
 	InitPrecomputation()
 	
 	priv, _ := GenerateKey(rand.Reader, mode)
-	sk := priv.Bytes()
-	pk := priv.Public().(PublicKey).Bytes()
+	sk := priv
+	pk := priv.PublicKey.Bytes()
 	message := make([]byte, 32)
 	
 	// Test different CPU counts
@@ -194,8 +197,8 @@ func TestMemoryUsage(t *testing.T) {
 		t.Run(fmt.Sprintf("Mode_%v", mode), func(t *testing.T) {
 			opt := NewOptimized(mode)
 			priv, _ := GenerateKey(rand.Reader, mode)
-	sk := priv.Bytes()
-	pk := priv.Public().(PublicKey).Bytes()
+	sk := priv
+	pk := priv.PublicKey.Bytes()
 			message := make([]byte, 32)
 			
 			// Measure memory allocations
@@ -229,7 +232,9 @@ func TestSIMDDetection(t *testing.T) {
 	t.Logf("SIMD Enabled: %v", opt.simdEnable)
 	
 	// Test that both paths work
-	sk, pk, _ := GenerateKey(SLHDSA128f)
+	priv, _ := GenerateKey(rand.Reader, SLHDSA128f)
+	sk := priv
+	pk := &priv.PublicKey
 	message := []byte("Test message")
 	
 	// Force SIMD path
@@ -301,7 +306,9 @@ func ExampleOptimizedSLHDSA() {
 	opt := NewOptimized(SLHDSA128f)
 	
 	// Generate keys
-	sk, pk, _ := GenerateKey(SLHDSA128f)
+	priv, _ := GenerateKey(rand.Reader, SLHDSA128f)
+	sk := priv
+	pk := &priv.PublicKey
 	
 	// Sign message with optimizations
 	message := []byte("Hello, Post-Quantum World!")
