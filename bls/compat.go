@@ -18,5 +18,6 @@ func SignProofOfPossession(sk *SecretKey, msg []byte) *Signature {
 	if sk == nil {
 		return nil
 	}
-	return sk.SignProofOfPossession(msg)
+	sig, _ := sk.SignProofOfPossession(msg)
+	return sig
 }

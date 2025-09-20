@@ -262,8 +262,9 @@ func TestSIMDDetection(t *testing.T) {
 
 // TestOptimizationMetrics provides detailed performance metrics
 func TestOptimizationMetrics(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping detailed metrics in short mode")
+	// Adjust iterations based on testing mode for performance
+	iterationMultiplier := 1
+		t.Log("Running in short mode with reduced iterations")
 	}
 	
 	InitPrecomputation()

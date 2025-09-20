@@ -282,7 +282,9 @@ func TestSizesAndParameters(t *testing.T) {
 	assert.Equal(t, 1952, mldsa.MLDSA65PublicKeySize)
 	assert.Equal(t, 3293, mldsa.MLDSA65SignatureSize)
 
-	// SLH-DSA sizes (FIPS 205) - placeholder values
-	// These would be the actual values once full implementation is done
-	t.Skip("SLH-DSA constants not yet defined")
+	// SLH-DSA sizes (FIPS 205)
+	assert.Equal(t, 32, slhdsa.SLHDSA128sPublicKeySize)
+	assert.Equal(t, 7856, slhdsa.SLHDSA128sSignatureSize)
+	assert.Equal(t, 32, slhdsa.SLHDSA128fPublicKeySize)
+	assert.Equal(t, 17088, slhdsa.SLHDSA128fSignatureSize)
 }

@@ -267,15 +267,28 @@ func BatchVerify(pubkeys []*PublicKey, messages [][]byte, signatures []*Signatur
 		dst = []byte(DefaultDST)
 	}
 
-	// For batch verification, we can use individual verification
-	// TODO: Implement proper batch verification with pairing accumulation
+	// Implement proper batch verification with pairing accumulation
+	// This is more efficient than individual verifications
+
+	// Convert to BLST types for batch verification
+	blstPks := make([]*blst.P1Affine, len(pubkeys))
+	blstSigs := make([]*blst.P2Affine, len(signatures))
+	blstMsgs := make([][]byte, len(messages))
+
 	for i := range pubkeys {
-		if !pubkeys[i].Verify(messages[i], signatures[i], dst) {
+		if pubkeys[i] == nil || pubkeys[i].point == nil {
 			return false
 		}
+		if signatures[i] == nil {
+			return false
+		}
+		blstPks[i] = pubkeys[i].point
+		blstSigs[i] = signatures[i].point
+		blstMsgs[i] = messages[i]
 	}
 
-	return true
+	// Use BLST's efficient batch verification
+	return blst.CoreBatchVerify(blstPks, blstSigs, true, blstMsgs, dst)
 }
 
 // Helper functions
