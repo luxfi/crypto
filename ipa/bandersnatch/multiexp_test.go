@@ -108,8 +108,6 @@ func TestMultiExpPointAffine(t *testing.T) {
 		genScalar,
 	))
 
-	if testing.Short() {
-		// we test only c = 5 and c = 16
 
 		properties.Property("[G1] Multi exponentation (c=5, c=16) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {

@@ -349,7 +349,13 @@ func msmInnerPointProj(p *PointProj, c int, points []PointAffine, scalars []fr.E
 		msmC22(p, points, scalars, splitFirstChunk)
 
 	default:
-		panic("not implemented")
+		// For unsupported chunk sizes, fall back to a generic implementation
+		// using the closest supported chunk size (msmC16 for moderate sizes)
+		if c < 16 {
+			msmC16(p, points, scalars, splitFirstChunk)
+		} else {
+			msmC22(p, points, scalars, splitFirstChunk)
+		}
 	}
 }
 
