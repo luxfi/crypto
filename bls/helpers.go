@@ -10,7 +10,8 @@ func Sign(sk *SecretKey, msg []byte) *Signature {
 	if sk == nil {
 		return nil
 	}
-	return sk.Sign(msg)
+	sig, _ := sk.Sign(msg)
+	return sig
 }
 
 // PublicKeyBytes is a helper that returns the compressed bytes of a public key

@@ -117,25 +117,25 @@ func (pk *PublicKey) From(blstSK interface{}) *PublicKey {
 }
 
 // Sign [msg] to authorize that this private key signed [msg].
-func (sk *SecretKey) Sign(msg []byte) *Signature {
+func (sk *SecretKey) Sign(msg []byte) (*Signature, error) {
 	if sk == nil || sk.sk == nil {
-		return nil
+		return nil, errors.New("nil secret key")
 	}
 	sig := blssign.Sign(sk.sk, msg)
-	return &Signature{sig: sig}
+	return &Signature{sig: sig}, nil
 }
 
 // SignProofOfPossession signs a [msg] to prove the ownership of this secret key.
-func (sk *SecretKey) SignProofOfPossession(msg []byte) *Signature {
+func (sk *SecretKey) SignProofOfPossession(msg []byte) (*Signature, error) {
 	if sk == nil || sk.sk == nil {
-		return nil
+		return nil, errors.New("nil secret key")
 	}
 
 	// For now, we have to use regular signing because circl doesn't expose
 	// the private key bytes in a way we can extract them
 	// TODO: This should use different DST once we have proper access to the key
 	sig := blssign.Sign(sk.sk, msg)
-	return &Signature{sig: sig}
+	return &Signature{sig: sig}, nil
 }
 
 // PublicKeyToCompressedBytes returns the compressed big-endian format of the
