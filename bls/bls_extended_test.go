@@ -219,7 +219,10 @@ func TestSignAndVerify(t *testing.T) {
 	msg := []byte("test message")
 	
 	// Sign message
-	sig := sk.Sign(msg)
+	sig, err := sk.Sign(msg)
+	if err != nil {
+		t.Fatalf("Failed to sign message: %v", err)
+	}
 	if sig == nil {
 		t.Fatal("Signature should not be nil")
 	}
@@ -246,19 +249,28 @@ func TestSignAndVerify(t *testing.T) {
 	}
 	
 	// Test nil cases
-	nilSig := sk.Sign(nil)
+	nilSig, err := sk.Sign(nil)
+	if err != nil {
+		t.Fatalf("Failed to sign nil message: %v", err)
+	}
 	if nilSig == nil {
 		t.Fatal("Should handle nil message")
 	}
 	
 	var nilSk *SecretKey
-	nilSig2 := nilSk.Sign(msg)
+	nilSig2, err := nilSk.Sign(msg)
+	if err == nil {
+		t.Fatal("Nil secret key should return error")
+	}
 	if nilSig2 != nil {
 		t.Fatal("Nil secret key should return nil signature")
 	}
 	
 	emptySk := &SecretKey{}
-	emptySig := emptySk.Sign(msg)
+	emptySig, err := emptySk.Sign(msg)
+	if err == nil {
+		t.Fatal("Empty secret key should return error")
+	}
 	if emptySig != nil {
 		t.Fatal("Empty secret key should return nil signature")
 	}
@@ -268,7 +280,7 @@ func TestVerifyEdgeCases(t *testing.T) {
 	sk, _ := NewSecretKey()
 	pk := sk.PublicKey()
 	msg := []byte("test")
-	sig := sk.Sign(msg)
+	sig, _ := sk.Sign(msg)
 	
 	// Test nil public key
 	valid := Verify(nil, sig, msg)
@@ -300,7 +312,10 @@ func TestProofOfPossession(t *testing.T) {
 	msg := []byte("proof of possession")
 	
 	// Sign proof of possession
-	sig := sk.SignProofOfPossession(msg)
+	sig, err := sk.SignProofOfPossession(msg)
+	if err != nil {
+		t.Fatalf("Failed to sign PoP: %v", err)
+	}
 	if sig == nil {
 		t.Fatal("PoP signature should not be nil")
 	}
@@ -320,13 +335,19 @@ func TestProofOfPossession(t *testing.T) {
 	
 	// Test nil cases
 	var nilSk *SecretKey
-	nilSig := nilSk.SignProofOfPossession(msg)
+	nilSig, err := nilSk.SignProofOfPossession(msg)
+	if err == nil {
+		t.Fatal("Nil secret key should return error")
+	}
 	if nilSig != nil {
 		t.Fatal("Nil secret key should return nil PoP")
 	}
 	
 	emptySk := &SecretKey{}
-	emptySig := emptySk.SignProofOfPossession(msg)
+	emptySig, err := emptySk.SignProofOfPossession(msg)
+	if err == nil {
+		t.Fatal("Empty secret key should return error")
+	}
 	if emptySig != nil {
 		t.Fatal("Empty secret key should return nil PoP")
 	}
@@ -337,9 +358,9 @@ func TestSignatureBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate secret key: %v", err)
 	}
-	
+
 	msg := []byte("test")
-	sig := sk.Sign(msg)
+	sig, _ := sk.Sign(msg)
 	
 	// Convert to bytes
 	sigBytes := SignatureToBytes(sig)
@@ -421,7 +442,7 @@ func TestAggregateSignaturesEdgeCases(t *testing.T) {
 	// Test with nil signature in slice
 	sk1, _ := NewSecretKey()
 	msg := []byte("test")
-	sig1 := sk1.Sign(msg)
+	sig1, _ := sk1.Sign(msg)
 	
 	_, err = AggregateSignatures([]*Signature{sig1, nil})
 	if err == nil {
@@ -445,7 +466,7 @@ func TestMultipleAggregation(t *testing.T) {
 		}
 		sks[i] = sk
 		pks[i] = sk.PublicKey()
-		sigs[i] = sk.Sign(msg)
+		sigs[i], _ = sk.Sign(msg)
 	}
 	
 	// Aggregate public keys
@@ -488,7 +509,7 @@ func BenchmarkSignExtended(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = sk.Sign(msg)
+		_, _ = sk.Sign(msg)
 	}
 }
 
@@ -496,8 +517,8 @@ func BenchmarkVerifyExtended(b *testing.B) {
 	sk, _ := NewSecretKey()
 	pk := sk.PublicKey()
 	msg := []byte("benchmark message")
-	sig := sk.Sign(msg)
-	
+	sig, _ := sk.Sign(msg)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Verify(pk, sig, msg)
@@ -526,7 +547,7 @@ func BenchmarkAggregateSignaturesExtended(b *testing.B) {
 	
 	for i := 0; i < numSigs; i++ {
 		sk, _ := NewSecretKey()
-		sigs[i] = sk.Sign(msg)
+		sigs[i], _ = sk.Sign(msg)
 	}
 	
 	b.ResetTimer()

@@ -35,7 +35,7 @@ func testMLKEM(t *testing.T) {
 	for i, mode := range modes {
 		t.Run(names[i], func(t *testing.T) {
 			// Generate key pair
-			priv, err := mlkem.GenerateKeyPair(rand.Reader, mode)
+			priv, _, err := mlkem.GenerateKeyPair(rand.Reader, mode)
 			require.NoError(t, err)
 
 			// Encapsulate
@@ -269,7 +269,7 @@ func testCGOPerformance(t *testing.T) {
 		rand.Read(message)
 
 		// Benchmark pure Go implementation
-		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 
 		start := time.Now()
 		for i := 0; i < 100; i++ {
@@ -316,7 +316,7 @@ func testCGOPerformance(t *testing.T) {
 // BenchmarkCrypto benchmarks all crypto implementations
 func BenchmarkCrypto(b *testing.B) {
 	b.Run("ML-KEM-768", func(b *testing.B) {
-		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 
 		b.Run("Encapsulate", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

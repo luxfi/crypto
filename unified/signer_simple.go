@@ -45,7 +45,10 @@ func NewSimpleSigner() (*SimpleSigner, error) {
 
 // SignBLS creates a BLS signature
 func (s *SimpleSigner) SignBLS(message []byte) ([]byte, error) {
-	sig := s.blsKey.Sign(message)
+	sig, err := s.blsKey.Sign(message)
+	if err != nil {
+		return nil, err
+	}
 	return bls.SignatureToBytes(sig), nil
 }
 
