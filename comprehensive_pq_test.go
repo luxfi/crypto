@@ -19,7 +19,7 @@ func TestPQCrypto96Coverage(t *testing.T) {
 	t.Run("Hybrid", testHybrid)
 }
 
-func testMLDSA(t *testing.T) {
+func testMLDSAComprehensive(t *testing.T) {
 	modes := []mldsa.Mode{mldsa.MLDSA44, mldsa.MLDSA65, mldsa.MLDSA87}
 	
 	for _, mode := range modes {
@@ -131,7 +131,7 @@ func testMLDSAEdgeCases(t *testing.T) {
 	}
 }
 
-func testMLKEM(t *testing.T) {
+func testMLKEMComprehensive(t *testing.T) {
 	modes := []mlkem.Mode{mlkem.MLKEM512, mlkem.MLKEM768, mlkem.MLKEM1024}
 	
 	for _, mode := range modes {
@@ -142,19 +142,19 @@ func testMLKEM(t *testing.T) {
 		}
 		
 		// Encapsulate
-		ct, ss, err := pub.Encapsulate(rand.Reader)
+		result, err := pub.Encapsulate(rand.Reader)
 		if err != nil {
 			t.Fatalf("MLKEM Encapsulate failed: %v", err)
 		}
-		
+
 		// Decapsulate
-		ss2, err := priv.Decapsulate(ct)
+		ss2, err := priv.Decapsulate(result.Ciphertext)
 		if err != nil {
 			t.Fatalf("MLKEM Decapsulate failed: %v", err)
 		}
 		
 		// Verify shared secrets match
-		if !bytes.Equal(ss, ss2) {
+		if !bytes.Equal(result.SharedSecret, ss2) {
 			t.Fatal("MLKEM shared secrets don't match")
 		}
 		
@@ -174,22 +174,22 @@ func testMLKEM(t *testing.T) {
 		}
 		
 		// Test restored keys
-		ct2, ss3, err := pubRestored.Encapsulate(rand.Reader)
+		result2, err := pubRestored.Encapsulate(rand.Reader)
 		if err != nil {
 			t.Fatal("MLKEM restored key encapsulate failed")
 		}
 		
-		ss4, err := privRestored.Decapsulate(ct2)
+		ss4, err := privRestored.Decapsulate(result2.Ciphertext)
 		if err != nil {
 			t.Fatal("MLKEM restored key decapsulate failed")
 		}
-		
-		if !bytes.Equal(ss3, ss4) {
+
+		if !bytes.Equal(result2.SharedSecret, ss4) {
 			t.Fatal("MLKEM restored keys produce different shared secrets")
 		}
 		
 		// Test wrong ciphertext (should produce pseudorandom)
-		wrongCt := make([]byte, len(ct))
+		wrongCt := make([]byte, len(result.Ciphertext))
 		rand.Read(wrongCt)
 		ssWrong, err := priv.Decapsulate(wrongCt)
 		if err != nil {
@@ -197,7 +197,7 @@ func testMLKEM(t *testing.T) {
 		}
 		
 		// Should be different (pseudorandom)
-		if bytes.Equal(ss, ssWrong) {
+		if bytes.Equal(result.SharedSecret, ssWrong) {
 			t.Fatal("MLKEM wrong ct produced same shared secret")
 		}
 	}
@@ -221,7 +221,7 @@ func testMLKEMEdgeCases(t *testing.T) {
 	}
 	
 	var nilPub *mlkem.PublicKey
-	_, _, err = nilPub.Encapsulate(rand.Reader)
+	_, err = nilPub.Encapsulate(rand.Reader)
 	if err == nil {
 		t.Fatal("Expected error for nil MLKEM public key")
 	}
@@ -246,19 +246,19 @@ func testMLKEMEdgeCases(t *testing.T) {
 	
 	// Multiple encapsulations
 	_, pub, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
-	ct1, ss1, _ := pub.Encapsulate(rand.Reader)
-	ct2, ss2, _ := pub.Encapsulate(rand.Reader)
-	
-	if bytes.Equal(ct1, ct2) {
+	result1, _ := pub.Encapsulate(rand.Reader)
+	result2, _ := pub.Encapsulate(rand.Reader)
+
+	if bytes.Equal(result1.Ciphertext, result2.Ciphertext) {
 		t.Fatal("MLKEM multiple encapsulations produced same ciphertext")
 	}
-	
-	if bytes.Equal(ss1, ss2) {
+
+	if bytes.Equal(result1.SharedSecret, result2.SharedSecret) {
 		t.Fatal("MLKEM multiple encapsulations produced same shared secret")
 	}
 }
 
-func testSLHDSA(t *testing.T) {
+func testSLHDSAComprehensive(t *testing.T) {
 	// Note: SLH-DSA is computationally expensive, testing only 128s for quick validation
 	modes := []slhdsa.Mode{slhdsa.SLHDSA128s}
 	
@@ -368,7 +368,7 @@ func testIntegration(t *testing.T) {
 	sig, _ := mldsaPriv.Sign(rand.Reader, msg, nil)
 	
 	// Encapsulate with ML-KEM
-	ct, ss1, _ := mlkemPub.Encapsulate(rand.Reader)
+	result, _ := mlkemPub.Encapsulate(rand.Reader)
 	
 	// Verify signature
 	valid := mldsaPriv.PublicKey.Verify(msg, sig, nil)
@@ -377,8 +377,8 @@ func testIntegration(t *testing.T) {
 	}
 	
 	// Decapsulate
-	ss2, _ := mlkemPriv.Decapsulate(ct)
-	if !bytes.Equal(ss1, ss2) {
+	ss2, _ := mlkemPriv.Decapsulate(result.Ciphertext)
+	if !bytes.Equal(result.SharedSecret, ss2) {
 		t.Fatal("Integration: MLKEM shared secrets don't match")
 	}
 	
