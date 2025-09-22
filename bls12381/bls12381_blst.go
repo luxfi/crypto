@@ -287,8 +287,14 @@ func BatchVerify(pubkeys []*PublicKey, messages [][]byte, signatures []*Signatur
 		blstMsgs[i] = messages[i]
 	}
 
-	// Use BLST's efficient batch verification
-	return blst.CoreBatchVerify(blstPks, blstSigs, true, blstMsgs, dst)
+	// Use BLST's batch verification through individual signature verification
+	// This is efficient for small batches and avoids complex aggregation
+	for i := range blstPks {
+		if !blstSigs[i].Verify(true, blstPks[i], false, blstMsgs[i], dst) {
+			return false
+		}
+	}
+	return true
 }
 
 // Helper functions
