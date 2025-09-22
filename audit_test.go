@@ -15,23 +15,23 @@ import (
 // TestMLKEMEdgeCases tests edge cases and potential bugs
 func TestMLKEMEdgeCases(t *testing.T) {
 	t.Run("Invalid Mode", func(t *testing.T) {
-		_, err := mlkem.GenerateKeyPair(rand.Reader, mlkem.Mode(99))
+		_, _, err := mlkem.GenerateKeyPair(rand.Reader, mlkem.Mode(99))
 		assert.Error(t, err)
 	})
 
 	t.Run("Nil Random Source", func(t *testing.T) {
-		_, err := mlkem.GenerateKeyPair(nil, mlkem.MLKEM768)
+		_, _, err := mlkem.GenerateKeyPair(nil, mlkem.MLKEM768)
 		assert.Error(t, err)
 	})
 
 	t.Run("Empty Ciphertext", func(t *testing.T) {
-		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 		_, err := priv.Decapsulate([]byte{})
 		assert.Error(t, err)
 	})
 
 	t.Run("Wrong Size Ciphertext", func(t *testing.T) {
-		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 		wrongCT := make([]byte, 100) // Wrong size
 		_, err := priv.Decapsulate(wrongCT)
 		assert.Error(t, err)
@@ -40,7 +40,7 @@ func TestMLKEMEdgeCases(t *testing.T) {
 	t.Run("Serialization Round Trip", func(t *testing.T) {
 		modes := []mlkem.Mode{mlkem.MLKEM512, mlkem.MLKEM768, mlkem.MLKEM1024}
 		for _, mode := range modes {
-			priv1, _ := mlkem.GenerateKeyPair(rand.Reader, mode)
+			priv1, _, _ := mlkem.GenerateKeyPair(rand.Reader, mode)
 			
 			// Serialize
 			privBytes := priv1.Bytes()
@@ -170,7 +170,7 @@ func TestSLHDSAEdgeCases(t *testing.T) {
 // TestConcurrency tests thread safety
 func TestConcurrency(t *testing.T) {
 	t.Run("ML-KEM Concurrent Operations", func(t *testing.T) {
-		priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 		
 		// Run concurrent encapsulations
 		done := make(chan bool, 10)
@@ -216,7 +216,7 @@ func TestMemoryLeaks(t *testing.T) {
 		// This would need proper memory profiling
 		// For now, just ensure no panics on repeated operations
 		for i := 0; i < 100; i++ {
-			priv, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
+			priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
 			result, _ := priv.PublicKey.Encapsulate(rand.Reader)
 			priv.Decapsulate(result.Ciphertext)
 		}

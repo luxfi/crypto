@@ -70,15 +70,15 @@ func TestMLKEMIntegration(t *testing.T) {
 			require.NotNil(pub)
 
 			// Encapsulate
-			ciphertext, sharedSecret, err := pub.Encapsulate(rand.Reader)
+			result, err := pub.Encapsulate(rand.Reader)
 			require.NoError(err)
-			require.NotEmpty(ciphertext)
-			require.NotEmpty(sharedSecret)
+			require.NotEmpty(result.Ciphertext)
+			require.NotEmpty(result.SharedSecret)
 
 			// Decapsulate
-			sharedSecret2, err := priv.Decapsulate(ciphertext)
+			sharedSecret2, err := priv.Decapsulate(result.Ciphertext)
 			require.NoError(err)
-			require.Equal(sharedSecret, sharedSecret2)
+			require.Equal(result.SharedSecret, sharedSecret2)
 
 			// Test serialization
 			pubBytes := pub.Bytes()
@@ -127,8 +127,8 @@ func TestSLHDSAIntegration(t *testing.T) {
 	}
 }
 
-// TestHybridCrypto tests hybrid classical + PQ modes
-func TestHybridCrypto(t *testing.T) {
+// TestHybridCryptoIntegration tests hybrid classical + PQ modes
+func TestHybridCryptoIntegration(t *testing.T) {
 	require := require.New(t)
 
 	// Test hybrid signing (classical + PQ)
@@ -174,7 +174,7 @@ func BenchmarkPQCrypto(b *testing.B) {
 		_, pub, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM512)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _, _ = pub.Encapsulate(rand.Reader)
+			_, _ = pub.Encapsulate(rand.Reader)
 		}
 	})
 
