@@ -107,10 +107,25 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	}
 }
 
+// defaultMLDSAOpts provides default signer options for ML-DSA
+type defaultMLDSAOpts struct{}
+
+func (defaultMLDSAOpts) HashFunc() crypto.Hash {
+	return crypto.Hash(0) // ML-DSA signs raw messages, not pre-hashed
+}
+
 // Sign creates a REAL signature for the given message
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if priv == nil {
 		return nil, errors.New("private key is nil")
+	}
+	if rand == nil {
+		return nil, errors.New("random source is required for ML-DSA signing")
+	}
+
+	// If opts is nil, provide default options
+	if opts == nil {
+		opts = defaultMLDSAOpts{}
 	}
 
 	switch priv.mode {
