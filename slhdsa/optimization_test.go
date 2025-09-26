@@ -264,9 +264,11 @@ func TestSIMDDetection(t *testing.T) {
 func TestOptimizationMetrics(t *testing.T) {
 	// Adjust iterations based on testing mode for performance
 	iterationMultiplier := 1
+	if testing.Short() {
+		iterationMultiplier = 10
 		t.Log("Running in short mode with reduced iterations")
 	}
-	
+
 	InitPrecomputation()
 	
 	configs := []BenchmarkConfig{
