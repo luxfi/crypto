@@ -1,8 +1,6 @@
 module github.com/luxfi/crypto
 
-go 1.25
-
-toolchain go1.24.6
+go 1.25.1
 
 require (
 	filippo.io/age v1.2.1
