@@ -255,14 +255,20 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 
 	// Check if signature is all zeros (invalid)
 	allZero := true
+	firstByte := sigBytes[0]
+	allSame := true
 	for _, b := range sigBytes {
 		if b != 0 {
 			allZero = false
-			break
+		}
+		if b != firstByte {
+			allSame = false
 		}
 	}
-	if allZero {
-		return nil, ErrInvalidSignature
+	
+	// Reject signatures that are all zeros or all the same byte (e.g., all 0xFF)
+	if allZero || allSame {
+		return nil, ErrFailedSignatureDecompress
 	}
 
 	return &Signature{sig: sigBytes}, nil
