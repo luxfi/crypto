@@ -80,6 +80,9 @@ func SecretKeyToBytes(sk *SecretKey) []byte {
 // SecretKeyFromBytes parses the big-endian format of the secret key into a
 // secret key.
 func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
+	if len(skBytes) != SecretKeyLen {
+		return nil, errFailedSecretKeyDeserialize
+	}
 	sk := new(blssign.PrivateKey[blssign.KeyG1SigG2])
 	if err := sk.UnmarshalBinary(skBytes); err != nil {
 		return nil, errFailedSecretKeyDeserialize
