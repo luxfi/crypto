@@ -280,16 +280,27 @@ func (k *PrivateKey) MarshalText() ([]byte, error) {
 	return []byte(k.String()), nil
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler
-func (k *PrivateKey) UnmarshalText(text []byte) error {
-	str := string(text)
-	if str == nullStr {
-		return nil
-	}
-
-	// Remove quotes if present
+// UnmarshalJSON implements json.Unmarshaler
+// It handles JSON-encoded strings by stripping quotes and calling the shared unmarshal logic
+func (k *PrivateKey) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	// JSON strings are always quoted
 	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
 		str = str[1 : len(str)-1]
+	}
+	return k.unmarshalText(str)
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+// It handles direct text unmarshaling without quotes
+func (k *PrivateKey) UnmarshalText(text []byte) error {
+	return k.unmarshalText(string(text))
+}
+
+// unmarshalText is the shared unmarshaling implementation
+func (k *PrivateKey) unmarshalText(str string) error {
+	if str == nullStr {
+		return nil
 	}
 
 	// Check and remove prefix
