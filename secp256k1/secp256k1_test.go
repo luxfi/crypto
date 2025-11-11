@@ -53,6 +53,84 @@ func TestPrivateKeyMarshalText(t *testing.T) {
 	require.Equal(key.Bytes(), key2.Bytes())
 }
 
+func TestPrivateKeyUnmarshalTextDirect(t *testing.T) {
+	require := require.New(t)
+
+	// Create a key and marshal it
+	key, err := NewPrivateKey()
+	require.NoError(err)
+
+	text, err := key.MarshalText()
+	require.NoError(err)
+
+	// Test direct UnmarshalText (no quotes)
+	key2 := &PrivateKey{}
+	err = key2.UnmarshalText(text)
+	require.NoError(err)
+	require.Equal(key.Bytes(), key2.Bytes())
+}
+
+func TestPrivateKeyUnmarshalJSON(t *testing.T) {
+	require := require.New(t)
+
+	// Create a key and marshal it
+	key, err := NewPrivateKey()
+	require.NoError(err)
+
+	keyString := key.String()
+
+	// Test UnmarshalJSON with quoted string (as JSON would provide)
+	quotedJSON := []byte(`"` + keyString + `"`)
+	key2 := &PrivateKey{}
+	err = key2.UnmarshalJSON(quotedJSON)
+	require.NoError(err)
+	require.Equal(key.Bytes(), key2.Bytes())
+
+	// Test UnmarshalJSON with unquoted string (should still work)
+	key3 := &PrivateKey{}
+	err = key3.UnmarshalJSON([]byte(keyString))
+	require.NoError(err)
+	require.Equal(key.Bytes(), key3.Bytes())
+}
+
+func TestPrivateKeyMarshalUnmarshalJSON(t *testing.T) {
+	require := require.New(t)
+
+	key, err := NewPrivateKey()
+	require.NoError(err)
+
+	// Marshal to JSON
+	jsonBytes := []byte(`"` + key.String() + `"`)
+
+	// Unmarshal from JSON
+	key2 := &PrivateKey{}
+	err = key2.UnmarshalJSON(jsonBytes)
+	require.NoError(err)
+
+	require.Equal(key.Bytes(), key2.Bytes())
+}
+
+func TestPrivateKeyUnmarshalInvalidPrefix(t *testing.T) {
+	require := require.New(t)
+
+	key := &PrivateKey{}
+
+	// Test with missing prefix
+	err := key.UnmarshalText([]byte("invalidprefix123"))
+	require.Error(err)
+	require.Contains(err.Error(), "missing PrivateKey- prefix")
+}
+
+func TestPrivateKeyUnmarshalNull(t *testing.T) {
+	require := require.New(t)
+
+	key := &PrivateKey{}
+
+	// Test with "null" string
+	err := key.UnmarshalText([]byte("null"))
+	require.NoError(err)
+}
+
 func TestPublicKeyVerify(t *testing.T) {
 	require := require.New(t)
 
