@@ -1,0 +1,714 @@
+---
+title: Security Best Practices
+description: Comprehensive security guidelines and implementation patterns for cryptographic operations
+---
+
+# Security Best Practices
+
+This guide provides comprehensive security guidelines for implementing and using cryptographic primitives in the Lux blockchain ecosystem. Follow these practices to ensure the highest level of security for your applications.
+
+## General Principles
+
+### Defense in Depth
+
+Implement multiple layers of security controls:
+
+```go
+// Example: Multi-layer key protection
+type SecureKeyManager struct {
+    // Layer 1: Encryption at rest
+    encryption KeyEncryption
+
+    // Layer 2: Access control
+    accessControl AccessController
+
+    // Layer 3: Audit logging
+    auditLog AuditLogger
+
+    // Layer 4: Rate limiting
+    rateLimiter RateLimiter
+
+    // Layer 5: Anomaly detection
+    anomalyDetector AnomalyDetector
+}
+
+func (skm *SecureKeyManager) UseKey(keyID string, operation string, user User) error {
+    // Check rate limits
+    if !skm.rateLimiter.Allow(user.ID, operation) {
+        return ErrRateLimited
+    }
+
+    // Check access control
+    if !skm.accessControl.CanAccess(user, keyID, operation) {
+        skm.auditLog.LogUnauthorized(user, keyID, operation)
+        return ErrUnauthorized
+    }
+
+    // Log operation
+    skm.auditLog.LogOperation(user, keyID, operation)
+
+    // Check for anomalies
+    if skm.anomalyDetector.IsAnomaly(user, operation) {
+        skm.auditLog.LogAnomaly(user, keyID, operation)
+        return ErrSuspiciousActivity
+    }
+
+    // Proceed with operation
+    return nil
+}
+```
+
+### Secure Defaults
+
+Always use secure defaults and require explicit opt-in for less secure options:
+
+```go
+// Good: Secure defaults
+type CryptoConfig struct {
+    // Secure by default
+    KeySize         int    `default:"256"`
+    HashAlgorithm   string `default:"SHA3-256"`
+    KDFIterations   int    `default:"100000"`
+    UseHardwareRNG  bool   `default:"true"`
+    RequireMFA      bool   `default:"true"`
+}
+
+// Bad: Insecure defaults
+type InsecureConfig struct {
+    KeySize         int    `default:"128"`    // Too small
+    HashAlgorithm   string `default:"MD5"`    // Broken
+    KDFIterations   int    `default:"1000"`   // Too few
+    AllowWeakKeys   bool   `default:"true"`   // Dangerous
+}
+```
+
+## Random Number Generation
+
+### Secure RNG Usage
+
+Always use cryptographically secure random number generators:
+
+```go
+import (
+    "crypto/rand"
+    "encoding/binary"
+    "fmt"
+    "io"
+)
+
+// SecureRandom provides secure random generation with fallback
+type SecureRandom struct {
+    primary   io.Reader
+    fallback  io.Reader
+    failOpen  bool
+}
+
+func NewSecureRandom() *SecureRandom {
+    return &SecureRandom{
+        primary:  rand.Reader,
+        fallback: nil, // Could be hardware RNG
+        failOpen: false,
+    }
+}
+
+func (sr *SecureRandom) Read(b []byte) (int, error) {
+    n, err := sr.primary.Read(b)
+    if err != nil && sr.fallback != nil {
+        // Try fallback
+        return sr.fallback.Read(b)
+    }
+
+    if err != nil && !sr.failOpen {
+        // Fail securely - don't proceed with weak randomness
+        panic("Critical: No secure randomness available")
+    }
+
+    return n, err
+}
+
+// GenerateNonce generates a unique nonce
+func GenerateNonce() ([]byte, error) {
+    nonce := make([]byte, 24) // 192 bits
+    if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+        return nil, fmt.Errorf("failed to generate nonce: %w", err)
+    }
+
+    // Add timestamp for uniqueness guarantee
+    timestamp := make([]byte, 8)
+    binary.BigEndian.PutUint64(timestamp, uint64(time.Now().UnixNano()))
+    copy(nonce[:8], timestamp)
+
+    return nonce, nil
+}
+
+// NEVER use math/rand for cryptographic operations
+func InsecureExample() {
+    // WRONG - predictable
+    // mathRand.Seed(time.Now().UnixNano())
+    // key := make([]byte, 32)
+    // mathRand.Read(key) // INSECURE!
+}
+```
+
+### Entropy Validation
+
+Validate entropy quality before use:
+
+```go
+// EntropyValidator checks entropy quality
+type EntropyValidator struct {
+    minEntropy float64
+}
+
+func (ev *EntropyValidator) ValidateEntropy(data []byte) error {
+    if len(data) < 32 {
+        return fmt.Errorf("insufficient entropy: need at least 32 bytes")
+    }
+
+    // Check for obvious patterns
+    if ev.hasRepeatingPattern(data) {
+        return fmt.Errorf("entropy contains repeating patterns")
+    }
+
+    // Check for all zeros or all ones
+    if ev.isUniform(data) {
+        return fmt.Errorf("entropy appears uniform")
+    }
+
+    // Calculate Shannon entropy
+    entropy := ev.calculateShannonEntropy(data)
+    if entropy < ev.minEntropy {
+        return fmt.Errorf("insufficient entropy: %f < %f", entropy, ev.minEntropy)
+    }
+
+    return nil
+}
+
+func (ev *EntropyValidator) calculateShannonEntropy(data []byte) float64 {
+    if len(data) == 0 {
+        return 0
+    }
+
+    // Count byte frequencies
+    freq := make(map[byte]int)
+    for _, b := range data {
+        freq[b]++
+    }
+
+    // Calculate entropy
+    var entropy float64
+    dataLen := float64(len(data))
+
+    for _, count := range freq {
+        if count > 0 {
+            probability := float64(count) / dataLen
+            entropy -= probability * math.Log2(probability)
+        }
+    }
+
+    return entropy
+}
+```
+
+## Side-Channel Protection
+
+### Timing Attack Prevention
+
+Implement constant-time operations for sensitive comparisons:
+
+```go
+import (
+    "crypto/subtle"
+)
+
+// ConstantTimeOperations provides timing-safe operations
+type ConstantTimeOperations struct{}
+
+// Compare performs constant-time comparison
+func (cto *ConstantTimeOperations) Compare(a, b []byte) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    return subtle.ConstantTimeCompare(a, b) == 1
+}
+
+// Select performs constant-time conditional selection
+func (cto *ConstantTimeOperations) Select(condition int, a, b []byte) []byte {
+    result := make([]byte, len(a))
+    subtle.ConstantTimeCopy(condition, result, a)
+    subtle.ConstantTimeCopy(1-condition, result, b)
+    return result
+}
+
+// VerifyMAC performs constant-time MAC verification
+func VerifyMAC(key, message, mac []byte) bool {
+    expectedMAC := ComputeMAC(key, message)
+
+    // WRONG: Vulnerable to timing attacks
+    // return bytes.Equal(mac, expectedMAC)
+
+    // RIGHT: Constant-time comparison
+    return subtle.ConstantTimeCompare(mac, expectedMAC) == 1
+}
+```
+
+### Power Analysis Protection
+
+Implement blinding and masking techniques:
+
+```go
+// BlindedSigner implements signing with blinding
+type BlindedSigner struct {
+    key *ecdsa.PrivateKey
+}
+
+func (bs *BlindedSigner) SignBlinded(hash []byte) (*big.Int, *big.Int, error) {
+    curve := bs.key.Curve
+    n := curve.Params().N
+
+    // Generate blinding factor
+    blind, err := rand.Int(rand.Reader, n)
+    if err != nil {
+        return nil, nil, err
+    }
+
+    // Ensure blinding factor is invertible
+    blindInv := new(big.Int).ModInverse(blind, n)
+    if blindInv == nil {
+        return bs.SignBlinded(hash) // Retry with different blind
+    }
+
+    // Blind the private key
+    blindedKey := new(big.Int).Mul(bs.key.D, blind)
+    blindedKey.Mod(blindedKey, n)
+
+    // Perform signing with blinded key
+    r, s, err := ecdsaSignWithKey(blindedKey, hash)
+    if err != nil {
+        return nil, nil, err
+    }
+
+    // Unblind the signature
+    s = new(big.Int).Mul(s, blindInv)
+    s.Mod(s, n)
+
+    // Clear sensitive values
+    blind.SetInt64(0)
+    blindInv.SetInt64(0)
+    blindedKey.SetInt64(0)
+
+    return r, s, nil
+}
+```
+
+## Memory Security
+
+### Secure Memory Handling
+
+Properly handle sensitive data in memory:
+
+```go
+// SecureBuffer provides secure memory handling
+type SecureBuffer struct {
+    data []byte
+    locked bool
+}
+
+func NewSecureBuffer(size int) (*SecureBuffer, error) {
+    buf := &SecureBuffer{
+        data: make([]byte, size),
+    }
+
+    // Lock memory to prevent swapping (platform-specific)
+    if err := buf.lock(); err != nil {
+        return nil, err
+    }
+
+    return buf, nil
+}
+
+func (sb *SecureBuffer) Clear() {
+    // Overwrite with random data first
+    rand.Read(sb.data)
+
+    // Then zeros
+    for i := range sb.data {
+        sb.data[i] = 0
+    }
+
+    // Force memory barrier
+    runtime.KeepAlive(sb.data)
+}
+
+func (sb *SecureBuffer) Destroy() {
+    sb.Clear()
+
+    // Unlock memory
+    if sb.locked {
+        sb.unlock()
+    }
+
+    // Clear reference
+    sb.data = nil
+}
+
+// Use defer to ensure cleanup
+func ProcessSensitiveData(input []byte) error {
+    buf, err := NewSecureBuffer(len(input))
+    if err != nil {
+        return err
+    }
+    defer buf.Destroy()
+
+    copy(buf.data, input)
+    // Process data...
+
+    return nil
+}
+```
+
+## Input Validation
+
+### Cryptographic Input Validation
+
+Always validate inputs before cryptographic operations:
+
+```go
+// InputValidator validates cryptographic inputs
+type InputValidator struct {
+    maxMessageSize int
+    maxKeySize     int
+}
+
+func (iv *InputValidator) ValidateSignatureInput(
+    publicKey []byte,
+    message []byte,
+    signature []byte,
+) error {
+    // Check for nil inputs
+    if publicKey == nil || message == nil || signature == nil {
+        return fmt.Errorf("nil input")
+    }
+
+    // Check message size
+    if len(message) > iv.maxMessageSize {
+        return fmt.Errorf("message too large: %d > %d", len(message), iv.maxMessageSize)
+    }
+
+    // Check signature format
+    if !iv.isValidSignatureFormat(signature) {
+        return fmt.Errorf("invalid signature format")
+    }
+
+    // Check public key format
+    if !iv.isValidPublicKey(publicKey) {
+        return fmt.Errorf("invalid public key")
+    }
+
+    return nil
+}
+
+func (iv *InputValidator) isValidPublicKey(key []byte) bool {
+    // Example for secp256k1
+    if len(key) == 33 { // Compressed
+        return key[0] == 0x02 || key[0] == 0x03
+    }
+    if len(key) == 65 { // Uncompressed
+        return key[0] == 0x04
+    }
+    return false
+}
+
+func (iv *InputValidator) ValidateEllipticCurvePoint(x, y *big.Int, curve elliptic.Curve) error {
+    // Check point is on curve
+    if !curve.IsOnCurve(x, y) {
+        return fmt.Errorf("point not on curve")
+    }
+
+    // Check point is not at infinity
+    if x.Sign() == 0 && y.Sign() == 0 {
+        return fmt.Errorf("point at infinity")
+    }
+
+    // Check point order (prevent small subgroup attacks)
+    params := curve.Params()
+    if x.Cmp(params.P) >= 0 || y.Cmp(params.P) >= 0 {
+        return fmt.Errorf("point coordinates out of range")
+    }
+
+    return nil
+}
+```
+
+## Error Handling
+
+### Secure Error Messages
+
+Avoid leaking sensitive information through error messages:
+
+```go
+// SecureError provides security-conscious error handling
+type SecureError struct {
+    Public   string // Safe to show to users
+    Internal string // For logging only
+    Code     int    // Error code for client
+}
+
+func (se SecureError) Error() string {
+    return se.Public
+}
+
+// Example: Authentication error handling
+func Authenticate(username, password string) error {
+    user, err := findUser(username)
+    if err != nil {
+        // Don't reveal whether user exists
+        return SecureError{
+            Public:   "Authentication failed",
+            Internal: fmt.Sprintf("User not found: %s", username),
+            Code:     401,
+        }
+    }
+
+    if !verifyPassword(user, password) {
+        // Same error as above - don't reveal password was wrong
+        return SecureError{
+            Public:   "Authentication failed",
+            Internal: fmt.Sprintf("Invalid password for user: %s", username),
+            Code:     401,
+        }
+    }
+
+    return nil
+}
+```
+
+## Audit Logging
+
+### Comprehensive Security Logging
+
+Log all security-relevant events:
+
+```go
+// SecurityAuditLogger logs security events
+type SecurityAuditLogger struct {
+    writer io.Writer
+    signer Signer // For log integrity
+}
+
+type AuditEvent struct {
+    Timestamp   time.Time
+    EventType   string
+    UserID      string
+    ResourceID  string
+    Operation   string
+    Result      string
+    IPAddress   string
+    UserAgent   string
+    Details     map[string]interface{}
+    Signature   []byte
+}
+
+func (sal *SecurityAuditLogger) LogEvent(event AuditEvent) error {
+    // Add timestamp
+    event.Timestamp = time.Now().UTC()
+
+    // Serialize event
+    data, err := json.Marshal(event)
+    if err != nil {
+        return err
+    }
+
+    // Sign for integrity
+    event.Signature, err = sal.signer.Sign(data)
+    if err != nil {
+        return err
+    }
+
+    // Write to audit log
+    finalData, err := json.Marshal(event)
+    if err != nil {
+        return err
+    }
+
+    _, err = sal.writer.Write(append(finalData, '\n'))
+    return err
+}
+
+// Example usage
+func (sal *SecurityAuditLogger) LogKeyOperation(op KeyOperation) {
+    event := AuditEvent{
+        EventType:  "KEY_OPERATION",
+        UserID:     op.UserID,
+        ResourceID: op.KeyID,
+        Operation:  op.Type,
+        Result:     op.Result,
+        IPAddress:  op.ClientIP,
+        Details: map[string]interface{}{
+            "algorithm": op.Algorithm,
+            "keySize":   op.KeySize,
+        },
+    }
+
+    if err := sal.LogEvent(event); err != nil {
+        // Audit logging failure should not break the operation
+        // but should trigger an alert
+        alertOps(fmt.Sprintf("Audit logging failed: %v", err))
+    }
+}
+```
+
+## Cryptographic Hygiene
+
+### Algorithm Lifecycle Management
+
+Manage cryptographic algorithm deprecation:
+
+```go
+// AlgorithmPolicy defines algorithm usage policies
+type AlgorithmPolicy struct {
+    Allowed    map[string]bool
+    Deprecated map[string]time.Time
+    Minimum    map[string]int // Minimum key sizes
+}
+
+var DefaultPolicy = AlgorithmPolicy{
+    Allowed: map[string]bool{
+        "ECDSA-P256":  true,
+        "ECDSA-P384":  true,
+        "Ed25519":     true,
+        "RSA":         false, // Disabled
+        "SHA-256":     true,
+        "SHA3-256":    true,
+        "MD5":         false, // Broken
+        "SHA-1":       false, // Broken
+    },
+    Deprecated: map[string]time.Time{
+        "ECDSA-P256": time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC),
+    },
+    Minimum: map[string]int{
+        "RSA":   3072,
+        "ECDSA": 256,
+        "AES":   256,
+    },
+}
+
+func (ap *AlgorithmPolicy) ValidateAlgorithm(algo string, keySize int) error {
+    // Check if allowed
+    if allowed, exists := ap.Allowed[algo]; !exists || !allowed {
+        return fmt.Errorf("algorithm %s is not allowed", algo)
+    }
+
+    // Check deprecation
+    if deprecationDate, exists := ap.Deprecated[algo]; exists {
+        if time.Now().After(deprecationDate) {
+            return fmt.Errorf("algorithm %s is deprecated as of %s", algo, deprecationDate)
+        }
+
+        // Warn about upcoming deprecation
+        daysUntil := time.Until(deprecationDate).Hours() / 24
+        if daysUntil < 365 {
+            log.Printf("WARNING: Algorithm %s will be deprecated in %.0f days", algo, daysUntil)
+        }
+    }
+
+    // Check minimum key size
+    if minSize, exists := ap.Minimum[algo]; exists && keySize < minSize {
+        return fmt.Errorf("key size %d is below minimum %d for %s", keySize, minSize, algo)
+    }
+
+    return nil
+}
+```
+
+## Testing Security
+
+### Security Test Suite
+
+Comprehensive security testing:
+
+```go
+func TestSecurityProperties(t *testing.T) {
+    t.Run("NoTimingLeaks", func(t *testing.T) {
+        // Test constant-time operations
+        secret := []byte("secret")
+        wrong := []byte("wrong!")
+        correct := []byte("secret")
+
+        const iterations = 10000
+        var wrongTimes, correctTimes []time.Duration
+
+        for i := 0; i < iterations; i++ {
+            start := time.Now()
+            _ = ConstantTimeCompare(secret, wrong)
+            wrongTimes = append(wrongTimes, time.Since(start))
+
+            start = time.Now()
+            _ = ConstantTimeCompare(secret, correct)
+            correctTimes = append(correctTimes, time.Since(start))
+        }
+
+        // Statistical analysis to ensure no timing difference
+        wrongMean := calculateMean(wrongTimes)
+        correctMean := calculateMean(correctTimes)
+
+        difference := math.Abs(float64(wrongMean - correctMean))
+        threshold := float64(time.Nanosecond * 10)
+
+        require.Less(t, difference, threshold, "Timing leak detected")
+    })
+
+    t.Run("ProperMemoryClearing", func(t *testing.T) {
+        buf := NewSecureBuffer(32)
+        testData := []byte("sensitive data here")
+        copy(buf.data, testData)
+
+        buf.Clear()
+
+        // Verify memory is cleared
+        for i, b := range buf.data {
+            require.Equal(t, byte(0), b, "Memory not cleared at position %d", i)
+        }
+    })
+
+    t.Run("EntropyQuality", func(t *testing.T) {
+        validator := &EntropyValidator{minEntropy: 7.0}
+
+        // Test good entropy
+        goodEntropy, _ := GenerateRandomBytes(256)
+        require.NoError(t, validator.ValidateEntropy(goodEntropy))
+
+        // Test bad entropy
+        badEntropy := make([]byte, 256)
+        for i := range badEntropy {
+            badEntropy[i] = byte(i % 2) // Predictable pattern
+        }
+        require.Error(t, validator.ValidateEntropy(badEntropy))
+    })
+}
+```
+
+## Compliance Checklist
+
+Security compliance verification:
+
+| Category | Requirement | Implementation |
+|----------|-------------|----------------|
+| **RNG** | Use CSPRNG only | ✓ crypto/rand |
+| **Keys** | Minimum 256-bit | ✓ Enforced in policy |
+| **Hash** | SHA-256 or better | ✓ SHA3-256 default |
+| **Signatures** | Constant-time verify | ✓ subtle.ConstantTimeCompare |
+| **Memory** | Clear sensitive data | ✓ SecureBuffer |
+| **Errors** | No info leakage | ✓ SecureError |
+| **Audit** | Log all operations | ✓ SecurityAuditLogger |
+| **Input** | Validate all inputs | ✓ InputValidator |
+| **Side-channel** | Timing protection | ✓ Constant-time ops |
+| **Algorithms** | No deprecated algos | ✓ AlgorithmPolicy |
+
+## References
+
+- [OWASP Cryptographic Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
+- [NIST SP 800-57: Key Management](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf)
+- [Go Crypto Principles](https://github.com/golang/go/wiki/CryptoDesign)
+- [Constant-Time Crypto](https://bearssl.org/ctmul.html)
+- [Side-Channel Attacks](https://en.wikipedia.org/wiki/Side-channel_attack)

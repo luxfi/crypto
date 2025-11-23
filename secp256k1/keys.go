@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/luxfi/crypto/cache"
+	"github.com/luxfi/crypto/cache/lru"
 	"github.com/luxfi/crypto/cb58"
 	"github.com/luxfi/crypto/hashing"
 	"github.com/luxfi/ids"
@@ -52,7 +52,7 @@ func PubkeyBytesToAddress(pubkey []byte) []byte {
 }
 
 // RecoverCache is a cache for recovered public keys
-var RecoverCache = cache.NewLRU[string, *PublicKey](2048)
+var RecoverCache = lru.NewCache[string, *PublicKey](2048)
 
 // PrivateKey wraps an ecdsa.PrivateKey
 type PrivateKey struct {

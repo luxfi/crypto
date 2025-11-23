@@ -4,18 +4,18 @@
 package secp256k1
 
 import (
-	"github.com/luxfi/crypto/cache"
+	"github.com/luxfi/crypto/cache/lru"
 )
 
 // RecoverCacheType provides a cache for public key recovery with methods
 type RecoverCacheType struct {
-	cache *cache.LRU[string, *PublicKey]
+	cache *lru.Cache[string, *PublicKey]
 }
 
 // NewRecoverCache creates a new recover cache
 func NewRecoverCache(size int) RecoverCacheType {
 	return RecoverCacheType{
-		cache: cache.NewLRU[string, *PublicKey](size),
+		cache: lru.NewCache[string, *PublicKey](size),
 	}
 }
 
