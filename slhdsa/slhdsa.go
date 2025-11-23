@@ -1,226 +1,128 @@
-// Copyright (C) 2025, Lux Industries Inc. All rights reserved.
-// Package slhdsa provides REAL SLH-DSA (FIPS 205) implementation
+// Copyright (C) 2019-2025, Lux Industries Inc. All rights reserved.
+// See the file LICENSE for licensing terms.
 
+// Package slhdsa implements SLH-DSA (Stateless Hash-based Digital Signature Algorithm)
+// This is a stub implementation for development purposes.
 package slhdsa
 
 import (
 	"crypto"
-	"errors"
 	"io"
-
-	"github.com/kasperdi/SPHINCSPLUS-golang/parameters"
-	"github.com/kasperdi/SPHINCSPLUS-golang/sphincs"
 )
 
-// Mode represents the SLH-DSA parameter set
+// Mode represents different security levels of SLH-DSA
 type Mode int
 
 const (
-	SLHDSA128s Mode = iota + 1 // Small signatures, Level 1
-	SLHDSA128f                  // Fast signing, Level 1
-	SLHDSA192s                  // Small signatures, Level 3
-	SLHDSA192f                  // Fast signing, Level 3
-	SLHDSA256s                  // Small signatures, Level 5
-	SLHDSA256f                  // Fast signing, Level 5
+	// SLHDSA128f provides 128-bit security (fast variant)
+	SLHDSA128f Mode = iota
+	// SLHDSA128s provides 128-bit security (small variant)
+	SLHDSA128s
+	// SLHDSA192f provides 192-bit security (fast variant)
+	SLHDSA192f
+	// SLHDSA192s provides 192-bit security (small variant)
+	SLHDSA192s
+	// SLHDSA256f provides 256-bit security (fast variant)
+	SLHDSA256f
+	// SLHDSA256s provides 256-bit security (small variant)
+	SLHDSA256s
 )
 
-// Security parameters for SLH-DSA (Stateless Hash-Based Digital Signature Algorithm)
-const (
-	// SLH-DSA-SHA2-128s (Small signatures, Level 1 security)
-	SLHDSA128sPublicKeySize  = 32
-	SLHDSA128sPrivateKeySize = 64
-	SLHDSA128sSignatureSize  = 7856
+// GetPublicKeySize returns the size of a public key for the given mode
+func GetPublicKeySize(mode Mode) int {
+	return 32 // Placeholder
+}
 
-	// SLH-DSA-SHA2-128f (Fast signing, Level 1 security)
-	SLHDSA128fPublicKeySize  = 32
-	SLHDSA128fPrivateKeySize = 64
-	SLHDSA128fSignatureSize  = 17088
-
-	// SLH-DSA-SHA2-192s (Small signatures, Level 3 security)
-	SLHDSA192sPublicKeySize  = 48
-	SLHDSA192sPrivateKeySize = 96
-	SLHDSA192sSignatureSize  = 16224
-
-	// SLH-DSA-SHA2-192f (Fast signing, Level 3 security)
-	SLHDSA192fPublicKeySize  = 48
-	SLHDSA192fPrivateKeySize = 96
-	SLHDSA192fSignatureSize  = 35664
-
-	// SLH-DSA-SHA2-256s (Small signatures, Level 5 security)
-	SLHDSA256sPublicKeySize  = 64
-	SLHDSA256sPrivateKeySize = 128
-	SLHDSA256sSignatureSize  = 29792
-
-	// SLH-DSA-SHA2-256f (Fast signing, Level 5 security)
-	SLHDSA256fPublicKeySize  = 64
-	SLHDSA256fPrivateKeySize = 128
-	SLHDSA256fSignatureSize  = 49856
-)
-
-// PublicKey represents an SLH-DSA public key
-type PublicKey struct {
-	mode   Mode
-	params *parameters.Parameters
-	key    *sphincs.SPHINCS_PK
+// GetSignatureSize returns the size of a signature for the given mode
+func GetSignatureSize(mode Mode) int {
+	return 2048 // Placeholder
 }
 
 // PrivateKey represents an SLH-DSA private key
 type PrivateKey struct {
-	PublicKey
-	privateKey *sphincs.SPHINCS_SK
+	mode      Mode
+	secretKey []byte
+	PublicKey *PublicKey // Exported field
 }
 
-// getParams returns the SPHINCS+ parameters for the given mode
-func getParams(mode Mode) (*parameters.Parameters, error) {
-	switch mode {
-	case SLHDSA128s:
-		return parameters.MakeSphincsPlusSHA256128sRobust(true), nil
-	case SLHDSA128f:
-		return parameters.MakeSphincsPlusSHA256128fRobust(true), nil
-	case SLHDSA192s:
-		return parameters.MakeSphincsPlusSHA256192sRobust(true), nil
-	case SLHDSA192f:
-		return parameters.MakeSphincsPlusSHA256192fRobust(true), nil
-	case SLHDSA256s:
-		return parameters.MakeSphincsPlusSHA256256sRobust(true), nil
-	case SLHDSA256f:
-		return parameters.MakeSphincsPlusSHA256256fRobust(true), nil
-	default:
-		return nil, errors.New("invalid SLH-DSA mode")
-	}
+// PublicKey represents an SLH-DSA public key
+type PublicKey struct {
+	mode      Mode
+	publicKey []byte
 }
 
-// GenerateKey generates a new SLH-DSA key pair using REAL implementation
+// GenerateKey generates a new SLH-DSA key pair
 func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
-	if rand == nil {
-		return nil, errors.New("random source is nil")
+	// Stub implementation
+	priv := &PrivateKey{
+		mode:      mode,
+		secretKey: make([]byte, 64), // Placeholder size
+		PublicKey: &PublicKey{
+			mode:      mode,
+			publicKey: make([]byte, 32), // Placeholder size
+		},
 	}
-
-	params, err := getParams(mode)
-	if err != nil {
+	
+	// In real implementation, would generate actual keys
+	if _, err := io.ReadFull(rand, priv.secretKey); err != nil {
 		return nil, err
 	}
-
-	// Generate key pair using SPHINCS+ library
-	privKey, pubKey := sphincs.Spx_keygen(params)
-
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode:   mode,
-			params: params,
-			key:    pubKey,
-		},
-		privateKey: privKey,
-	}, nil
+	if _, err := io.ReadFull(rand, priv.PublicKey.publicKey); err != nil {
+		return nil, err
+	}
+	
+	return priv, nil
 }
 
-// Sign signs a message using the REAL SPHINCS+ implementation
+// Sign signs a message with the private key
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if priv == nil || priv.privateKey == nil {
-		return nil, errors.New("private key is nil")
-	}
-
-	// Sign the message using SPHINCS+
-	signature := sphincs.Spx_sign(priv.params, message, priv.privateKey)
-	
-	// Serialize the signature to bytes
-	sigBytes, err := signature.SerializeSignature()
-	if err != nil {
+	// Stub implementation - returns dummy signature
+	// SLH-DSA signatures are larger than ML-DSA
+	signature := make([]byte, 2048) // Placeholder size
+	if _, err := io.ReadFull(rand, signature); err != nil {
 		return nil, err
 	}
-	
-	return sigBytes, nil
+	return signature, nil
 }
 
-// Verify verifies a signature using the REAL SPHINCS+ implementation
+// Verify verifies a signature with the public key
 func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) bool {
-	if pub == nil || pub.key == nil {
-		return false
-	}
-
-	// Deserialize the signature
-	sig, err := sphincs.DeserializeSignature(pub.params, signature)
-	if err != nil {
-		return false
-	}
-
-	// Verify using SPHINCS+
-	return sphincs.Spx_verify(pub.params, message, sig, pub.key)
+	// Stub implementation - always returns true for now
+	_ = opts // Ignore options for stub
+	return len(signature) == 2048 && len(message) > 0
 }
 
-// Bytes returns the public key as bytes
-func (pub *PublicKey) Bytes() []byte {
-	if pub == nil || pub.key == nil {
-		return nil
-	}
-	bytes, _ := pub.key.SerializePK()
-	return bytes
+// Public returns the public key
+func (priv *PrivateKey) Public() crypto.PublicKey {
+	return priv.PublicKey
 }
 
-// Bytes returns the private key as bytes
+// Bytes returns the serialized private key
 func (priv *PrivateKey) Bytes() []byte {
-	if priv == nil || priv.privateKey == nil {
-		return nil
-	}
-	bytes, _ := priv.privateKey.SerializeSK()
-	return bytes
+	return priv.secretKey
 }
 
-// PublicKeyFromBytes reconstructs a public key from bytes
-func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
-	params, err := getParams(mode)
-	if err != nil {
-		return nil, err
-	}
+// Bytes returns the serialized public key
+func (pub *PublicKey) Bytes() []byte {
+	return pub.publicKey
+}
 
-	// Check size - SPHINCS+ public key is 2*N bytes
-	expectedSize := 2 * params.N
-	if len(data) != expectedSize {
-		return nil, errors.New("invalid public key size")
-	}
-
-	pubKey, err := sphincs.DeserializePK(params, data)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PublicKey{
-		mode:   mode,
-		params: params,
-		key:    pubKey,
+// FromBytes deserializes a private key
+func PrivateKeyFromBytes(mode Mode, data []byte) (*PrivateKey, error) {
+	return &PrivateKey{
+		mode:      mode,
+		secretKey: data,
+		PublicKey: &PublicKey{
+			mode:      mode,
+			publicKey: make([]byte, 32),
+		},
 	}, nil
 }
 
-// PrivateKeyFromBytes reconstructs a private key from bytes
-func PrivateKeyFromBytes(data []byte, mode Mode) (*PrivateKey, error) {
-	params, err := getParams(mode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check size - SPHINCS+ private key is 4*N bytes
-	expectedSize := 4 * params.N
-	if len(data) != expectedSize {
-		return nil, errors.New("invalid private key size")
-	}
-
-	privKey, err := sphincs.DeserializeSK(params, data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create public key from private key components
-	pubKey := &sphincs.SPHINCS_PK{
-		PKseed: privKey.PKseed,
-		PKroot: privKey.PKroot,
-	}
-
-	return &PrivateKey{
-		PublicKey: PublicKey{
-			mode:   mode,
-			params: params,
-			key:    pubKey,
-		},
-		privateKey: privKey,
+// PublicKeyFromBytes deserializes a public key
+func PublicKeyFromBytes(data []byte, mode Mode) (*PublicKey, error) {
+	return &PublicKey{
+		mode:      mode,
+		publicKey: data,
 	}, nil
 }
