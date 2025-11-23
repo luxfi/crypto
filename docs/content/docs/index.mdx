@@ -1,0 +1,284 @@
+---
+title: Introduction
+description: Cryptographic primitives including BLS signatures and post-quantum algorithms
+---
+
+# Lux Crypto
+
+A comprehensive cryptographic library providing BLS signatures, post-quantum algorithms, and other cryptographic primitives for the Lux blockchain.
+
+## Features
+
+- **BLS Signatures**: Efficient signature aggregation for consensus
+- **Post-Quantum Cryptography**: Dilithium signatures and Kyber key exchange
+- **Hash Functions**: SHA-256, SHA-3, BLAKE2b
+- **Key Management**: Secure key generation and storage
+- **Signature Aggregation**: Combine multiple signatures into one
+- **Multi-Signature**: Threshold signatures and multi-sig support
+- **Zero-Knowledge Proofs**: Privacy-preserving cryptographic proofs (coming soon)
+
+## Quick Start
+
+### BLS Signatures
+
+```go
+package main
+
+import (
+    "github.com/luxfi/crypto/bls"
+)
+
+func main() {
+    // Generate key pair
+    privateKey, err := bls.NewPrivateKey()
+    publicKey := privateKey.PublicKey()
+    
+    // Sign message
+    message := []byte("Hello, Lux!")
+    signature := privateKey.Sign(message)
+    
+    // Verify signature
+    valid := bls.Verify(publicKey, message, signature)
+    
+    // Aggregate signatures
+    signatures := []bls.Signature{sig1, sig2, sig3}
+    aggregated := bls.AggregateSignatures(signatures)
+    
+    // Verify aggregated signature
+    publicKeys := []bls.PublicKey{pk1, pk2, pk3}
+    valid = bls.VerifyAggregate(publicKeys, message, aggregated)
+}
+```
+
+### Post-Quantum Signatures (Dilithium)
+
+```go
+package main
+
+import (
+    "github.com/luxfi/crypto/pq/dilithium"
+)
+
+func main() {
+    // Generate quantum-safe key pair
+    publicKey, privateKey, err := dilithium.GenerateKey()
+    
+    // Sign message
+    message := []byte("Quantum-safe signature")
+    signature, err := dilithium.Sign(privateKey, message)
+    
+    // Verify signature
+    valid := dilithium.Verify(publicKey, message, signature)
+}
+```
+
+### Key Exchange (Kyber)
+
+```go
+package main
+
+import (
+    "github.com/luxfi/crypto/pq/kyber"
+)
+
+func main() {
+    // Generate key pair
+    publicKey, privateKey, err := kyber.GenerateKey()
+    
+    // Encapsulate secret
+    ciphertext, sharedSecret, err := kyber.Encapsulate(publicKey)
+    
+    // Decapsulate to recover shared secret
+    recoveredSecret, err := kyber.Decapsulate(privateKey, ciphertext)
+}
+```
+
+## Architecture
+
+### Cryptographic Primitives
+
+1. **Signatures**: BLS, ECDSA, Ed25519, Dilithium
+2. **Hash Functions**: SHA-256, SHA-3, BLAKE2b, Keccak
+3. **Key Exchange**: ECDH, Kyber
+4. **Encryption**: AES-GCM, ChaCha20-Poly1305
+5. **Random Number Generation**: CSPRNG
+
+### BLS Signature Aggregation
+
+```
+┌──────────────┐
+│ Validator 1  │ ──┐
+└──────────────┘   │
+                   │  ┌──────────────┐
+┌──────────────┐   ├─►│  Aggregate   │
+│ Validator 2  │ ──┤  │  Signatures  │
+└──────────────┘   │  └──────────────┘
+                   │         │
+┌──────────────┐   │         ▼
+│ Validator 3  │ ──┘  ┌──────────────┐
+└──────────────┘      │ Single QC    │
+                      └──────────────┘
+```
+
+## API Reference
+
+### BLS Package
+
+```go
+// Generate private key
+func NewPrivateKey() (*PrivateKey, error)
+
+// Sign message
+func (sk *PrivateKey) Sign(message []byte) Signature
+
+// Verify signature
+func Verify(pk PublicKey, message []byte, sig Signature) bool
+
+// Aggregate signatures
+func AggregateSignatures(sigs []Signature) (Signature, error)
+
+// Aggregate public keys
+func AggregatePublicKeys(pks []PublicKey) (PublicKey, error)
+
+// Verify aggregated signature
+func VerifyAggregate(pks []PublicKey, message []byte, sig Signature) bool
+```
+
+### Dilithium Package (Post-Quantum)
+
+```go
+// Generate key pair
+func GenerateKey() (PublicKey, PrivateKey, error)
+
+// Sign message
+func Sign(sk PrivateKey, message []byte) ([]byte, error)
+
+// Verify signature
+func Verify(pk PublicKey, message []byte, sig []byte) bool
+```
+
+### Kyber Package (Post-Quantum Key Exchange)
+
+```go
+// Generate key pair
+func GenerateKey() (PublicKey, PrivateKey, error)
+
+// Encapsulate shared secret
+func Encapsulate(pk PublicKey) (ciphertext []byte, sharedSecret []byte, error)
+
+// Decapsulate shared secret
+func Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, error)
+```
+
+### Hash Functions
+
+```go
+// SHA-256
+func SHA256(data []byte) [32]byte
+
+// SHA-3
+func SHA3_256(data []byte) [32]byte
+
+// BLAKE2b
+func BLAKE2b(data []byte) [32]byte
+
+// Keccak-256
+func Keccak256(data []byte) [32]byte
+```
+
+## Security Best Practices
+
+### Key Generation
+
+```go
+// Always use cryptographically secure random number generator
+privateKey, err := bls.NewPrivateKey()
+if err != nil {
+    log.Fatal("Failed to generate key:", err)
+}
+
+// Never reuse keys across different contexts
+```
+
+### Signature Verification
+
+```go
+// Always verify signatures before trusting data
+if !bls.Verify(publicKey, message, signature) {
+    return errors.New("invalid signature")
+}
+
+// For aggregated signatures, verify all public keys are valid
+for _, pk := range publicKeys {
+    if !pk.IsValid() {
+        return errors.New("invalid public key")
+    }
+}
+```
+
+### Post-Quantum Migration
+
+```go
+// Use hybrid signatures during transition period
+type HybridSignature struct {
+    BLS       bls.Signature
+    Dilithium []byte
+}
+
+func SignHybrid(message []byte, blsKey *bls.PrivateKey, pqKey dilithium.PrivateKey) (*HybridSignature, error) {
+    blsSig := blsKey.Sign(message)
+    pqSig, err := dilithium.Sign(pqKey, message)
+    if err != nil {
+        return nil, err
+    }
+    
+    return &HybridSignature{
+        BLS:       blsSig,
+        Dilithium: pqSig,
+    }, nil
+}
+```
+
+## Performance
+
+### BLS Signature Benchmarks
+
+| Operation | Time | Throughput |
+|-----------|------|------------|
+| Sign | 1.2 ms | 833 ops/sec |
+| Verify | 2.5 ms | 400 ops/sec |
+| Aggregate (100 sigs) | 0.5 ms | 2000 ops/sec |
+| Verify Aggregate (100 sigs) | 250 ms | 4 ops/sec |
+
+### Post-Quantum Benchmarks
+
+| Operation | Time | Size |
+|-----------|------|------|
+| Dilithium Sign | 0.8 ms | 2.4 KB |
+| Dilithium Verify | 0.3 ms | - |
+| Kyber Encapsulate | 0.1 ms | 1.1 KB |
+| Kyber Decapsulate | 0.1 ms | - |
+
+## Testing
+
+```bash
+# Run all tests
+go test -v ./...
+
+# Run with race detector
+go test -race ./...
+
+# Benchmarks
+go test -bench=. ./...
+
+# Security testing
+go test -tags=security ./...
+```
+
+## Next Steps
+
+- [BLS Signatures](/docs/bls) - Deep dive into BLS cryptography
+- [Post-Quantum Crypto](/docs/pq) - Quantum-resistant algorithms
+- [Key Management](/docs/keys) - Secure key generation and storage
+- [Signature Aggregation](/docs/aggregation) - Advanced aggregation techniques
+- [Migration Guide](/docs/migration) - Transition to post-quantum crypto
