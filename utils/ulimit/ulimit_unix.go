@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/luxfi/log"
-
-	"github.com/luxfi/log"
+	luxlog "github.com/luxfi/log"
 )
 
 const DefaultFDLimit = 32 * 1024
@@ -23,7 +21,7 @@ const DefaultFDLimit = 32 * 1024
 // privileges. Bumping the Max limit further would require superuser privileges.
 // If the current Max is below our recommendation we will warn on start.
 // see: http://0pointer.net/blog/file-descriptor-limits.html
-func Set(limit uint64, log log.Logger) error {
+func Set(limit uint64, log luxlog.Logger) error {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	if err != nil {
