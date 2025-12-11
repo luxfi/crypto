@@ -21,10 +21,10 @@ const (
 )
 
 var (
-	errInvalidRingSize    = errors.New("invalid ring size")
-	errInvalidPublicKey   = errors.New("invalid public key")
-	errInvalidSignature   = errors.New("invalid signature")
-	errRingNotComplete    = errors.New("ring is not complete")
+	errInvalidRingSize  = errors.New("invalid ring size")
+	errInvalidPublicKey = errors.New("invalid public key")
+	errInvalidSignature = errors.New("invalid signature")
+	errRingNotComplete  = errors.New("ring is not complete")
 )
 
 // PublicKey represents a Ringtail public key
@@ -44,9 +44,9 @@ type Point struct {
 
 // RingSignature represents a Ringtail ring signature
 type RingSignature struct {
-	C0         *big.Int
-	S          []*big.Int
-	KeyImage   *Point
+	C0          *big.Int
+	S           []*big.Int
+	KeyImage    *Point
 	RingPubKeys []*PublicKey
 }
 
@@ -59,7 +59,7 @@ func (*Factory) NewPrivateKey() (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &PrivateKey{Scalar: scalar}, nil
 }
 
@@ -68,7 +68,7 @@ func (*Factory) ToPublicKey(privKey *PrivateKey) (*PublicKey, error) {
 	if privKey == nil {
 		return nil, errors.New("nil private key")
 	}
-	
+
 	point := scalarBaseMult(privKey.Scalar)
 	return &PublicKey{Point: point}, nil
 }
@@ -78,7 +78,7 @@ func (priv *PrivateKey) Sign(message []byte, ring []*PublicKey) (*RingSignature,
 	if len(ring) != DefaultRingSize {
 		return nil, errInvalidRingSize
 	}
-	
+
 	// Find the signer's position in the ring
 	pubKey := priv.PublicKey()
 	signerIndex := -1
@@ -88,40 +88,40 @@ func (priv *PrivateKey) Sign(message []byte, ring []*PublicKey) (*RingSignature,
 			break
 		}
 	}
-	
+
 	if signerIndex == -1 {
 		return nil, errors.New("signer's public key not found in ring")
 	}
-	
+
 	// Generate key image
 	keyImage := generateKeyImage(priv)
-	
+
 	// Initialize signature components
 	c := make([]*big.Int, DefaultRingSize)
 	s := make([]*big.Int, DefaultRingSize)
-	
+
 	// Generate random responses for all except signer
 	for i := 0; i < DefaultRingSize; i++ {
 		if i != signerIndex {
 			s[i], _ = rand.Int(rand.Reader, curveOrder())
 		}
 	}
-	
+
 	// Start the ring computation
 	// Generate random nonce
 	k, _ := rand.Int(rand.Reader, curveOrder())
-	
+
 	// Compute L_i and R_i for all ring members
 	L := make([]*Point, DefaultRingSize)
 	R := make([]*Point, DefaultRingSize)
-	
+
 	// For the signer
 	L[signerIndex] = scalarBaseMult(k)
 	R[signerIndex] = scalarMult(hashToPoint(ring[signerIndex].Point), k)
-	
+
 	// Compute c_{i+1} starting from signer
 	c[(signerIndex+1)%DefaultRingSize] = hashPoints(message, L[signerIndex], R[signerIndex])
-	
+
 	// Complete the ring
 	for i := (signerIndex + 1) % DefaultRingSize; i != signerIndex; i = (i + 1) % DefaultRingSize {
 		L[i] = addPoints(
@@ -132,14 +132,14 @@ func (priv *PrivateKey) Sign(message []byte, ring []*PublicKey) (*RingSignature,
 			scalarMult(hashToPoint(ring[i].Point), s[i]),
 			scalarMult(keyImage, c[i]),
 		)
-		
+
 		c[(i+1)%DefaultRingSize] = hashPoints(message, L[i], R[i])
 	}
-	
+
 	// Complete the signature for the signer
 	s[signerIndex] = new(big.Int).Sub(k, new(big.Int).Mul(c[signerIndex], priv.Scalar))
 	s[signerIndex].Mod(s[signerIndex], curveOrder())
-	
+
 	return &RingSignature{
 		C0:          c[0],
 		S:           s,
@@ -153,24 +153,24 @@ func (sig *RingSignature) Verify(message []byte) bool {
 	if len(sig.S) != DefaultRingSize || len(sig.RingPubKeys) != DefaultRingSize {
 		return false
 	}
-	
+
 	// Recompute c values
 	c := make([]*big.Int, DefaultRingSize)
 	c[0] = sig.C0
-	
+
 	for i := 0; i < DefaultRingSize; i++ {
 		// Compute L_i = s_i * G + c_i * P_i
 		L := addPoints(
 			scalarBaseMult(sig.S[i]),
 			scalarMult(sig.RingPubKeys[i].Point, c[i]),
 		)
-		
+
 		// Compute R_i = s_i * H(P_i) + c_i * I
 		R := addPoints(
 			scalarMult(hashToPoint(sig.RingPubKeys[i].Point), sig.S[i]),
 			scalarMult(sig.KeyImage, c[i]),
 		)
-		
+
 		// Compute next c value
 		if i < DefaultRingSize-1 {
 			c[i+1] = hashPoints(message, L, R)
@@ -180,7 +180,7 @@ func (sig *RingSignature) Verify(message []byte) bool {
 			return computedC0.Cmp(sig.C0) == 0
 		}
 	}
-	
+
 	return false
 }
 

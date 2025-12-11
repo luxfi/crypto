@@ -103,16 +103,16 @@ func TestComputeHash160(t *testing.T) {
 
 func TestChecksum(t *testing.T) {
 	input := []byte("test input for checksum")
-	
+
 	// Test various checksum lengths
 	lengths := []int{1, 4, 8, 16, 32}
-	
+
 	for _, length := range lengths {
 		checksum := Checksum(input, length)
 		if len(checksum) != length {
 			t.Errorf("Checksum length should be %d, got %d", length, len(checksum))
 		}
-		
+
 		// Verify checksum is last 'length' bytes of hash
 		fullHash := ComputeHash256Array(input)
 		expected := fullHash[len(fullHash)-length:]
@@ -120,14 +120,14 @@ func TestChecksum(t *testing.T) {
 			t.Errorf("Checksum should be last %d bytes of hash", length)
 		}
 	}
-	
+
 	// Test that same input produces same checksum
 	checksum1 := Checksum(input, 4)
 	checksum2 := Checksum(input, 4)
 	if !bytes.Equal(checksum1, checksum2) {
 		t.Error("Same input should produce same checksum")
 	}
-	
+
 	// Test that different input produces different checksum
 	input2 := []byte("different input")
 	checksum3 := Checksum(input2, 4)
@@ -142,16 +142,16 @@ func TestToHash256(t *testing.T) {
 	for i := range validBytes {
 		validBytes[i] = byte(i)
 	}
-	
+
 	hash, err := ToHash256(validBytes)
 	if err != nil {
 		t.Errorf("ToHash256 with valid bytes should not error: %v", err)
 	}
-	
+
 	if !bytes.Equal(hash[:], validBytes) {
 		t.Error("ToHash256 should copy bytes correctly")
 	}
-	
+
 	// Test invalid lengths
 	invalidLengths := []int{0, 1, 31, 33, 100}
 	for _, length := range invalidLengths {
@@ -172,16 +172,16 @@ func TestToHash160(t *testing.T) {
 	for i := range validBytes {
 		validBytes[i] = byte(i)
 	}
-	
+
 	hash, err := ToHash160(validBytes)
 	if err != nil {
 		t.Errorf("ToHash160 with valid bytes should not error: %v", err)
 	}
-	
+
 	if !bytes.Equal(hash[:], validBytes) {
 		t.Error("ToHash160 should copy bytes correctly")
 	}
-	
+
 	// Test invalid lengths
 	invalidLengths := []int{0, 1, 19, 21, 100}
 	for _, length := range invalidLengths {
@@ -199,27 +199,27 @@ func TestToHash160(t *testing.T) {
 func TestPubkeyBytesToAddress(t *testing.T) {
 	// Test that address generation is consistent
 	pubkey := []byte("test public key")
-	
+
 	addr1 := PubkeyBytesToAddress(pubkey)
 	addr2 := PubkeyBytesToAddress(pubkey)
-	
+
 	if !bytes.Equal(addr1, addr2) {
 		t.Error("Same pubkey should produce same address")
 	}
-	
+
 	// Test that different pubkeys produce different addresses
 	pubkey2 := []byte("different public key")
 	addr3 := PubkeyBytesToAddress(pubkey2)
-	
+
 	if bytes.Equal(addr1, addr3) {
 		t.Error("Different pubkeys should produce different addresses")
 	}
-	
+
 	// Test that address is 20 bytes (ripemd160 size)
 	if len(addr1) != AddrLen {
 		t.Errorf("Address should be %d bytes, got %d", AddrLen, len(addr1))
 	}
-	
+
 	// Test empty pubkey
 	emptyAddr := PubkeyBytesToAddress([]byte{})
 	if len(emptyAddr) != AddrLen {
@@ -232,7 +232,7 @@ func TestHashConstants(t *testing.T) {
 	if HashLen != 32 {
 		t.Errorf("HashLen should be 32, got %d", HashLen)
 	}
-	
+
 	if AddrLen != 20 {
 		t.Errorf("AddrLen should be 20, got %d", AddrLen)
 	}
@@ -243,7 +243,7 @@ func BenchmarkComputeHash256(b *testing.B) {
 	for i := range input {
 		input[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = ComputeHash256(input)
@@ -255,7 +255,7 @@ func BenchmarkComputeHash256Array(b *testing.B) {
 	for i := range input {
 		input[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = ComputeHash256Array(input)
@@ -267,7 +267,7 @@ func BenchmarkComputeHash160(b *testing.B) {
 	for i := range input {
 		input[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = ComputeHash160(input)
@@ -279,7 +279,7 @@ func BenchmarkPubkeyBytesToAddress(b *testing.B) {
 	for i := range pubkey {
 		pubkey[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = PubkeyBytesToAddress(pubkey)
@@ -291,7 +291,7 @@ func BenchmarkChecksum(b *testing.B) {
 	for i := range input {
 		input[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Checksum(input, 4)

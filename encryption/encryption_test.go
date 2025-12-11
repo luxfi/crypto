@@ -119,7 +119,7 @@ func TestAgeEncryption(t *testing.T) {
 	// Test empty data
 	t.Run("EmptyData", func(t *testing.T) {
 		password := "test-password"
-		
+
 		// Encrypt empty data
 		encrypted, err := EncryptDataWithPassword([]byte{}, password)
 		if err != nil {

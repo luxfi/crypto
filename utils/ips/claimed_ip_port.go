@@ -50,7 +50,7 @@ func NewClaimedIPPort(
 		Raw:       cert.Raw,
 		PublicKey: cert.PublicKey,
 	}
-	
+
 	ip := &ClaimedIPPort{
 		Cert:      cert,
 		AddrPort:  ipPort,

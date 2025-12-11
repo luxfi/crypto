@@ -18,7 +18,7 @@ type OptimizedSLHDSA struct {
 // NewOptimized creates an optimized SLH-DSA instance
 func NewOptimized(mode Mode) *OptimizedSLHDSA {
 	numWorkers := runtime.NumCPU()
-	
+
 	return &OptimizedSLHDSA{
 		mode: mode,
 		cachePool: &sync.Pool{
@@ -44,11 +44,11 @@ func (o *OptimizedSLHDSA) OptimizedSign(privateKey *PrivateKey, message []byte) 
 	// Acquire worker slot
 	o.workerPool <- struct{}{}
 	defer func() { <-o.workerPool }()
-	
+
 	// Get cache buffer from pool
 	cache := o.cachePool.Get().([]byte)
 	defer o.cachePool.Put(cache)
-	
+
 	// Use optimized signing based on mode
 	switch o.mode {
 	case SLHDSA128f:
@@ -125,7 +125,7 @@ func (o *OptimizedSLHDSA) optimizedSignGeneric(sk *PrivateKey, msg []byte, cache
 func (o *OptimizedSLHDSA) processTreeOptimized(treeIdx int, sk *PrivateKey, msg []byte, sig []byte, cache []byte) {
 	// Cache-friendly tree traversal
 	// Use cache buffer for intermediate values
-	
+
 	// Placeholder for actual tree processing
 	// Real implementation would compute Merkle tree with optimizations
 }
@@ -134,7 +134,7 @@ func (o *OptimizedSLHDSA) processTreeOptimized(treeIdx int, sk *PrivateKey, msg 
 func (o *OptimizedSLHDSA) processTreesSequential(sk *PrivateKey, msg []byte, sig []byte, cache []byte) {
 	// Sequential processing with minimal memory footprint
 	// Reuse cache buffer for each tree
-	
+
 	// Placeholder for actual sequential processing
 }
 
@@ -142,7 +142,7 @@ func (o *OptimizedSLHDSA) processTreesSequential(sk *PrivateKey, msg []byte, sig
 func (o *OptimizedSLHDSA) signWithSIMD(sk *PrivateKey, msg []byte, sig []byte, cache []byte, n, w, h, d int) {
 	// SIMD-accelerated signing
 	// Uses vector instructions for parallel hash computations
-	
+
 	// This would call assembly implementations for different architectures
 	switch runtime.GOARCH {
 	case "amd64":
@@ -179,11 +179,11 @@ func (o *OptimizedSLHDSA) OptimizedVerify(publicKey *PublicKey, message []byte, 
 	// Acquire worker slot
 	o.workerPool <- struct{}{}
 	defer func() { <-o.workerPool }()
-	
+
 	// Get cache buffer from pool
 	cache := o.cachePool.Get().([]byte)
 	defer o.cachePool.Put(cache)
-	
+
 	// Parallel verification of Merkle paths
 	return o.verifyOptimized(publicKey, message, signature, cache)
 }
@@ -240,28 +240,28 @@ func (o *OptimizedSLHDSA) RunBenchmark(config BenchmarkConfig) BenchmarkResult {
 	sk, _ := GenerateKey(rand.Reader, config.Mode)
 	pk := &sk.PublicKey
 	message := make([]byte, config.MessageSize)
-	
+
 	// Benchmark signing
 	startSign := nanotime()
 	for i := 0; i < config.Iterations; i++ {
 		o.OptimizedSign(sk, message)
 	}
 	result.SignTime = (nanotime() - startSign) / int64(config.Iterations)
-	
+
 	// Generate signature for verification benchmark
 	sig, _ := o.OptimizedSign(sk, message)
-	
+
 	// Benchmark verification
 	startVerify := nanotime()
 	for i := 0; i < config.Iterations; i++ {
 		o.OptimizedVerify(pk, message, sig)
 	}
 	result.VerifyTime = (nanotime() - startVerify) / int64(config.Iterations)
-	
+
 	// Calculate operations per second
 	result.SignOpsPerSec = 1e9 / float64(result.SignTime)
 	result.VerifyOpsPerSec = 1e9 / float64(result.VerifyTime)
-	
+
 	return result
 }
 
@@ -269,8 +269,8 @@ func (o *OptimizedSLHDSA) RunBenchmark(config BenchmarkConfig) BenchmarkResult {
 type BenchmarkResult struct {
 	Mode            Mode
 	MessageSize     int
-	SignTime        int64   // nanoseconds
-	VerifyTime      int64   // nanoseconds
+	SignTime        int64 // nanoseconds
+	VerifyTime      int64 // nanoseconds
 	SignOpsPerSec   float64
 	VerifyOpsPerSec float64
 }
@@ -285,10 +285,10 @@ func nanotime() int64 {
 var (
 	// Precomputed hash chains for common operations
 	precomputedChains = make(map[Mode][]byte)
-	
+
 	// Lookup tables for Winternitz chains
 	winternitzTables = make(map[Mode][][]byte)
-	
+
 	// Once ensures precomputation happens only once
 	precomputeOnce sync.Once
 )
@@ -298,11 +298,11 @@ func InitPrecomputation() {
 	precomputeOnce.Do(func() {
 		// Precompute for each mode
 		modes := []Mode{SLHDSA128f, SLHDSA128s, SLHDSA192f, SLHDSA192s, SLHDSA256f, SLHDSA256s}
-		
+
 		for _, mode := range modes {
 			// Precompute hash chains
 			precomputeHashChains(mode)
-			
+
 			// Precompute Winternitz tables
 			precomputeWinternitz(mode)
 		}

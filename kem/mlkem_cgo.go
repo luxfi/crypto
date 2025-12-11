@@ -83,7 +83,7 @@ func NewMLKEM768CGO() (*MLKEM768CGO, error) {
 	if kem == nil {
 		return nil, errors.New("failed to create ML-KEM-768 instance")
 	}
-	
+
 	m := &MLKEM768CGO{kem: kem}
 	runtime.SetFinalizer(m, (*MLKEM768CGO).cleanup)
 	return m, nil
@@ -102,7 +102,7 @@ func (m *MLKEM768CGO) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 	if m.kem == nil {
 		return nil, nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	pk := &MLKEM768PublicKey{
 		data: make([]byte, mlkem768PublicKeySize),
 	}
@@ -110,17 +110,17 @@ func (m *MLKEM768CGO) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 		data: make([]byte, mlkem768PrivateKeySize),
 		pk:   pk,
 	}
-	
+
 	ret := C.mlkem768_keypair(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&pk.data[0])),
 		(*C.uint8_t)(unsafe.Pointer(&sk.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, nil, errors.New("ML-KEM-768 key generation failed")
 	}
-	
+
 	return pk, sk, nil
 }
 
@@ -129,26 +129,26 @@ func (m *MLKEM768CGO) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
 	if m.kem == nil {
 		return nil, nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	mlkemPK, ok := pk.(*MLKEM768PublicKey)
 	if !ok {
 		return nil, nil, errors.New("invalid public key type")
 	}
-	
+
 	ciphertext := make([]byte, mlkem768CiphertextSize)
 	sharedSecret := make([]byte, mlkem768SharedSecretSize)
-	
+
 	ret := C.mlkem768_encaps(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&ciphertext[0])),
 		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
 		(*C.uint8_t)(unsafe.Pointer(&mlkemPK.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, nil, errors.New("ML-KEM-768 encapsulation failed")
 	}
-	
+
 	return ciphertext, sharedSecret, nil
 }
 
@@ -157,29 +157,29 @@ func (m *MLKEM768CGO) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, err
 	if m.kem == nil {
 		return nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	mlkemSK, ok := sk.(*MLKEM768PrivateKey)
 	if !ok {
 		return nil, errors.New("invalid private key type")
 	}
-	
+
 	if len(ciphertext) != mlkem768CiphertextSize {
 		return nil, errors.New("invalid ciphertext size")
 	}
-	
+
 	sharedSecret := make([]byte, mlkem768SharedSecretSize)
-	
+
 	ret := C.mlkem768_decaps(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
 		(*C.uint8_t)(unsafe.Pointer(&ciphertext[0])),
 		(*C.uint8_t)(unsafe.Pointer(&mlkemSK.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, errors.New("ML-KEM-768 decapsulation failed")
 	}
-	
+
 	return sharedSecret, nil
 }
 
@@ -214,7 +214,7 @@ func NewMLKEM1024CGO() (*MLKEM1024CGO, error) {
 	if kem == nil {
 		return nil, errors.New("failed to create ML-KEM-1024 instance")
 	}
-	
+
 	m := &MLKEM1024CGO{kem: kem}
 	runtime.SetFinalizer(m, (*MLKEM1024CGO).cleanup)
 	return m, nil
@@ -233,7 +233,7 @@ func (m *MLKEM1024CGO) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 	if m.kem == nil {
 		return nil, nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	pk := &MLKEM1024PublicKey{
 		data: make([]byte, mlkem1024PublicKeySize),
 	}
@@ -241,17 +241,17 @@ func (m *MLKEM1024CGO) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 		data: make([]byte, mlkem1024PrivateKeySize),
 		pk:   pk,
 	}
-	
+
 	ret := C.mlkem1024_keypair(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&pk.data[0])),
 		(*C.uint8_t)(unsafe.Pointer(&sk.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, nil, errors.New("ML-KEM-1024 key generation failed")
 	}
-	
+
 	return pk, sk, nil
 }
 
@@ -260,26 +260,26 @@ func (m *MLKEM1024CGO) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
 	if m.kem == nil {
 		return nil, nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	mlkemPK, ok := pk.(*MLKEM1024PublicKey)
 	if !ok {
 		return nil, nil, errors.New("invalid public key type")
 	}
-	
+
 	ciphertext := make([]byte, mlkem1024CiphertextSize)
 	sharedSecret := make([]byte, mlkem1024SharedSecretSize)
-	
+
 	ret := C.mlkem1024_encaps(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&ciphertext[0])),
 		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
 		(*C.uint8_t)(unsafe.Pointer(&mlkemPK.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, nil, errors.New("ML-KEM-1024 encapsulation failed")
 	}
-	
+
 	return ciphertext, sharedSecret, nil
 }
 
@@ -288,29 +288,29 @@ func (m *MLKEM1024CGO) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, er
 	if m.kem == nil {
 		return nil, errors.New("KEM instance not initialized")
 	}
-	
+
 	mlkemSK, ok := sk.(*MLKEM1024PrivateKey)
 	if !ok {
 		return nil, errors.New("invalid private key type")
 	}
-	
+
 	if len(ciphertext) != mlkem1024CiphertextSize {
 		return nil, errors.New("invalid ciphertext size")
 	}
-	
+
 	sharedSecret := make([]byte, mlkem1024SharedSecretSize)
-	
+
 	ret := C.mlkem1024_decaps(
 		m.kem,
 		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
 		(*C.uint8_t)(unsafe.Pointer(&ciphertext[0])),
 		(*C.uint8_t)(unsafe.Pointer(&mlkemSK.data[0])),
 	)
-	
+
 	if ret != C.OQS_SUCCESS_VAL {
 		return nil, errors.New("ML-KEM-1024 decapsulation failed")
 	}
-	
+
 	return sharedSecret, nil
 }
 
@@ -334,7 +334,7 @@ func (m *MLKEM1024CGO) SharedSecretSize() int {
 	return mlkem1024SharedSecretSize
 }
 
-// cgoAvailable returns true when CGO is available  
+// cgoAvailable returns true when CGO is available
 func cgoAvailable() bool {
 	return true
 }

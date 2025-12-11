@@ -34,11 +34,11 @@ func NewAveragerWithErrs(name, desc string, registry metric.Registry, errs *wrap
 	a := averager{
 		count: metricsInstance.NewCounter(
 			AppendNamespace(name, "count"),
-			"Total # of observations of " + desc,
+			"Total # of observations of "+desc,
 		),
 		sum: metricsInstance.NewGauge(
 			AppendNamespace(name, "sum"),
-			"Sum of " + desc,
+			"Sum of "+desc,
 		),
 	}
 

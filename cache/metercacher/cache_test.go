@@ -17,7 +17,6 @@ import (
 	"github.com/luxfi/node/cache"
 	"github.com/luxfi/node/cache/cachetest"
 	"github.com/luxfi/node/cache/lru"
-	"github.com/luxfi/ids"
 )
 
 func TestInterface(t *testing.T) {

@@ -42,22 +42,22 @@ func (h *HybridKEMImpl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	mlkemPK, mlkemSK, err := h.mlkem.GenerateKeyPair()
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	pk := &HybridPublicKey{
 		X25519PK: x25519PK,
 		MLKEMPK:  mlkemPK,
 	}
-	
+
 	sk := &HybridPrivateKey{
 		X25519SK: x25519SK,
 		MLKEMSK:  mlkemSK,
 	}
-	
+
 	return pk, sk, nil
 }
 
@@ -67,25 +67,25 @@ func (h *HybridKEMImpl) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
 	if !ok {
 		return nil, nil, errors.New("invalid public key type for hybrid KEM")
 	}
-	
+
 	// Perform X25519 encapsulation
 	x25519CT, x25519SS, err := h.x25519.Encapsulate(hybridPK.X25519PK)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Perform ML-KEM encapsulation
 	mlkemCT, mlkemSS, err := h.mlkem.Encapsulate(hybridPK.MLKEMPK)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Concatenate ciphertexts
 	ciphertext := append(x25519CT, mlkemCT...)
-	
+
 	// Derive shared secret using HKDF
 	sharedSecret := h.deriveSharedSecret(x25519SS, mlkemSS)
-	
+
 	return ciphertext, sharedSecret, nil
 }
 
@@ -95,31 +95,31 @@ func (h *HybridKEMImpl) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, e
 	if !ok {
 		return nil, errors.New("invalid private key type for hybrid KEM")
 	}
-	
+
 	x25519CTSize := h.x25519.CiphertextSize()
 	if len(ciphertext) < x25519CTSize {
 		return nil, errors.New("ciphertext too short")
 	}
-	
+
 	// Split ciphertext
 	x25519CT := ciphertext[:x25519CTSize]
 	mlkemCT := ciphertext[x25519CTSize:]
-	
+
 	// Perform X25519 decapsulation
 	x25519SS, err := h.x25519.Decapsulate(hybridSK.X25519SK, x25519CT)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Perform ML-KEM decapsulation
 	mlkemSS, err := h.mlkem.Decapsulate(hybridSK.MLKEMSK, mlkemCT)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Derive shared secret using HKDF
 	sharedSecret := h.deriveSharedSecret(x25519SS, mlkemSS)
-	
+
 	return sharedSecret, nil
 }
 
@@ -127,18 +127,18 @@ func (h *HybridKEMImpl) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, e
 func (h *HybridKEMImpl) deriveSharedSecret(x25519SS, mlkemSS []byte) []byte {
 	// Concatenate secrets
 	combined := append(x25519SS, mlkemSS...)
-	
+
 	// Use HKDF-Extract then Expand
 	salt := []byte("QZMQ-HybridKEM-v1")
 	info := []byte("hybrid-kem-shared-secret")
-	
+
 	hkdf := hkdf.New(sha256.New, combined, salt, info)
 	sharedSecret := make([]byte, 32)
-	
+
 	if _, err := io.ReadFull(hkdf, sharedSecret); err != nil {
 		panic(err) // Should never happen with correct sizes
 	}
-	
+
 	return sharedSecret
 }
 

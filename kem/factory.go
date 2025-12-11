@@ -19,7 +19,7 @@ func shouldUseCGO() bool {
 			useCGO = false
 			return
 		}
-		
+
 		// Default to CGO if available (detected at build time)
 		useCGO = cgoAvailable()
 	})
@@ -62,12 +62,12 @@ func NewHybrid() (KEM, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	mlkem, err := NewMLKEM768()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return newHybridKEM(x25519, mlkem)
 }
 

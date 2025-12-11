@@ -8,11 +8,11 @@ import (
 
 func TestMLDSAKeyGeneration(t *testing.T) {
 	modes := []struct {
-		name      string
-		mode      Mode
-		pubSize   int
-		privSize  int
-		sigSize   int
+		name     string
+		mode     Mode
+		pubSize  int
+		privSize int
+		sigSize  int
 	}{
 		{"ML-DSA-44", MLDSA44, MLDSA44PublicKeySize, MLDSA44PrivateKeySize, MLDSA44SignatureSize},
 		{"ML-DSA-65", MLDSA65, MLDSA65PublicKeySize, MLDSA65PrivateKeySize, MLDSA65SignatureSize},
@@ -49,7 +49,7 @@ func TestMLDSAKeyGeneration(t *testing.T) {
 
 func TestMLDSASignVerify(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			privKey, err := GenerateKey(rand.Reader, mode)
@@ -58,7 +58,7 @@ func TestMLDSASignVerify(t *testing.T) {
 			}
 
 			message := []byte("Test message for ML-DSA signature")
-			
+
 			// Sign message
 			signature, err := privKey.Sign(rand.Reader, message, nil)
 			if err != nil {
@@ -102,7 +102,7 @@ func TestMLDSASignVerify(t *testing.T) {
 
 func TestMLDSAKeySerialization(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			// Generate original key
@@ -241,7 +241,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 
 func TestMLDSALargeMessage(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			privKey, err := GenerateKey(rand.Reader, mode)
@@ -280,12 +280,12 @@ func TestMLDSAConcurrency(t *testing.T) {
 	}
 
 	message := []byte("Concurrent test message")
-	
+
 	// Test concurrent signing
 	t.Run("ConcurrentSign", func(t *testing.T) {
 		const numGoroutines = 10
 		done := make(chan bool, numGoroutines)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
 				msg := append(message, byte(id))
@@ -300,7 +300,7 @@ func TestMLDSAConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			<-done
 		}
@@ -311,7 +311,7 @@ func TestMLDSAConcurrency(t *testing.T) {
 		signature, _ := privKey.Sign(rand.Reader, message, nil)
 		const numGoroutines = 10
 		done := make(chan bool, numGoroutines)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
 				valid := privKey.PublicKey.Verify(message, signature, nil)
@@ -321,7 +321,7 @@ func TestMLDSAConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			<-done
 		}
@@ -365,7 +365,7 @@ func BenchmarkMLDSASign(b *testing.B) {
 
 	for _, m := range modes {
 		privKey, _ := GenerateKey(rand.Reader, m.mode)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -393,7 +393,7 @@ func BenchmarkMLDSAVerify(b *testing.B) {
 	for _, m := range modes {
 		privKey, _ := GenerateKey(rand.Reader, m.mode)
 		signature, _ := privKey.Sign(rand.Reader, message, nil)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

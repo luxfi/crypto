@@ -8,7 +8,7 @@ import (
 
 func TestOptimizedKeyGeneration(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			// Test optimized key generation
@@ -55,7 +55,7 @@ func TestOptimizedKeyGeneration(t *testing.T) {
 
 func TestOptimizedSign(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			privKey, err := GenerateKey(rand.Reader, mode)
@@ -64,7 +64,7 @@ func TestOptimizedSign(t *testing.T) {
 			}
 
 			message := []byte("Test message for optimized signing")
-			
+
 			// Test optimized signing
 			signature, err := privKey.OptimizedSign(rand.Reader, message, nil)
 			if err != nil {
@@ -89,7 +89,7 @@ func TestOptimizedSign(t *testing.T) {
 
 func TestBatchDSA(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			numKeys := 5
@@ -101,7 +101,7 @@ func TestBatchDSA(t *testing.T) {
 			// Prepare messages
 			messages := make([][]byte, numKeys)
 			for i := range messages {
-				messages[i] = []byte(string(rune('A' + i)) + " Test message for batch signing")
+				messages[i] = []byte(string(rune('A'+i)) + " Test message for batch signing")
 			}
 
 			// Batch sign
@@ -154,7 +154,7 @@ func TestBatchDSA(t *testing.T) {
 
 func TestPrecomputedMLDSA(t *testing.T) {
 	modes := []Mode{MLDSA44, MLDSA65, MLDSA87}
-	
+
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
 			privKey, err := GenerateKey(rand.Reader, mode)
@@ -165,7 +165,7 @@ func TestPrecomputedMLDSA(t *testing.T) {
 			precomputed := NewPrecomputedMLDSA(privKey)
 
 			message := []byte("Test message for caching")
-			
+
 			// First sign (cache miss)
 			sig1, err := precomputed.SignCached(message)
 			if err != nil {
@@ -339,7 +339,7 @@ func BenchmarkOptimizedSign(b *testing.B) {
 
 	for _, m := range modes {
 		privKey, _ := GenerateKey(rand.Reader, m.mode)
-		
+
 		b.Run(m.name+"-Standard", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -365,7 +365,7 @@ func BenchmarkOptimizedSign(b *testing.B) {
 func BenchmarkBatchOperations(b *testing.B) {
 	numKeys := 10
 	batch, _ := NewBatchDSA(MLDSA65, numKeys)
-	
+
 	messages := make([][]byte, numKeys)
 	for i := range messages {
 		messages[i] = make([]byte, 32)

@@ -27,12 +27,12 @@ func GenerateRandomBytes(rand io.Reader, size int) ([]byte, error) {
 	if err := ValidateRandomSource(rand); err != nil {
 		return nil, err
 	}
-	
+
 	bytes := make([]byte, size)
 	if _, err := io.ReadFull(rand, bytes); err != nil {
 		return nil, err
 	}
-	
+
 	return bytes, nil
 }
 
@@ -49,7 +49,7 @@ func AllocateCombined(sizes ...int) []byte {
 func SplitBuffer(buffer []byte, sizes ...int) [][]byte {
 	segments := make([][]byte, len(sizes))
 	offset := 0
-	
+
 	for i, size := range sizes {
 		if offset+size > len(buffer) {
 			panic("buffer too small for requested segments")
@@ -57,7 +57,7 @@ func SplitBuffer(buffer []byte, sizes ...int) [][]byte {
 		segments[i] = buffer[offset : offset+size]
 		offset += size
 	}
-	
+
 	return segments
 }
 
@@ -76,7 +76,7 @@ func ConstantTimeSelect(v int, a, b []byte) []byte {
 	if len(a) != len(b) {
 		panic("slices must have equal length")
 	}
-	
+
 	result := make([]byte, len(a))
 	for i := range result {
 		result[i] = byte(v)*a[i] + byte(1-v)*b[i]
@@ -116,7 +116,7 @@ func FillRandomBytes(rand io.Reader, buf []byte) error {
 	if err := ValidateRandomSource(rand); err != nil {
 		return err
 	}
-	
+
 	_, err := io.ReadFull(rand, buf)
 	return err
 }

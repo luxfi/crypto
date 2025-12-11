@@ -8,11 +8,11 @@ import (
 
 func TestSLHDSAKeyGeneration(t *testing.T) {
 	modes := []struct {
-		name      string
-		mode      Mode
-		pubSize   int
-		privSize  int
-		sigSize   int
+		name     string
+		mode     Mode
+		pubSize  int
+		privSize int
+		sigSize  int
 	}{
 		{"SLH-DSA-128s", SLHDSA128s, SLHDSA128sPublicKeySize, SLHDSA128sPrivateKeySize, SLHDSA128sSignatureSize},
 		{"SLH-DSA-128f", SLHDSA128f, SLHDSA128fPublicKeySize, SLHDSA128fPrivateKeySize, SLHDSA128fSignatureSize},
@@ -67,7 +67,7 @@ func TestSLHDSASignVerify(t *testing.T) {
 			}
 
 			message := []byte("Test message for SLH-DSA signature")
-			
+
 			// Sign message
 			signature, err := privKey.Sign(rand.Reader, message, nil)
 			if err != nil {
@@ -142,7 +142,7 @@ func TestSLHDSADeterministicSignature(t *testing.T) {
 			}
 
 			message := []byte("Deterministic signature test")
-			
+
 			// Sign same message multiple times
 			sig1, err := privKey.Sign(nil, message, nil) // nil rand for deterministic
 			if err != nil {
@@ -320,12 +320,12 @@ func TestSLHDSAConcurrency(t *testing.T) {
 	}
 
 	message := []byte("Concurrent test message")
-	
+
 	// Test concurrent signing
 	t.Run("ConcurrentSign", func(t *testing.T) {
 		const numGoroutines = 10
 		done := make(chan bool, numGoroutines)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
 				msg := append(message, byte(id))
@@ -340,7 +340,7 @@ func TestSLHDSAConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			<-done
 		}
@@ -351,7 +351,7 @@ func TestSLHDSAConcurrency(t *testing.T) {
 		signature, _ := privKey.Sign(rand.Reader, message, nil)
 		const numGoroutines = 10
 		done := make(chan bool, numGoroutines)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
 				valid := privKey.PublicKey.Verify(message, signature, nil)
@@ -361,7 +361,7 @@ func TestSLHDSAConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			<-done
 		}
@@ -432,7 +432,7 @@ func BenchmarkSLHDSASign(b *testing.B) {
 
 	for _, m := range modes {
 		privKey, _ := GenerateKey(rand.Reader, m.mode)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -463,7 +463,7 @@ func BenchmarkSLHDSAVerify(b *testing.B) {
 	for _, m := range modes {
 		privKey, _ := GenerateKey(rand.Reader, m.mode)
 		signature, _ := privKey.Sign(rand.Reader, message, nil)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

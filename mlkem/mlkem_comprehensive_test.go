@@ -8,12 +8,12 @@ import (
 
 func TestMLKEMKeyGeneration(t *testing.T) {
 	modes := []struct {
-		name       string
-		mode       Mode
-		pubSize    int
-		privSize   int
-		ctSize     int
-		ssSize     int
+		name     string
+		mode     Mode
+		pubSize  int
+		privSize int
+		ctSize   int
+		ssSize   int
 	}{
 		{"ML-KEM-512", MLKEM512, MLKEM512PublicKeySize, MLKEM512PrivateKeySize, MLKEM512CiphertextSize, MLKEM512SharedSecretSize},
 		{"ML-KEM-768", MLKEM768, MLKEM768PublicKeySize, MLKEM768PrivateKeySize, MLKEM768CiphertextSize, MLKEM768SharedSecretSize},
@@ -114,7 +114,7 @@ func TestMLKEMEncapsulateDecapsulate(t *testing.T) {
 			tamperedCiphertext := make([]byte, len(encapResult.Ciphertext))
 			copy(tamperedCiphertext, encapResult.Ciphertext)
 			tamperedCiphertext[0] ^= 0xFF
-			
+
 			// In our placeholder implementation, this will produce different shared secret
 			tamperedSecret, err := privKey.Decapsulate(tamperedCiphertext)
 			if err != nil {
@@ -301,12 +301,12 @@ func TestMLKEMConcurrency(t *testing.T) {
 				if err != nil {
 					t.Errorf("Goroutine %d: Encapsulate failed: %v", id, err)
 				}
-				
+
 				ss, err := privKey.Decapsulate(encapResult.Ciphertext)
 				if err != nil {
 					t.Errorf("Goroutine %d: Decapsulate failed: %v", id, err)
 				}
-				
+
 				if !bytes.Equal(ss, encapResult.SharedSecret) {
 					t.Errorf("Goroutine %d: Shared secrets don't match", id)
 				}
@@ -343,8 +343,6 @@ func TestMLKEMConcurrency(t *testing.T) {
 		}
 	})
 }
-
-
 
 // Helper functions that were missing
 func NewPrivateKey(mode Mode) *PrivateKey {
@@ -423,7 +421,7 @@ func BenchmarkMLKEMEncapsulate(b *testing.B) {
 
 	for _, m := range modes {
 		privKey, _, _ := GenerateKeyPair(rand.Reader, m.mode)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -449,7 +447,7 @@ func BenchmarkMLKEMDecapsulate(b *testing.B) {
 	for _, m := range modes {
 		privKey, _, _ := GenerateKeyPair(rand.Reader, m.mode)
 		encapResult, _ := privKey.PublicKey.Encapsulate(rand.Reader)
-		
+
 		b.Run(m.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
