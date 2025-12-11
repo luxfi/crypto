@@ -205,7 +205,13 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 }
 
 // Verify verifies a signature with the public key using circl
+// The opts parameter is ignored but kept for crypto.Signer interface compatibility
 func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) bool {
+	return pub.VerifySignature(message, signature)
+}
+
+// VerifySignature verifies a signature with the public key (simplified API)
+func (pub *PublicKey) VerifySignature(message, signature []byte) bool {
 	id := modeToID(pub.mode)
 	if !id.IsValid() {
 		return false
