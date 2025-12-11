@@ -16,6 +16,14 @@ import (
 	"github.com/luxfi/crypto/bls"
 )
 
+// Import log field helpers
+var (
+	logUint8  = log.Uint8
+	logUint64 = log.Uint64
+	logBool   = log.Bool
+	logString = log.String
+)
+
 // SignatureType represents the type of aggregated signature
 type SignatureType uint8
 
@@ -126,12 +134,12 @@ func NewSignatureAggregator(config SignatureConfig, log log.Logger) (*SignatureA
 	sa.feeCollector = NewFeeCollector()
 	
 	log.Info("Signature aggregator initialized",
-		log.Uint8("preferredType", uint8(config.PreferredType)),
-		log.Bool("blsEnabled", config.EnableBLS),
-		log.Bool("ringtailEnabled", config.EnableRingtail),
-		log.Bool("cggmp21Enabled", config.EnableCGGMP21),
-		log.Uint64("blsFee", config.BLSFee),
-		log.Uint64("ringtailFee", config.RingtailFee),
+		logUint8("preferredType", uint8(config.PreferredType)),
+		logBool("blsEnabled", config.EnableBLS),
+		logBool("ringtailEnabled", config.EnableRingtail),
+		logBool("cggmp21Enabled", config.EnableCGGMP21),
+		logUint64("blsFee", config.BLSFee),
+		logUint64("ringtailFee", config.RingtailFee),
 	)
 	
 	return sa, nil
