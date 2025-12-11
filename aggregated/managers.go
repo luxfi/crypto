@@ -7,11 +7,11 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/luxfi/crypto/bls"
+	"github.com/luxfi/crypto/cggmp21"
+	"github.com/luxfi/crypto/corona"
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
-	"github.com/luxfi/crypto/bls"
-	"github.com/luxfi/crypto/corona"
-	"github.com/luxfi/crypto/cggmp21"
 )
 
 // BLSManager manages BLS signature operations
@@ -33,7 +33,7 @@ func (m *BLSManager) CreateKeyPair() (*bls.SecretKey, *bls.PublicKey, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	pk := sk.PublicKey()
 	return sk, pk, nil
 }
@@ -67,12 +67,12 @@ func (m *CoronaManager) CreateKeyPair() (*corona.PrivateKey, *corona.PublicKey, 
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	pubKey, err := factory.ToPublicKey(privKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	return privKey, pubKey, nil
 }
 
@@ -109,15 +109,15 @@ func (m *CGGMP21Manager) InitializeParty(
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	party, err := cggmp21.NewParty(partyID, index, config, m.log)
 	if err != nil {
 		return err
 	}
-	
+
 	m.parties[index] = party
 	m.config = config
-	
+
 	return nil
 }
 
@@ -125,12 +125,12 @@ func (m *CGGMP21Manager) InitializeParty(
 func (m *CGGMP21Manager) GetParty(index int) (*cggmp21.Party, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	party, exists := m.parties[index]
 	if !exists {
 		return nil, errors.New("party not found")
 	}
-	
+
 	return party, nil
 }
 
@@ -151,7 +151,7 @@ func NewFeeCollector() FeeCollector {
 func (fc *FeeCollector) CollectFee(sigType SignatureType, amount uint64) {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	
+
 	fc.collectedFees[sigType] += amount
 }
 
@@ -159,12 +159,12 @@ func (fc *FeeCollector) CollectFee(sigType SignatureType, amount uint64) {
 func (fc *FeeCollector) GetCollectedFees() map[SignatureType]uint64 {
 	fc.mu.RLock()
 	defer fc.mu.RUnlock()
-	
+
 	fees := make(map[SignatureType]uint64)
 	for k, v := range fc.collectedFees {
 		fees[k] = v
 	}
-	
+
 	return fees
 }
 
@@ -172,12 +172,12 @@ func (fc *FeeCollector) GetCollectedFees() map[SignatureType]uint64 {
 func (fc *FeeCollector) GetTotalFees() uint64 {
 	fc.mu.RLock()
 	defer fc.mu.RUnlock()
-	
+
 	var total uint64
 	for _, amount := range fc.collectedFees {
 		total += amount
 	}
-	
+
 	return total
 }
 
@@ -185,9 +185,9 @@ func (fc *FeeCollector) GetTotalFees() uint64 {
 func (fc *FeeCollector) ResetFees() map[SignatureType]uint64 {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	
+
 	oldFees := fc.collectedFees
 	fc.collectedFees = make(map[SignatureType]uint64)
-	
+
 	return oldFees
 }

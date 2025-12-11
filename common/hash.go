@@ -33,14 +33,14 @@ func DeriveKey(seed []byte, label string, outputLen int) []byte {
 	h.Write(seed)
 	h.Write([]byte(label))
 	baseHash := h.Sum(nil)
-	
+
 	output := make([]byte, outputLen)
 	for i := 0; i < outputLen; i += len(baseHash) {
 		h.Reset()
 		h.Write(baseHash)
 		h.Write([]byte{byte(i / len(baseHash))})
 		chunk := h.Sum(nil)
-		
+
 		end := i + len(baseHash)
 		if end > outputLen {
 			end = outputLen
@@ -48,7 +48,7 @@ func DeriveKey(seed []byte, label string, outputLen int) []byte {
 		copy(output[i:end], chunk)
 		baseHash = chunk
 	}
-	
+
 	return output
 }
 
@@ -58,7 +58,7 @@ func XOF(seed []byte, outputLen int) []byte {
 	h := sha256.New()
 	h.Write(seed)
 	hash := h.Sum(nil)
-	
+
 	for i := 0; i < outputLen; i += len(hash) {
 		end := i + len(hash)
 		if end > outputLen {
@@ -71,7 +71,7 @@ func XOF(seed []byte, outputLen int) []byte {
 			hash = h.Sum(nil)
 		}
 	}
-	
+
 	return output
 }
 
@@ -80,7 +80,7 @@ func SecureCompare(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	var result byte
 	for i := range a {
 		result |= a[i] ^ b[i]

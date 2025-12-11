@@ -7,7 +7,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"fmt"
-	
+
 	"github.com/luxfi/crypto/bls"
 	"github.com/luxfi/crypto/mldsa"
 )
@@ -25,18 +25,18 @@ func NewSimpleSigner() (*SimpleSigner, error) {
 	if _, err := rand.Read(seed); err != nil {
 		return nil, err
 	}
-	
+
 	blsKey, err := bls.SecretKeyFromBytes(seed)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Generate ML-DSA key
 	mldsaKey, err := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &SimpleSigner{
 		blsKey:   blsKey,
 		mldsaKey: mldsaKey,
@@ -79,19 +79,19 @@ func (s *SimpleSigner) SignHybrid(message []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BLS sign failed: %w", err)
 	}
-	
+
 	mldsaSig, err := s.SignMLDSA(message)
 	if err != nil {
 		return nil, fmt.Errorf("ML-DSA sign failed: %w", err)
 	}
-	
+
 	// Combine: [2-byte BLS len][BLS sig][ML-DSA sig]
 	result := make([]byte, 2+len(blsSig)+len(mldsaSig))
 	result[0] = byte(len(blsSig) >> 8)
 	result[1] = byte(len(blsSig))
 	copy(result[2:], blsSig)
 	copy(result[2+len(blsSig):], mldsaSig)
-	
+
 	return result, nil
 }
 
@@ -100,15 +100,15 @@ func (s *SimpleSigner) VerifyHybrid(message, signature []byte) bool {
 	if len(signature) < 2 {
 		return false
 	}
-	
+
 	blsLen := int(signature[0])<<8 | int(signature[1])
 	if len(signature) < 2+blsLen {
 		return false
 	}
-	
+
 	blsSig := signature[2 : 2+blsLen]
 	mldsaSig := signature[2+blsLen:]
-	
+
 	return s.VerifyBLS(message, blsSig) && s.VerifyMLDSA(message, mldsaSig)
 }
 

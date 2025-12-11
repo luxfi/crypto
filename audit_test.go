@@ -41,24 +41,24 @@ func TestMLKEMEdgeCases(t *testing.T) {
 		modes := []mlkem.Mode{mlkem.MLKEM512, mlkem.MLKEM768, mlkem.MLKEM1024}
 		for _, mode := range modes {
 			priv1, _, _ := mlkem.GenerateKeyPair(rand.Reader, mode)
-			
+
 			// Serialize
 			privBytes := priv1.Bytes()
 			pubBytes := priv1.PublicKey.Bytes()
-			
+
 			// Deserialize
 			priv2, err := mlkem.PrivateKeyFromBytes(privBytes, mode)
 			require.NoError(t, err)
 			pub2, err := mlkem.PublicKeyFromBytes(pubBytes, mode)
 			require.NoError(t, err)
-			
+
 			// Verify they work the same
 			result1, _ := priv1.PublicKey.Encapsulate(rand.Reader)
 			secret1, _ := priv1.Decapsulate(result1.Ciphertext)
-			
+
 			result2, _ := pub2.Encapsulate(rand.Reader)
 			secret2, _ := priv2.Decapsulate(result2.Ciphertext)
-			
+
 			// Both should produce valid shared secrets
 			assert.Len(t, secret1, 32)
 			assert.Len(t, secret2, 32)
@@ -69,10 +69,10 @@ func TestMLKEMEdgeCases(t *testing.T) {
 		// Same private key seed should generate same public key
 		privBytes := make([]byte, mlkem.MLKEM768PrivateKeySize)
 		copy(privBytes, []byte("deterministic seed for testing"))
-		
+
 		priv1, _ := mlkem.PrivateKeyFromBytes(privBytes, mlkem.MLKEM768)
 		priv2, _ := mlkem.PrivateKeyFromBytes(privBytes, mlkem.MLKEM768)
-		
+
 		assert.Equal(t, priv1.PublicKey.Bytes(), priv2.PublicKey.Bytes())
 	})
 }
@@ -95,7 +95,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 		largeMsg := make([]byte, 10000)
 		rand.Read(largeMsg)
-		
+
 		sig, err := priv.Sign(rand.Reader, largeMsg, nil)
 		require.NoError(t, err)
 		assert.True(t, priv.PublicKey.Verify(largeMsg, sig, nil))
@@ -104,10 +104,10 @@ func TestMLDSAEdgeCases(t *testing.T) {
 	t.Run("Signature Malleability", func(t *testing.T) {
 		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 		msg := []byte("test message")
-		
+
 		sig1, _ := priv.Sign(rand.Reader, msg, nil)
 		sig2, _ := priv.Sign(rand.Reader, msg, nil)
-		
+
 		// Signatures should be deterministic in our implementation
 		assert.Equal(t, sig1, sig2)
 	})
@@ -115,7 +115,7 @@ func TestMLDSAEdgeCases(t *testing.T) {
 	t.Run("Wrong Signature Size", func(t *testing.T) {
 		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 		msg := []byte("test")
-		
+
 		wrongSig := make([]byte, 100) // Wrong size
 		assert.False(t, priv.PublicKey.Verify(msg, wrongSig, nil))
 	})
@@ -124,9 +124,9 @@ func TestMLDSAEdgeCases(t *testing.T) {
 		priv44, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA44)
 		priv65, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 		msg := []byte("test")
-		
+
 		sig44, _ := priv44.Sign(rand.Reader, msg, nil)
-		
+
 		// ML-DSA65 key shouldn't verify ML-DSA44 signature
 		assert.False(t, priv65.PublicKey.Verify(msg, sig44, nil))
 	})
@@ -137,10 +137,10 @@ func TestSLHDSAEdgeCases(t *testing.T) {
 	t.Run("Deterministic Signatures", func(t *testing.T) {
 		priv, _ := slhdsa.GenerateKey(rand.Reader, slhdsa.SLHDSA128f)
 		msg := []byte("deterministic test")
-		
+
 		sig1, _ := priv.Sign(rand.Reader, msg, nil)
 		sig2, _ := priv.Sign(rand.Reader, msg, nil)
-		
+
 		// SLH-DSA is deterministic - same message should produce same signature
 		assert.Equal(t, sig1, sig2)
 	})
@@ -154,13 +154,13 @@ func TestSLHDSAEdgeCases(t *testing.T) {
 			{slhdsa.SLHDSA128f, "128f", slhdsa.SLHDSA128fSignatureSize},
 			{slhdsa.SLHDSA192f, "192f", slhdsa.SLHDSA192fSignatureSize},
 		}
-		
+
 		for _, m := range modes {
 			t.Run(m.name, func(t *testing.T) {
 				priv, _ := slhdsa.GenerateKey(rand.Reader, m.mode)
 				msg := []byte("test")
 				sig, _ := priv.Sign(rand.Reader, msg, nil)
-				
+
 				assert.Len(t, sig, m.size)
 			})
 		}
@@ -171,7 +171,7 @@ func TestSLHDSAEdgeCases(t *testing.T) {
 func TestConcurrency(t *testing.T) {
 	t.Run("ML-KEM Concurrent Operations", func(t *testing.T) {
 		priv, _, _ := mlkem.GenerateKeyPair(rand.Reader, mlkem.MLKEM768)
-		
+
 		// Run concurrent encapsulations
 		done := make(chan bool, 10)
 		for i := 0; i < 10; i++ {
@@ -184,7 +184,7 @@ func TestConcurrency(t *testing.T) {
 				done <- true
 			}()
 		}
-		
+
 		for i := 0; i < 10; i++ {
 			<-done
 		}
@@ -192,7 +192,7 @@ func TestConcurrency(t *testing.T) {
 
 	t.Run("ML-DSA Concurrent Signing", func(t *testing.T) {
 		priv, _ := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
-		
+
 		done := make(chan bool, 10)
 		for i := 0; i < 10; i++ {
 			go func(id int) {
@@ -203,7 +203,7 @@ func TestConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < 10; i++ {
 			<-done
 		}
@@ -229,11 +229,11 @@ func TestParameterValidation(t *testing.T) {
 	assert.Equal(t, 800, mlkem.MLKEM512PublicKeySize)
 	assert.Equal(t, 1632, mlkem.MLKEM512PrivateKeySize)
 	assert.Equal(t, 768, mlkem.MLKEM512CiphertextSize)
-	
+
 	assert.Equal(t, 1184, mlkem.MLKEM768PublicKeySize)
 	assert.Equal(t, 2400, mlkem.MLKEM768PrivateKeySize)
 	assert.Equal(t, 1088, mlkem.MLKEM768CiphertextSize)
-	
+
 	assert.Equal(t, 1568, mlkem.MLKEM1024PublicKeySize)
 	assert.Equal(t, 3168, mlkem.MLKEM1024PrivateKeySize)
 	assert.Equal(t, 1568, mlkem.MLKEM1024CiphertextSize)
@@ -242,11 +242,11 @@ func TestParameterValidation(t *testing.T) {
 	assert.Equal(t, 1312, mldsa.MLDSA44PublicKeySize)
 	assert.Equal(t, 2528, mldsa.MLDSA44PrivateKeySize)
 	assert.Equal(t, 2420, mldsa.MLDSA44SignatureSize)
-	
+
 	assert.Equal(t, 1952, mldsa.MLDSA65PublicKeySize)
 	assert.Equal(t, 4000, mldsa.MLDSA65PrivateKeySize)
 	assert.Equal(t, 3293, mldsa.MLDSA65SignatureSize)
-	
+
 	assert.Equal(t, 2592, mldsa.MLDSA87PublicKeySize)
 	assert.Equal(t, 4864, mldsa.MLDSA87PrivateKeySize)
 	assert.Equal(t, 4595, mldsa.MLDSA87SignatureSize)

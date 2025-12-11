@@ -69,4 +69,3 @@ func getIndex(entries []byte, hash, seed uint64) uint64 {
 	}
 	return index
 }
-

@@ -19,22 +19,22 @@ const (
 type KEM interface {
 	// GenerateKeyPair generates a new KEM key pair
 	GenerateKeyPair() (PublicKey, PrivateKey, error)
-	
+
 	// Encapsulate generates a shared secret and ciphertext
 	Encapsulate(pk PublicKey) (ciphertext []byte, sharedSecret []byte, err error)
-	
+
 	// Decapsulate recovers the shared secret from ciphertext
 	Decapsulate(sk PrivateKey, ciphertext []byte) (sharedSecret []byte, err error)
-	
+
 	// PublicKeySize returns the size of public keys
 	PublicKeySize() int
-	
+
 	// PrivateKeySize returns the size of private keys
 	PrivateKeySize() int
-	
+
 	// CiphertextSize returns the size of ciphertexts
 	CiphertextSize() int
-	
+
 	// SharedSecretSize returns the size of shared secrets
 	SharedSecretSize() int
 }
@@ -54,10 +54,10 @@ type PrivateKey interface {
 
 // Constants for ML-KEM-768
 const (
-	mlkem768PublicKeySize     = 1184
-	mlkem768PrivateKeySize    = 2400
-	mlkem768CiphertextSize    = 1088
-	mlkem768SharedSecretSize  = 32
+	mlkem768PublicKeySize    = 1184
+	mlkem768PrivateKeySize   = 2400
+	mlkem768CiphertextSize   = 1088
+	mlkem768SharedSecretSize = 32
 )
 
 // Constants for ML-KEM-1024

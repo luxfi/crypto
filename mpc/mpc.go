@@ -16,7 +16,7 @@ import (
 const (
 	// DefaultThreshold is the default threshold for MPC
 	DefaultThreshold = 3
-	
+
 	// DefaultParties is the default number of parties
 	DefaultParties = 5
 )
@@ -30,20 +30,20 @@ var (
 
 // MPCAccount represents a per-account MPC configuration
 type MPCAccount struct {
-	AccountID  ids.ShortID
-	Threshold  int
-	Parties    int
-	PublicKey  *PublicKey
-	Shares     map[int]*Share
-	Protocol   Protocol
-	mu         sync.RWMutex
+	AccountID ids.ShortID
+	Threshold int
+	Parties   int
+	PublicKey *PublicKey
+	Shares    map[int]*Share
+	Protocol  Protocol
+	mu        sync.RWMutex
 }
 
 // Share represents a secret share held by a party
 type Share struct {
-	Index  int
-	Value  *big.Int
-	Proof  []byte
+	Index int
+	Value *big.Int
+	Proof []byte
 }
 
 // PublicKey represents an MPC public key
@@ -86,15 +86,15 @@ func (m *Manager) CreateAccount(accountID ids.ShortID, threshold, parties int, p
 	if parties < 2 {
 		return nil, errInvalidParties
 	}
-	
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Check if account already exists
 	if _, exists := m.accounts[accountID]; exists {
 		return nil, errors.New("account already exists")
 	}
-	
+
 	// Generate distributed key
 	account := &MPCAccount{
 		AccountID: accountID,
@@ -103,12 +103,12 @@ func (m *Manager) CreateAccount(accountID ids.ShortID, threshold, parties int, p
 		Shares:    make(map[int]*Share),
 		Protocol:  protocol,
 	}
-	
+
 	// Generate key shares
 	if err := account.generateKeyShares(); err != nil {
 		return nil, err
 	}
-	
+
 	m.accounts[accountID] = account
 	return account, nil
 }
@@ -117,12 +117,12 @@ func (m *Manager) CreateAccount(accountID ids.ShortID, threshold, parties int, p
 func (m *Manager) GetAccount(accountID ids.ShortID) (*MPCAccount, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	account, exists := m.accounts[accountID]
 	if !exists {
 		return nil, errors.New("account not found")
 	}
-	
+
 	return account, nil
 }
 
@@ -137,10 +137,10 @@ func (a *MPCAccount) generateKeyShares() error {
 		}
 		coeffs[i] = coeff
 	}
-	
+
 	// The secret is the constant term
 	secret := coeffs[0]
-	
+
 	// Generate shares for each party
 	for i := 1; i <= a.Parties; i++ {
 		share := evaluatePolynomial(coeffs, big.NewInt(int64(i)))
@@ -150,12 +150,12 @@ func (a *MPCAccount) generateKeyShares() error {
 			Proof: generateShareProof(share, i),
 		}
 	}
-	
+
 	// Compute public key
 	a.PublicKey = &PublicKey{
 		Point: scalarBaseMult(secret),
 	}
-	
+
 	return nil
 }
 
@@ -163,22 +163,22 @@ func (a *MPCAccount) generateKeyShares() error {
 func (a *MPCAccount) Sign(message []byte, participatingShares map[int]*Share) ([]byte, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	if len(participatingShares) < a.Threshold {
 		return nil, errNotEnoughShares
 	}
-	
+
 	// Verify shares
 	for index, share := range participatingShares {
 		if !a.verifyShare(index, share) {
 			return nil, errInvalidShare
 		}
 	}
-	
+
 	// Compute partial signatures
 	messageHash := sha256.Sum256(message)
 	partialSigs := make(map[int]*big.Int)
-	
+
 	for index, share := range participatingShares {
 		// Simplified partial signature computation
 		// In production, use actual protocol (GG18/GG20/CMP)
@@ -186,10 +186,10 @@ func (a *MPCAccount) Sign(message []byte, participatingShares map[int]*Share) ([
 		partialSig.Mod(partialSig, curveOrder())
 		partialSigs[index] = partialSig
 	}
-	
+
 	// Combine partial signatures using Lagrange interpolation
 	signature := combinePartialSignatures(partialSigs, a.Threshold)
-	
+
 	return signature.Bytes(), nil
 }
 
@@ -197,16 +197,16 @@ func (a *MPCAccount) Sign(message []byte, participatingShares map[int]*Share) ([
 func (a *MPCAccount) Verify(message []byte, signature []byte) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	// Simplified verification
 	// In production, implement actual signature verification
 	messageHash := sha256.Sum256(message)
 	sig := new(big.Int).SetBytes(signature)
-	
+
 	// Verify using public key
 	expectedPoint := scalarBaseMult(sig)
 	messagePoint := scalarBaseMult(new(big.Int).SetBytes(messageHash[:]))
-	
+
 	// Check if signature is valid (simplified)
 	return pointsEqual(expectedPoint, messagePoint)
 }
@@ -215,15 +215,15 @@ func (a *MPCAccount) Verify(message []byte, signature []byte) bool {
 func (a *MPCAccount) AddShare(index int, share *Share) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	
+
 	if index < 1 || index > a.Parties {
 		return errors.New("invalid share index")
 	}
-	
+
 	if !a.verifyShare(index, share) {
 		return errInvalidShare
 	}
-	
+
 	a.Shares[index] = share
 	return nil
 }
@@ -232,12 +232,12 @@ func (a *MPCAccount) AddShare(index int, share *Share) error {
 func (a *MPCAccount) GetShare(index int) (*Share, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	share, exists := a.Shares[index]
 	if !exists {
 		return nil, errors.New("share not found")
 	}
-	
+
 	return share, nil
 }
 
@@ -245,18 +245,18 @@ func (a *MPCAccount) GetShare(index int) (*Share, error) {
 func (a *MPCAccount) RefreshShares() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	
+
 	// Generate new random polynomial with same secret
 	oldShares := a.Shares
 	a.Shares = make(map[int]*Share)
-	
+
 	// Keep the same secret (constant term)
 	secret := reconstructSecret(oldShares, a.Threshold)
-	
+
 	// Generate new polynomial with same secret
 	coeffs := make([]*big.Int, a.Threshold)
 	coeffs[0] = secret
-	
+
 	for i := 1; i < a.Threshold; i++ {
 		coeff, err := rand.Int(rand.Reader, curveOrder())
 		if err != nil {
@@ -264,7 +264,7 @@ func (a *MPCAccount) RefreshShares() error {
 		}
 		coeffs[i] = coeff
 	}
-	
+
 	// Generate new shares
 	for i := 1; i <= a.Parties; i++ {
 		share := evaluatePolynomial(coeffs, big.NewInt(int64(i)))
@@ -274,7 +274,7 @@ func (a *MPCAccount) RefreshShares() error {
 			Proof: generateShareProof(share, i),
 		}
 	}
-	
+
 	return nil
 }
 
@@ -300,16 +300,16 @@ func pointsEqual(p1, p2 *Point) bool {
 func evaluatePolynomial(coeffs []*big.Int, x *big.Int) *big.Int {
 	result := new(big.Int).Set(coeffs[0])
 	xPower := new(big.Int).Set(x)
-	
+
 	for i := 1; i < len(coeffs); i++ {
 		term := new(big.Int).Mul(coeffs[i], xPower)
 		result.Add(result, term)
 		result.Mod(result, curveOrder())
-		
+
 		xPower.Mul(xPower, x)
 		xPower.Mod(xPower, curveOrder())
 	}
-	
+
 	return result
 }
 
@@ -327,33 +327,33 @@ func (a *MPCAccount) verifyShare(index int, share *Share) bool {
 	if len(share.Proof) != len(expectedProof) {
 		return false
 	}
-	
+
 	for i := range expectedProof {
 		if expectedProof[i] != share.Proof[i] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
 func combinePartialSignatures(partialSigs map[int]*big.Int, threshold int) *big.Int {
 	result := big.NewInt(0)
 	indices := make([]int, 0, len(partialSigs))
-	
+
 	for index := range partialSigs {
 		indices = append(indices, index)
 		if len(indices) == threshold {
 			break
 		}
 	}
-	
+
 	for _, i := range indices {
 		lagrangeCoeff := computeLagrangeCoefficient(i, indices)
 		term := new(big.Int).Mul(partialSigs[i], lagrangeCoeff)
 		result.Add(result, term)
 	}
-	
+
 	result.Mod(result, curveOrder())
 	return result
 }
@@ -361,19 +361,19 @@ func combinePartialSignatures(partialSigs map[int]*big.Int, threshold int) *big.
 func computeLagrangeCoefficient(i int, indices []int) *big.Int {
 	num := big.NewInt(1)
 	den := big.NewInt(1)
-	
+
 	for _, j := range indices {
 		if i != j {
 			num.Mul(num, big.NewInt(int64(-j)))
 			den.Mul(den, big.NewInt(int64(i-j)))
 		}
 	}
-	
+
 	// Compute num/den mod curveOrder
 	denInv := new(big.Int).ModInverse(den, curveOrder())
 	result := new(big.Int).Mul(num, denInv)
 	result.Mod(result, curveOrder())
-	
+
 	return result
 }
 
@@ -381,7 +381,7 @@ func reconstructSecret(shares map[int]*Share, threshold int) *big.Int {
 	if len(shares) < threshold {
 		return nil
 	}
-	
+
 	partialValues := make(map[int]*big.Int)
 	for index, share := range shares {
 		partialValues[index] = share.Value
@@ -389,6 +389,6 @@ func reconstructSecret(shares map[int]*Share, threshold int) *big.Int {
 			break
 		}
 	}
-	
+
 	return combinePartialSignatures(partialValues, threshold)
 }
