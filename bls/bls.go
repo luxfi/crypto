@@ -106,7 +106,7 @@ func (pk *PublicKey) From(blstSK interface{}) *PublicKey {
 			Compress() []byte
 		}
 	}
-	
+
 	if sk, ok := blstSK.(blstSecretKey); ok {
 		pkBytes := sk.PublicKey().Compress()
 		newPk, err := PublicKeyFromCompressedBytes(pkBytes)
@@ -115,7 +115,7 @@ func (pk *PublicKey) From(blstSK interface{}) *PublicKey {
 		}
 		return newPk
 	}
-	
+
 	return nil
 }
 
@@ -268,7 +268,7 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 			allSame = false
 		}
 	}
-	
+
 	// Reject signatures that are all zeros or all the same byte (e.g., all 0xFF)
 	if allZero || allSame {
 		return nil, ErrFailedSignatureDecompress
@@ -285,7 +285,7 @@ func (sig *Signature) Sign(blstSK interface{}, msg []byte, dst []byte) *Signatur
 			Compress() []byte
 		}
 	}
-	
+
 	if sk, ok := blstSK.(blstSecretKey); ok {
 		blstSig := sk.Sign(msg, dst, nil)
 		sigBytes := blstSig.Compress()
@@ -295,7 +295,7 @@ func (sig *Signature) Sign(blstSK interface{}, msg []byte, dst []byte) *Signatur
 		}
 		return newSig
 	}
-	
+
 	return nil
 }
 

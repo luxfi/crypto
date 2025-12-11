@@ -100,7 +100,7 @@ func BenchmarkMLKEMMemory(b *testing.B) {
 			b.ReportAllocs()
 			priv, _, _ := GenerateKeyPair(rand.Reader, m.mode)
 			result, _ := priv.PublicKey.Encapsulate(rand.Reader)
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				// Full KEM operation

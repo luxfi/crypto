@@ -18,8 +18,8 @@ import (
 
 // Test vectors for SHAKE from NIST
 var shakeTestVectors = []struct {
-	name     string
-	input    string
+	name      string
+	input     string
 	output128 string // First 32 bytes of SHAKE128
 	output256 string // First 32 bytes of SHAKE256
 }{
@@ -47,22 +47,22 @@ var shakeTestVectors = []struct {
 func TestSHAKEPrecompiles(t *testing.T) {
 	t.Run("SHAKE128", func(t *testing.T) {
 		shake128 := &SHAKE128{}
-		
+
 		for _, tv := range shakeTestVectors {
 			t.Run(tv.name, func(t *testing.T) {
 				inputData, _ := hex.DecodeString(tv.input)
 				expectedOutput, _ := hex.DecodeString(tv.output128)
-				
+
 				// Create input with 32-byte output length
 				input := make([]byte, 4+len(inputData))
 				binary.BigEndian.PutUint32(input[:4], 32)
 				copy(input[4:], inputData)
-				
+
 				// Test gas calculation
 				gas := shake128.RequiredGas(input)
 				expectedGas := uint64(60 + 12*((len(input)+31)/32) + 3)
 				assert.Equal(t, expectedGas, gas, "Gas calculation mismatch")
-				
+
 				// Test output
 				output, err := shake128.Run(input)
 				require.NoError(t, err)
@@ -73,22 +73,22 @@ func TestSHAKEPrecompiles(t *testing.T) {
 
 	t.Run("SHAKE256", func(t *testing.T) {
 		shake256 := &SHAKE256{}
-		
+
 		for _, tv := range shakeTestVectors {
 			t.Run(tv.name, func(t *testing.T) {
 				inputData, _ := hex.DecodeString(tv.input)
 				expectedOutput, _ := hex.DecodeString(tv.output256)
-				
+
 				// Create input with 32-byte output length
 				input := make([]byte, 4+len(inputData))
 				binary.BigEndian.PutUint32(input[:4], 32)
 				copy(input[4:], inputData)
-				
+
 				// Test gas calculation
 				gas := shake256.RequiredGas(input)
 				expectedGas := uint64(60 + 12*((len(input)+31)/32) + 3)
 				assert.Equal(t, expectedGas, gas, "Gas calculation mismatch")
-				
+
 				// Test output
 				output, err := shake256.Run(input)
 				require.NoError(t, err)
@@ -100,35 +100,35 @@ func TestSHAKEPrecompiles(t *testing.T) {
 	t.Run("SHAKE256_Fixed", func(t *testing.T) {
 		// Test fixed output variants
 		variants := []struct {
-			name      string
+			name       string
 			precompile PrecompiledContract
 			outputLen  int
-			gas       uint64
+			gas        uint64
 		}{
 			{"SHAKE256_256", &SHAKE256_256{}, 32, 200},
 			{"SHAKE256_512", &SHAKE256_512{}, 64, 250},
 			{"SHAKE256_1024", &SHAKE256_1024{}, 128, 350},
 		}
-		
+
 		for _, v := range variants {
 			t.Run(v.name, func(t *testing.T) {
 				input := []byte("test input for fixed shake")
-				
+
 				// Test gas
 				gas := v.precompile.RequiredGas(input)
 				assert.Equal(t, v.gas, gas)
-				
+
 				// Test output length
 				output, err := v.precompile.Run(input)
 				require.NoError(t, err)
 				assert.Len(t, output, v.outputLen)
-				
+
 				// Verify it matches variable SHAKE with same output length
 				shake := &SHAKE256{}
 				varInput := make([]byte, 4+len(input))
 				binary.BigEndian.PutUint32(varInput[:4], uint32(v.outputLen))
 				copy(varInput[4:], input)
-				
+
 				varOutput, err := shake.Run(varInput)
 				require.NoError(t, err)
 				assert.Equal(t, varOutput, output, "Fixed and variable SHAKE should match")
@@ -139,40 +139,40 @@ func TestSHAKEPrecompiles(t *testing.T) {
 	t.Run("cSHAKE", func(t *testing.T) {
 		cshake128 := &CSHAKE128{}
 		cshake256 := &CSHAKE256{}
-		
+
 		testCases := []struct {
-			name         string
+			name          string
 			customization string
-			data         string
-			outputLen    uint32
+			data          string
+			outputLen     uint32
 		}{
 			{"empty", "", "test", 32},
 			{"custom", "custom string", "test data", 64},
 			{"long_custom", "very long customization string for testing", "data", 32},
 		}
-		
+
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				// Build input
 				customBytes := []byte(tc.customization)
 				dataBytes := []byte(tc.data)
-				
+
 				input := make([]byte, 8+len(customBytes)+len(dataBytes))
 				binary.BigEndian.PutUint32(input[:4], tc.outputLen)
 				binary.BigEndian.PutUint32(input[4:8], uint32(len(customBytes)))
 				copy(input[8:], customBytes)
 				copy(input[8+len(customBytes):], dataBytes)
-				
+
 				// Test CSHAKE128
 				output128, err := cshake128.Run(input)
 				require.NoError(t, err)
 				assert.Len(t, output128, int(tc.outputLen))
-				
+
 				// Test CSHAKE256
 				output256, err := cshake256.Run(input)
 				require.NoError(t, err)
 				assert.Len(t, output256, int(tc.outputLen))
-				
+
 				// Outputs should be different between 128 and 256
 				if tc.customization != "" {
 					assert.NotEqual(t, output128, output256)
@@ -183,44 +183,44 @@ func TestSHAKEPrecompiles(t *testing.T) {
 
 	t.Run("EdgeCases", func(t *testing.T) {
 		shake := &SHAKE256{}
-		
+
 		t.Run("MaxOutput", func(t *testing.T) {
 			// Test maximum output size (8192 bytes)
 			input := make([]byte, 4+10)
 			binary.BigEndian.PutUint32(input[:4], 8192)
 			copy(input[4:], []byte("test data"))
-			
+
 			output, err := shake.Run(input)
 			require.NoError(t, err)
 			assert.Len(t, output, 8192)
 		})
-		
+
 		t.Run("TooLargeOutput", func(t *testing.T) {
 			// Test output size exceeding maximum
 			input := make([]byte, 4+10)
 			binary.BigEndian.PutUint32(input[:4], 8193)
 			copy(input[4:], []byte("test data"))
-			
+
 			_, err := shake.Run(input)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "exceeds maximum")
 		})
-		
+
 		t.Run("ZeroOutput", func(t *testing.T) {
 			// Test zero output length
 			input := make([]byte, 4+10)
 			binary.BigEndian.PutUint32(input[:4], 0)
 			copy(input[4:], []byte("test data"))
-			
+
 			output, err := shake.Run(input)
 			require.NoError(t, err)
 			assert.Len(t, output, 0)
 		})
-		
+
 		t.Run("InsufficientInput", func(t *testing.T) {
 			// Test input shorter than 4 bytes
 			input := []byte{0, 0}
-			
+
 			_, err := shake.Run(input)
 			assert.Error(t, err)
 		})
@@ -231,44 +231,44 @@ func TestSHAKEPrecompiles(t *testing.T) {
 func TestLamportPrecompiles(t *testing.T) {
 	t.Run("LamportVerifySHA256", func(t *testing.T) {
 		verifier := &LamportVerifySHA256{}
-		
+
 		// Generate test key and signature
 		priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 		require.NoError(t, err)
-		
+
 		// Get public key BEFORE signing (one-time signature clears private key)
 		pubBytes := priv.Public().Bytes()
-		
+
 		message := []byte("test message for lamport")
 		messageHash := sha256.Sum256(message)
-		
+
 		// Sign the hash directly (precompile expects pre-hashed input)
 		sig, err := priv.SignHash(messageHash[:])
 		require.NoError(t, err)
-		
+
 		// Build precompile input
 		sigBytes := sig.Bytes()
-		
+
 		input := make([]byte, 32+len(sigBytes)+len(pubBytes))
 		copy(input[:32], messageHash[:])
 		copy(input[32:], sigBytes)
 		copy(input[32+len(sigBytes):], pubBytes)
-		
+
 		// Test gas
 		gas := verifier.RequiredGas(input)
 		assert.Equal(t, uint64(50000), gas)
-		
+
 		// Test verification (should succeed)
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
 		expected := make([]byte, 32)
 		expected[31] = 1
 		assert.Equal(t, expected, output, "Valid signature should return 1")
-		
+
 		// Test with wrong message
 		wrongHash := sha256.Sum256([]byte("wrong message"))
 		copy(input[:32], wrongHash[:])
-		
+
 		output, err = verifier.Run(input)
 		require.NoError(t, err)
 		expected = make([]byte, 32)
@@ -277,33 +277,33 @@ func TestLamportPrecompiles(t *testing.T) {
 
 	t.Run("LamportVerifySHA512", func(t *testing.T) {
 		verifier := &LamportVerifySHA512{}
-		
+
 		// Generate test key and signature
 		priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA512)
 		require.NoError(t, err)
-		
+
 		// Get public key BEFORE signing (one-time signature clears private key)
 		pubBytes := priv.Public().Bytes()
-		
+
 		message := []byte("test message for lamport sha512")
 		messageHash := sha512.Sum512(message)
-		
+
 		// Sign the hash directly (precompile expects pre-hashed input)
 		sig, err := priv.SignHash(messageHash[:])
 		require.NoError(t, err)
-		
+
 		// Build precompile input
 		sigBytes := sig.Bytes()
-		
+
 		input := make([]byte, 64+len(sigBytes)+len(pubBytes))
 		copy(input[:64], messageHash[:])
 		copy(input[64:], sigBytes)
 		copy(input[64+len(sigBytes):], pubBytes)
-		
+
 		// Test gas
 		gas := verifier.RequiredGas(input)
 		assert.Equal(t, uint64(80000), gas)
-		
+
 		// Test verification
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
@@ -314,63 +314,63 @@ func TestLamportPrecompiles(t *testing.T) {
 
 	t.Run("LamportBatchVerify", func(t *testing.T) {
 		batchVerifier := &LamportBatchVerify{}
-		
+
 		// Generate multiple signatures
 		numSigs := 3
 		var messages [][]byte
 		var sigs []*lamport.Signature
 		var pubs []*lamport.PublicKey
-		
+
 		for i := 0; i < numSigs; i++ {
 			priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 			require.NoError(t, err)
-			
+
 			// Get public key BEFORE signing
 			pub := priv.Public()
 			pubs = append(pubs, pub)
-			
+
 			message := []byte(fmt.Sprintf("message %d", i))
 			messages = append(messages, message)
-			
+
 			// Sign the hash directly
 			msgHash := sha256.Sum256(message)
 			sig, err := priv.SignHash(msgHash[:])
 			require.NoError(t, err)
 			sigs = append(sigs, sig)
 		}
-		
+
 		// Build batch input
 		// Format: [num_sigs(1)][hash_type(1)][data...]
 		// data = [msg_hash][sig][pubkey] repeated
-		
+
 		// Calculate total size
 		hashSize := 32 // SHA256
 		sigSize := len(sigs[0].Bytes())
 		pubSize := len(pubs[0].Bytes())
 		dataSize := numSigs * (hashSize + sigSize + pubSize)
-		
+
 		input := make([]byte, 2+dataSize)
 		input[0] = byte(numSigs)
 		input[1] = 0 // SHA256
-		
+
 		offset := 2
 		for i := 0; i < numSigs; i++ {
 			hash := sha256.Sum256(messages[i])
 			copy(input[offset:], hash[:])
 			offset += hashSize
-			
+
 			copy(input[offset:], sigs[i].Bytes())
 			offset += sigSize
-			
+
 			copy(input[offset:], pubs[i].Bytes())
 			offset += pubSize
 		}
-		
+
 		// Test gas
 		gas := batchVerifier.RequiredGas(input)
 		expectedGas := uint64(30000 + 40000*uint64(numSigs))
 		assert.Equal(t, expectedGas, gas)
-		
+
 		// Test batch verification
 		output, err := batchVerifier.Run(input)
 		require.NoError(t, err)
@@ -380,10 +380,10 @@ func TestLamportPrecompiles(t *testing.T) {
 		for i := 1; i <= numSigs; i++ {
 			assert.Equal(t, byte(1), output[i], fmt.Sprintf("Signature %d should be valid", i-1))
 		}
-		
+
 		// Corrupt one signature
 		input[2+hashSize] ^= 0xFF
-		
+
 		output, err = batchVerifier.Run(input)
 		require.NoError(t, err)
 		assert.Equal(t, byte(0), output[0], "Any invalid signature should return overall 0")
@@ -392,49 +392,49 @@ func TestLamportPrecompiles(t *testing.T) {
 
 	t.Run("LamportMerkleRoot", func(t *testing.T) {
 		merkleRoot := &LamportMerkleRoot{}
-		
+
 		// Generate multiple public keys
 		numKeys := 4
 		var pubs []*lamport.PublicKey
-		
+
 		for i := 0; i < numKeys; i++ {
 			priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 			require.NoError(t, err)
 			pubs = append(pubs, priv.Public())
 		}
-		
+
 		// Build input
 		// Format: [num_keys(1)][hash_type(1)][pubkeys...]
 		pubSize := len(pubs[0].Bytes())
 		input := make([]byte, 2+numKeys*pubSize)
 		input[0] = byte(numKeys)
 		input[1] = 0 // SHA256
-		
+
 		offset := 2
 		for _, pub := range pubs {
 			copy(input[offset:], pub.Bytes())
 			offset += pubSize
 		}
-		
+
 		// Test gas
 		gas := merkleRoot.RequiredGas(input)
 		assert.Equal(t, uint64(100000), gas)
-		
+
 		// Test root computation
 		output, err := merkleRoot.Run(input)
 		require.NoError(t, err)
 		assert.Len(t, output, 32, "Merkle root should be 32 bytes")
-		
+
 		// Same keys should produce same root
 		output2, err := merkleRoot.Run(input)
 		require.NoError(t, err)
 		assert.Equal(t, output, output2, "Same keys should produce same root")
-		
+
 		// Different order should produce different root
 		// Swap first two keys
 		copy(input[5:5+pubSize], pubs[1].Bytes())
 		copy(input[5+pubSize:5+2*pubSize], pubs[0].Bytes())
-		
+
 		output3, err := merkleRoot.Run(input)
 		require.NoError(t, err)
 		assert.NotEqual(t, output, output3, "Different order should produce different root")
@@ -445,19 +445,19 @@ func TestLamportPrecompiles(t *testing.T) {
 func TestBLSPrecompiles(t *testing.T) {
 	t.Run("BLSVerify", func(t *testing.T) {
 		verifier := &BLSVerify{}
-		
+
 		// Create dummy input (placeholder implementation)
 		// Format: [96 bytes sig][48 bytes pubkey][message]
 		message := []byte("test message for BLS")
 		input := make([]byte, 96+48+len(message))
-		rand.Read(input[:96])  // Random signature
+		rand.Read(input[:96])    // Random signature
 		rand.Read(input[96:144]) // Random pubkey
 		copy(input[144:], message)
-		
+
 		// Test gas
 		gas := verifier.RequiredGas(input)
 		assert.Equal(t, uint64(150000), gas)
-		
+
 		// Test run (placeholder always returns success)
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
@@ -466,31 +466,31 @@ func TestBLSPrecompiles(t *testing.T) {
 
 	t.Run("BLSAggregateVerify", func(t *testing.T) {
 		aggVerifier := &BLSAggregateVerify{}
-		
+
 		// Build aggregate input
 		// Format: [num_sigs(1)][signatures][pubkeys][encoded_messages]
 		numSigs := 3
 		sigSize := 96
 		pubSize := 48
 		msgSize := 32
-		
+
 		totalSize := 1 + numSigs*(sigSize+pubSize+4+msgSize)
 		input := make([]byte, totalSize)
 		input[0] = byte(numSigs)
-		
+
 		offset := 1
 		// Add signatures
 		for i := 0; i < numSigs; i++ {
 			rand.Read(input[offset : offset+sigSize])
 			offset += sigSize
 		}
-		
+
 		// Add public keys
 		for i := 0; i < numSigs; i++ {
 			rand.Read(input[offset : offset+pubSize])
 			offset += pubSize
 		}
-		
+
 		// Add messages (with length prefixes)
 		for i := 0; i < numSigs; i++ {
 			binary.BigEndian.PutUint32(input[offset:offset+4], uint32(msgSize))
@@ -498,13 +498,13 @@ func TestBLSPrecompiles(t *testing.T) {
 			rand.Read(input[offset : offset+msgSize])
 			offset += msgSize
 		}
-		
+
 		// Test gas
 		gas := aggVerifier.RequiredGas(input)
 		// blsAggregateVerifyGas = 200000, blsPerSignatureGas = 30000
 		expectedGas := uint64(200000 + 30000*uint64(numSigs))
 		assert.Equal(t, expectedGas, gas)
-		
+
 		// Test run
 		output, err := aggVerifier.Run(input)
 		require.NoError(t, err)
@@ -513,24 +513,24 @@ func TestBLSPrecompiles(t *testing.T) {
 
 	t.Run("BLSPublicKeyAggregate", func(t *testing.T) {
 		aggregator := &BLSPublicKeyAggregate{}
-		
+
 		// Build input
 		// Format: [num_keys(1)][pubkeys...]
 		numKeys := 5
 		pubSize := 48
-		
+
 		input := make([]byte, 1+numKeys*pubSize)
 		input[0] = byte(numKeys)
-		
+
 		for i := 0; i < numKeys; i++ {
 			rand.Read(input[1+i*pubSize : 1+(i+1)*pubSize])
 		}
-		
+
 		// Test gas
 		gas := aggregator.RequiredGas(input)
 		expectedGas := uint64(50000 + 10000*uint64(numKeys))
 		assert.Equal(t, expectedGas, gas)
-		
+
 		// Test run
 		output, err := aggregator.Run(input)
 		require.NoError(t, err)
@@ -539,24 +539,24 @@ func TestBLSPrecompiles(t *testing.T) {
 
 	t.Run("BLSHashToPoint", func(t *testing.T) {
 		hashToPoint := &BLSHashToPoint{}
-		
+
 		// Test with various message sizes
 		messages := [][]byte{
 			[]byte("short"),
 			[]byte("medium length message for testing"),
 			bytes.Repeat([]byte("long "), 100),
 		}
-		
+
 		for _, msg := range messages {
 			// Test gas
 			gas := hashToPoint.RequiredGas(msg)
 			assert.Equal(t, uint64(80000), gas)
-			
+
 			// Test run
 			output, err := hashToPoint.Run(msg)
 			require.NoError(t, err)
 			assert.Len(t, output, 96, "Hash to point should produce 96-byte point")
-			
+
 			// Same message should produce same point
 			output2, err := hashToPoint.Run(msg)
 			require.NoError(t, err)
@@ -577,16 +577,16 @@ func TestPrecompileRegistry(t *testing.T) {
 			// BLS
 			"0x0160", "0x0161", "0x0162", "0x0163", "0x0164", "0x0165", "0x0166",
 		}
-		
+
 		for _, addr := range expectedAddresses {
 			t.Run(addr, func(t *testing.T) {
 				// Convert hex string to address
 				addrBytes, err := hex.DecodeString(addr[2:])
 				require.NoError(t, err)
-				
+
 				var address [20]byte
 				copy(address[20-len(addrBytes):], addrBytes)
-				
+
 				precompile, exists := PostQuantumRegistry.contracts[address]
 				assert.True(t, exists, "Address %s should be registered", addr)
 				assert.NotNil(t, precompile, "Precompile at %s should not be nil", addr)
@@ -599,14 +599,14 @@ func TestPrecompileRegistry(t *testing.T) {
 		shake256Addr := [20]byte{}
 		shake256Addr[18] = 0x01
 		shake256Addr[19] = 0x43
-		
+
 		input := make([]byte, 36)
 		binary.BigEndian.PutUint32(input[:4], 32)
 		copy(input[4:], []byte("test"))
-		
+
 		gas := GetGasEstimate(shake256Addr, len(input))
 		assert.Greater(t, gas, uint64(0), "Should return non-zero gas estimate")
-		
+
 		// Test unknown address
 		unknownAddr := [20]byte{0xFF}
 		gas = GetGasEstimate(unknownAddr, len(input))
@@ -615,13 +615,13 @@ func TestPrecompileRegistry(t *testing.T) {
 
 	t.Run("Info", func(t *testing.T) {
 		info := Info()
-		
+
 		// Check expected keys exist
 		assert.Contains(t, info, "total_precompiles")
 		assert.Contains(t, info, "cgo_enabled")
 		assert.Contains(t, info, "standards")
 		assert.Contains(t, info, "address_ranges")
-		
+
 		// Check total precompiles count
 		totalPrecompiles, ok := info["total_precompiles"].(int)
 		assert.True(t, ok, "total_precompiles should be an int")
@@ -644,12 +644,12 @@ func TestErrorHandling(t *testing.T) {
 			&LamportVerifySHA256{},
 			&BLSVerify{},
 		}
-		
+
 		for _, p := range precompiles {
 			// Empty input
 			_, err := p.Run([]byte{})
 			assert.Error(t, err, "%T should error on empty input", p)
-			
+
 			// Too short input
 			_, err = p.Run([]byte{0, 1, 2})
 			assert.Error(t, err, "%T should error on short input", p)
@@ -661,23 +661,23 @@ func TestErrorHandling(t *testing.T) {
 		shake := &SHAKE256{}
 		input := make([]byte, 8)
 		binary.BigEndian.PutUint32(input[:4], 8193) // Too large
-		
+
 		_, err := shake.Run(input)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "exceeds maximum")
-		
+
 		// Batch verify with 0 signatures
 		// batch := &LamportBatchVerify{}
 		// input = []byte{0, 0} // [num_sigs=0][hash_type=0]
-		
+
 		// Note: 0 signatures might be valid (empty batch), so skip this test
 		// _, err = batch.Run(input)
 		// assert.Error(t, err)
-		
+
 		// BLS aggregate with mismatched counts
 		// agg := &BLSAggregateVerify{}
 		// input = []byte{10} // Claims 10 sigs but no data (1 byte format)
-		
+
 		// _, err = agg.Run(input)
 		// Note: This might not error immediately, depends on implementation
 		// assert.Error(t, err)
@@ -687,12 +687,12 @@ func TestErrorHandling(t *testing.T) {
 		// Test that similar errors have consistent messages
 		shake128 := &SHAKE128{}
 		shake256 := &SHAKE256{}
-		
+
 		shortInput := []byte{0, 1}
-		
+
 		_, err1 := shake128.Run(shortInput)
 		_, err2 := shake256.Run(shortInput)
-		
+
 		if err1 != nil && err2 != nil {
 			// Both should have similar error messages
 			// They both say "input too short" which is consistent
@@ -709,7 +709,7 @@ func BenchmarkPrecompiles(b *testing.B) {
 		input := make([]byte, 36)
 		binary.BigEndian.PutUint32(input[:4], 32)
 		copy(input[4:], bytes.Repeat([]byte("x"), 32))
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = shake.Run(input)
@@ -719,7 +719,7 @@ func BenchmarkPrecompiles(b *testing.B) {
 	b.Run("SHAKE256_1024bytes", func(b *testing.B) {
 		shake := &SHAKE256_1024{}
 		input := bytes.Repeat([]byte("x"), 128)
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = shake.Run(input)
@@ -728,21 +728,21 @@ func BenchmarkPrecompiles(b *testing.B) {
 
 	b.Run("LamportVerify", func(b *testing.B) {
 		verifier := &LamportVerifySHA256{}
-		
+
 		// Generate a signature once
 		priv, _ := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 		message := []byte("benchmark message")
 		sig, _ := priv.Sign(message)
-		
+
 		messageHash := sha256.Sum256(message)
 		sigBytes := sig.Bytes()
 		pubBytes := priv.Public().Bytes()
-		
+
 		input := make([]byte, 32+len(sigBytes)+len(pubBytes))
 		copy(input[:32], messageHash[:])
 		copy(input[32:], sigBytes)
 		copy(input[32+len(sigBytes):], pubBytes)
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = verifier.Run(input)
@@ -751,10 +751,10 @@ func BenchmarkPrecompiles(b *testing.B) {
 
 	b.Run("BLSVerify", func(b *testing.B) {
 		verifier := &BLSVerify{}
-		
+
 		input := make([]byte, 96+48+32)
 		rand.Read(input)
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = verifier.Run(input)
@@ -768,34 +768,34 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		// Use SHAKE to hash, then Lamport to sign
 		shake := &SHAKE256_256{}
 		lamportVerify := &LamportVerifySHA256{}
-		
+
 		// Original message
 		message := []byte("cross-precompile test message")
-		
+
 		// Hash with SHAKE256
 		hashedOutput, err := shake.Run(message)
 		require.NoError(t, err)
 		assert.Len(t, hashedOutput, 32)
-		
+
 		// Generate Lamport signature on the hash
 		priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 		require.NoError(t, err)
-		
+
 		// Get public key BEFORE signing
 		pubBytes := priv.Public().Bytes()
-		
+
 		// Sign the hash directly (not Sign which hashes again)
 		sig, err := priv.SignHash(hashedOutput)
 		require.NoError(t, err)
-		
+
 		// Build verification input
 		sigBytes := sig.Bytes()
-		
+
 		verifyInput := make([]byte, 32+len(sigBytes)+len(pubBytes))
 		copy(verifyInput[:32], hashedOutput)
 		copy(verifyInput[32:], sigBytes)
 		copy(verifyInput[32+len(sigBytes):], pubBytes)
-		
+
 		// Verify
 		result, err := lamportVerify.Run(verifyInput)
 		require.NoError(t, err)
@@ -808,39 +808,39 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		// Create merkle root of keys, then batch verify signatures
 		merkleRoot := &LamportMerkleRoot{}
 		batchVerify := &LamportBatchVerify{}
-		
+
 		// Generate multiple keys
 		numKeys := 3
 		var privKeys []*lamport.PrivateKey
 		var pubKeys []*lamport.PublicKey
-		
+
 		for i := 0; i < numKeys; i++ {
 			priv, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
 			require.NoError(t, err)
 			privKeys = append(privKeys, priv)
 			pubKeys = append(pubKeys, priv.Public())
 		}
-		
+
 		// Compute merkle root
 		pubSize := len(pubKeys[0].Bytes())
 		rootInput := make([]byte, 2+numKeys*pubSize)
 		rootInput[0] = byte(numKeys)
 		rootInput[1] = 0 // SHA256
-		
+
 		offset := 2
 		for _, pub := range pubKeys {
 			copy(rootInput[offset:], pub.Bytes())
 			offset += pubSize
 		}
-		
+
 		root, err := merkleRoot.Run(rootInput)
 		require.NoError(t, err)
 		assert.Len(t, root, 32)
-		
+
 		// Create signatures with the same keys
 		messages := make([][]byte, numKeys)
 		sigs := make([]*lamport.Signature, numKeys)
-		
+
 		for i := 0; i < numKeys; i++ {
 			messages[i] = []byte(fmt.Sprintf("message %d", i))
 			msgHash := sha256.Sum256(messages[i])
@@ -848,27 +848,27 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 			require.NoError(t, err)
 			sigs[i] = sig
 		}
-		
+
 		// Batch verify
 		hashSize := 32
 		sigSize := len(sigs[0].Bytes())
 		batchInput := make([]byte, 2+numKeys*(hashSize+sigSize+pubSize))
 		batchInput[0] = byte(numKeys)
 		batchInput[1] = 0 // SHA256
-		
+
 		offset = 2
 		for i := 0; i < numKeys; i++ {
 			hash := sha256.Sum256(messages[i])
 			copy(batchInput[offset:], hash[:])
 			offset += hashSize
-			
+
 			copy(batchInput[offset:], sigs[i].Bytes())
 			offset += sigSize
-			
+
 			copy(batchInput[offset:], pubKeys[i].Bytes())
 			offset += pubSize
 		}
-		
+
 		result, err := batchVerify.Run(batchInput)
 		require.NoError(t, err)
 		// Batch verify returns [overall_valid][individual_results...]
@@ -877,7 +877,7 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 		for i := 1; i <= numKeys; i++ {
 			assert.Equal(t, byte(1), result[i], fmt.Sprintf("Signature %d should be valid", i-1))
 		}
-		
+
 		t.Logf("Merkle root: %x", root)
 		t.Log("All signatures verified in batch")
 	})
@@ -886,17 +886,17 @@ func TestCrossPrecompileWorkflows(t *testing.T) {
 // Helper function to compare SHAKE output with reference implementation
 func verifyShakeOutput(t *testing.T, input []byte, outputLen int, isShake256 bool) []byte {
 	t.Helper()
-	
+
 	var h sha3.ShakeHash
 	if isShake256 {
 		h = sha3.NewShake256()
 	} else {
 		h = sha3.NewShake128()
 	}
-	
+
 	h.Write(input)
 	output := make([]byte, outputLen)
 	h.Read(output)
-	
+
 	return output
 }

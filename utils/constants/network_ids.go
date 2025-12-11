@@ -21,10 +21,10 @@ const (
 	UnitTestID uint32 = 369
 
 	// Lux-specific network IDs
-	LuxMainnetID    uint32 = 96369  // Lux mainnet
-	LuxTestnetID    uint32 = 96370  // Lux testnet
-	QChainMainnetID uint32 = 96380  // Q-Chain mainnet
-	QChainTestnetID uint32 = 96381  // Q-Chain testnet
+	LuxMainnetID    uint32 = 96369 // Lux mainnet
+	LuxTestnetID    uint32 = 96370 // Lux testnet
+	QChainMainnetID uint32 = 96380 // Q-Chain mainnet
+	QChainTestnetID uint32 = 96381 // Q-Chain testnet
 
 	LocalName    = "local"
 	MainnetName  = "mainnet"
@@ -42,7 +42,7 @@ const (
 var (
 	PrimaryNetworkID = ids.Empty
 	PlatformChainID  = ids.Empty
-	
+
 	// Q-Chain specific IDs
 	QChainID = ids.ID{'q', 'c', 'h', 'a', 'i', 'n'}
 

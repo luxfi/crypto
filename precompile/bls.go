@@ -305,7 +305,6 @@ func (b *BLSHashToPoint) Run(input []byte) ([]byte, error) {
 	return g2Point, nil
 }
 
-
 // RegisterBLS registers all BLS precompiles
 func RegisterBLS(registry *Registry) {
 	registry.Register(BLSVerifyAddress, &BLSVerify{})
