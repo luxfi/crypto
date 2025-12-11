@@ -24,7 +24,7 @@ type MLDSACert struct {
 	KeyUsage     x509.KeyUsage
 	ExtKeyUsage  []x509.ExtKeyUsage
 	IsCA         bool
-	
+
 	// Custom extensions for QZMQ
 	NodeID       string
 	Capabilities []string
@@ -54,34 +54,34 @@ func (cp *CertPool) VerifyChain(chain []*MLDSACert, now time.Time) error {
 	if len(chain) == 0 {
 		return errors.New("empty certificate chain")
 	}
-	
+
 	// Verify leaf certificate
 	leaf := chain[0]
 	if now.Before(leaf.NotBefore) || now.After(leaf.NotAfter) {
 		return errors.New("certificate expired or not yet valid")
 	}
-	
+
 	// Verify chain
 	for i := 0; i < len(chain)-1; i++ {
 		cert := chain[i]
 		issuer := chain[i+1]
-		
+
 		if err := verifyCertSignature(cert, issuer); err != nil {
 			return fmt.Errorf("invalid signature at position %d: %w", i, err)
 		}
-		
+
 		if !issuer.IsCA {
 			return fmt.Errorf("issuer at position %d is not a CA", i+1)
 		}
 	}
-	
+
 	// Verify root is trusted
 	root := chain[len(chain)-1]
 	spkiHash := hashSPKI(root.PublicKey.Bytes())
 	if _, ok := cp.certs[spkiHash]; !ok {
 		return errors.New("root certificate not trusted")
 	}
-	
+
 	return nil
 }
 
@@ -182,21 +182,21 @@ func (cb *CertBuilder) SetCA(isCA bool) *CertBuilder {
 func (cb *CertBuilder) Build(publicKey sign.PublicKey, issuerKey sign.PrivateKey) (*MLDSACert, error) {
 	cert := *cb.template
 	cert.PublicKey = publicKey
-	
+
 	// Generate serial number
 	cert.SerialNumber = generateSerialNumber()
-	
+
 	// Self-signed if no issuer provided
 	if issuerKey == nil {
 		cert.Issuer = cert.Subject
 	}
-	
+
 	// Encode to DER
 	certBytes, err := encodeCertificate(&cert)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sign the certificate
 	if issuerKey != nil {
 		signature, err := cb.signer.Sign(issuerKey, certBytes)
@@ -208,7 +208,7 @@ func (cb *CertBuilder) Build(publicKey sign.PublicKey, issuerKey sign.PrivateKey
 	} else {
 		cert.Raw = certBytes
 	}
-	
+
 	return &cert, nil
 }
 
@@ -220,7 +220,7 @@ func encodeCertificate(cert *MLDSACert) ([]byte, error) {
 	encoded = append(encoded, cert.PublicKey.Bytes()...)
 	encoded = append(encoded, []byte(cert.NodeID)...)
 	encoded = append(encoded, []byte(cert.Role)...)
-	
+
 	return encoded, nil
 }
 
@@ -234,22 +234,22 @@ func generateSerialNumber() []byte {
 func ParseMLDSACert(der []byte) (*MLDSACert, error) {
 	// Placeholder parser
 	// In production, would parse actual DER-encoded certificate
-	
+
 	cert := &MLDSACert{
 		Raw: der,
 	}
-	
+
 	// Parse basic fields (placeholder)
 	if len(der) < 100 {
 		return nil, errors.New("certificate too short")
 	}
-	
+
 	return cert, nil
 }
 
 // OID definitions for ML-DSA algorithms
 var (
-	OIDMLDSA44 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 2, 267, 7, 6, 5} // ML-DSA-44
-	OIDMLDSA65 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 2, 267, 7, 8, 7} // ML-DSA-65
+	OIDMLDSA44 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 2, 267, 7, 6, 5}  // ML-DSA-44
+	OIDMLDSA65 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 2, 267, 7, 8, 7}  // ML-DSA-65
 	OIDMLDSA87 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 2, 267, 7, 10, 8} // ML-DSA-87
 )

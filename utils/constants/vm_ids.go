@@ -6,19 +6,19 @@ package constants
 import "github.com/luxfi/ids"
 
 const (
-	PlatformVMName  = "platformvm"
-	XVMName         = "xvm"
-	EVMName         = "evm"
-	XSVMName        = "xsvm"
-	QVMName         = "qvm"
+	PlatformVMName = "platformvm"
+	XVMName        = "xvm"
+	EVMName        = "evm"
+	XSVMName       = "xsvm"
+	QVMName        = "qvm"
 )
 
 var (
-	PlatformVMID  = ids.ID{'p', 'l', 'a', 't', 'f', 'o', 'r', 'm', 'v', 'm'}
-	XVMID         = ids.ID{'a', 'v', 'm'}
-	EVMID         = ids.ID{'e', 'v', 'm'}
-	XSVMID        = ids.ID{'x', 's', 'v', 'm'}
-	QVMID         = ids.ID{'q', 'v', 'm'}
+	PlatformVMID = ids.ID{'p', 'l', 'a', 't', 'f', 'o', 'r', 'm', 'v', 'm'}
+	XVMID        = ids.ID{'a', 'v', 'm'}
+	EVMID        = ids.ID{'e', 'v', 'm'}
+	XSVMID       = ids.ID{'x', 's', 'v', 'm'}
+	QVMID        = ids.ID{'q', 'v', 'm'}
 )
 
 // VMName returns the name of the VM with the provided ID. If a human readable

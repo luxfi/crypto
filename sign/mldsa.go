@@ -12,28 +12,28 @@ import (
 type SigID string
 
 const (
-	MLDSA2  SigID = "mldsa2"
-	MLDSA3  SigID = "mldsa3"
-	SLHDSA  SigID = "slhdsa"
+	MLDSA2 SigID = "mldsa2"
+	MLDSA3 SigID = "mldsa3"
+	SLHDSA SigID = "slhdsa"
 )
 
 // Signer interface for signature algorithms
 type Signer interface {
 	// GenerateKeyPair generates a new signing key pair
 	GenerateKeyPair() (PublicKey, PrivateKey, error)
-	
+
 	// Sign creates a signature
 	Sign(sk PrivateKey, message []byte) ([]byte, error)
-	
+
 	// Verify verifies a signature
 	Verify(pk PublicKey, message, signature []byte) bool
-	
+
 	// PublicKeySize returns the size of public keys
 	PublicKeySize() int
-	
+
 	// PrivateKeySize returns the size of private keys
 	PrivateKeySize() int
-	
+
 	// SignatureSize returns the size of signatures
 	SignatureSize() int
 }
@@ -81,7 +81,7 @@ const (
 func (m *MLDSA2Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 	// Placeholder for actual ML-DSA key generation
 	// In production, this would use liboqs or native implementation
-	
+
 	pk := &MLDSA2PublicKey{
 		data: make([]byte, mldsa2PublicKeySize),
 	}
@@ -89,7 +89,7 @@ func (m *MLDSA2Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 		data: make([]byte, mldsa2PrivateKeySize),
 		pk:   pk,
 	}
-	
+
 	// Generate random key material (placeholder)
 	if _, err := rand.Read(pk.data); err != nil {
 		return nil, nil, err
@@ -97,7 +97,7 @@ func (m *MLDSA2Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 	if _, err := rand.Read(sk.data); err != nil {
 		return nil, nil, err
 	}
-	
+
 	return pk, sk, nil
 }
 
@@ -107,18 +107,18 @@ func (m *MLDSA2Impl) Sign(sk PrivateKey, message []byte) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("invalid private key type")
 	}
-	
+
 	signature := make([]byte, mldsa2SignatureSize)
-	
+
 	// Placeholder for actual ML-DSA signing
 	if _, err := rand.Read(signature); err != nil {
 		return nil, err
 	}
-	
+
 	// In production, this would perform actual ML-DSA signing
 	_ = mldsaSK.data
 	_ = message
-	
+
 	return signature, nil
 }
 
@@ -128,17 +128,17 @@ func (m *MLDSA2Impl) Verify(pk PublicKey, message, signature []byte) bool {
 	if !ok {
 		return false
 	}
-	
+
 	if len(signature) != mldsa2SignatureSize {
 		return false
 	}
-	
+
 	// Placeholder for actual ML-DSA verification
 	// In production, this would perform actual verification
 	_ = mldsaPK.data
 	_ = message
 	_ = signature
-	
+
 	// Placeholder: always return true for now
 	return true
 }
@@ -202,25 +202,25 @@ func (m *MLDSA3Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 		data: make([]byte, mldsa3PrivateKeySize),
 		pk:   pk,
 	}
-	
+
 	if _, err := rand.Read(pk.data); err != nil {
 		return nil, nil, err
 	}
 	if _, err := rand.Read(sk.data); err != nil {
 		return nil, nil, err
 	}
-	
+
 	return pk, sk, nil
 }
 
 // Sign creates a signature
 func (m *MLDSA3Impl) Sign(sk PrivateKey, message []byte) ([]byte, error) {
 	signature := make([]byte, mldsa3SignatureSize)
-	
+
 	if _, err := rand.Read(signature); err != nil {
 		return nil, err
 	}
-	
+
 	return signature, nil
 }
 
@@ -229,7 +229,7 @@ func (m *MLDSA3Impl) Verify(pk PublicKey, message, signature []byte) bool {
 	if len(signature) != mldsa3SignatureSize {
 		return false
 	}
-	
+
 	// Placeholder
 	return true
 }
@@ -273,7 +273,7 @@ func (ts *TranscriptSigner) SignTranscript(transcript []byte) ([]byte, error) {
 	// Add context string to prevent cross-protocol attacks
 	context := []byte("QZMQ-Transcript-v1")
 	message := append(context, transcript...)
-	
+
 	return ts.signer.Sign(ts.sk, message)
 }
 
@@ -281,6 +281,6 @@ func (ts *TranscriptSigner) SignTranscript(transcript []byte) ([]byte, error) {
 func VerifyTranscript(signer Signer, pk PublicKey, transcript, signature []byte) bool {
 	context := []byte("QZMQ-Transcript-v1")
 	message := append(context, transcript...)
-	
+
 	return signer.Verify(pk, message, signature)
 }

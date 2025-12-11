@@ -15,17 +15,17 @@ import (
 func (bitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	// Convert scalar to big.Int
 	k := new(big.Int).SetBytes(scalar)
-	
+
 	// Handle special cases
 	if k.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
-	
+
 	// Use the double-and-add algorithm
 	// Start with the identity point (0, 0)
 	x, y := new(big.Int), new(big.Int)
 	addX, addY := new(big.Int).Set(Bx), new(big.Int).Set(By)
-	
+
 	// Process each bit of k from least significant to most significant
 	for i := 0; i < k.BitLen(); i++ {
 		if k.Bit(i) == 1 {
@@ -42,6 +42,6 @@ func (bitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, 
 		// Double the point for the next bit
 		addX, addY = bitCurve.Double(addX, addY)
 	}
-	
+
 	return x, y
 }
