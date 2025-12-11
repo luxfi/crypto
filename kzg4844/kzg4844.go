@@ -30,12 +30,14 @@ import (
 //go:embed trusted_setup.json
 var content embed.FS
 
+const (
+	CellProofsPerBlob = 128
+)
+
 var (
 	blobT       = reflect.TypeOf(Blob{})
 	commitmentT = reflect.TypeOf(Commitment{})
 	proofT      = reflect.TypeOf(Proof{})
-
-	CellProofsPerBlob = 128
 )
 
 // Blob represents a 4844 data blob.
