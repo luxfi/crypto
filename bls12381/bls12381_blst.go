@@ -1,8 +1,7 @@
 // Copyright (C) 2020-2025, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build cgo && !no_blst
-// +build cgo,!no_blst
+//go:build cgo
 
 // Package bls12381 provides high-performance BLS12-381 operations using BLST.
 // This implementation uses the supranational/blst library for optimal performance.
