@@ -69,6 +69,17 @@ func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
 	if len(skBytes) != SecretKeyLen {
 		return nil, ErrFailedSecretKeyDeserialize
 	}
+	// Reject zero secret key (security: not a valid scalar)
+	allZero := true
+	for _, b := range skBytes {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return nil, ErrFailedSecretKeyDeserialize
+	}
 	sk := new(blst.SecretKey)
 	sk.Deserialize(skBytes)
 	return &SecretKey{sk: sk}, nil
