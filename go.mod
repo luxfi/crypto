@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	filippo.io/age v1.2.1
 	github.com/btcsuite/btcd/btcutil v1.1.6
-	github.com/cloudflare/circl v1.6.2-0.20251027185721-da1faa40b98c
+	github.com/cloudflare/circl v1.6.2-0.20251204010831-23491bd573cf
 	github.com/consensys/gnark-crypto v0.19.2
 	github.com/crate-crypto/go-eth-kzg v1.4.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
