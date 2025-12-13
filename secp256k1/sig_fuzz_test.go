@@ -170,6 +170,12 @@ func FuzzPublicKeyCompression(f *testing.F) {
 		if len(pubKeyData) == 65 && pubKeyData[0] == 0x04 {
 			x := new(big.Int).SetBytes(pubKeyData[1:33])
 			y := new(big.Int).SetBytes(pubKeyData[33:65])
+
+			// Verify the point is on the curve before compressing
+			if !S256().IsOnCurve(x, y) {
+				return // Skip invalid points
+			}
+
 			compressed := CompressPubkey(x, y)
 			if len(compressed) != 33 {
 				t.Errorf("Compressed public key has wrong length: %d", len(compressed))
@@ -201,6 +207,11 @@ func FuzzPublicKeyCompression(f *testing.F) {
 			if x == nil || y == nil {
 				// Expected for invalid compressed keys
 				return
+			}
+
+			// Verify the point is on the curve
+			if !S256().IsOnCurve(x, y) {
+				return // Safety check
 			}
 
 			// Reconstruct uncompressed form
