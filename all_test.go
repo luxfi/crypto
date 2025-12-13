@@ -38,20 +38,24 @@ func testMLKEM(t *testing.T) {
 			priv, _, err := mlkem.GenerateKeyPair(rand.Reader, mode)
 			require.NoError(t, err)
 
+			// Get public key
+			pubKey := priv.PublicKey()
+			require.NotNil(t, pubKey)
+
 			// Encapsulate
-			result, err := priv.PublicKey.Encapsulate(rand.Reader)
+			ciphertext, sharedSecret1, err := pubKey.Encapsulate(rand.Reader)
 			require.NoError(t, err)
 
 			// Decapsulate
-			sharedSecret, err := priv.Decapsulate(result.Ciphertext)
+			sharedSecret2, err := priv.Decapsulate(ciphertext)
 			require.NoError(t, err)
 
 			// Verify shared secrets match
-			assert.Equal(t, result.SharedSecret, sharedSecret)
+			assert.Equal(t, sharedSecret1, sharedSecret2)
 
 			// Test wrong ciphertext
-			wrongCT := make([]byte, len(result.Ciphertext))
-			copy(wrongCT, result.Ciphertext)
+			wrongCT := make([]byte, len(ciphertext))
+			copy(wrongCT, ciphertext)
 			wrongCT[0] ^= 0xFF
 
 			wrongSecret, err := priv.Decapsulate(wrongCT)
@@ -59,7 +63,7 @@ func testMLKEM(t *testing.T) {
 			assert.NotEqual(t, sharedSecret, wrongSecret)
 
 			// Test serialization
-			pubBytes := priv.PublicKey.Bytes()
+			pubBytes := priv.PublicKey().Bytes()
 			privBytes := priv.Bytes()
 
 			pub2, err := mlkem.PublicKeyFromBytes(pubBytes, mode)
@@ -69,10 +73,10 @@ func testMLKEM(t *testing.T) {
 			require.NoError(t, err)
 
 			// Test with deserialized keys
-			result2, err := pub2.Encapsulate(rand.Reader)
+			ciphertext2, sharedSecret1_2, err := pub2.Encapsulate(rand.Reader)
 			require.NoError(t, err)
 
-			secret2, err := priv2.Decapsulate(result2.Ciphertext)
+			secret2, err := priv2.Decapsulate(ciphertext2)
 			require.NoError(t, err)
 			assert.Equal(t, result2.SharedSecret, secret2)
 		})
@@ -109,13 +113,13 @@ func testMLDSA(t *testing.T) {
 			assert.False(t, priv.PublicKey.Verify(message, corruptedSig, nil))
 
 			// Test serialization
-			pubBytes := priv.PublicKey.Bytes()
+			pubBytes := priv.PublicKey().Bytes()
 			privBytes := priv.Bytes()
 
 			pub2, err := mldsa.PublicKeyFromBytes(pubBytes, mode)
 			require.NoError(t, err)
 
-			priv2, err := mldsa.PrivateKeyFromBytes(privBytes, mode)
+			priv2, err := mldsa.PrivateKeyFromBytes(mode, privBytes)
 			require.NoError(t, err)
 
 			// Sign with deserialized key
@@ -128,7 +132,7 @@ func testMLDSA(t *testing.T) {
 
 func testSLHDSA(t *testing.T) {
 	// Test only fast variants for speed
-	modes := []slhdsa.Mode{slhdsa.SLHDSA128f, slhdsa.SLHDSA192f}
+	modes := []slhdsa.Mode{slhdsa.SHA2_128f, slhdsa.SHA2_192f}
 	names := []string{"SLH-DSA-128f", "SLH-DSA-192f"}
 	message := []byte("Test message for SLH-DSA")
 
@@ -156,7 +160,7 @@ func testSLHDSA(t *testing.T) {
 			assert.False(t, priv.PublicKey.Verify(wrongMsg, signature, nil))
 
 			// Test serialization
-			pubBytes := priv.PublicKey.Bytes()
+			pubBytes := priv.PublicKey().Bytes()
 			pub2, err := slhdsa.PublicKeyFromBytes(pubBytes, mode)
 			require.NoError(t, err)
 			assert.True(t, pub2.Verify(message, signature, nil))
