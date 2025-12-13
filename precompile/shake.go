@@ -7,7 +7,7 @@ package precompile
 import (
 	"errors"
 
-	// "github.com/luxfi/geth/common" // removed to avoid import cycle
+	// "github.com/luxfi/crypto" // removed to avoid import cycle
 	"golang.org/x/crypto/sha3"
 )
 

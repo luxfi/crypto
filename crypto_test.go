@@ -26,7 +26,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/crypto/common"
 	"github.com/luxfi/crypto/common/hexutil"
 )
 
@@ -60,7 +59,7 @@ func TestToECDSAErrors(t *testing.T) {
 
 func BenchmarkSha3(b *testing.B) {
 	a := []byte("hello world")
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Keccak256(a)
 	}
 }
@@ -231,9 +230,9 @@ func TestValidateSignatureValues(t *testing.T) {
 		}
 	}
 	minusOne := big.NewInt(-1)
-	one := common.Big1
-	zero := common.Big0
-	secp256k1nMinus1 := new(big.Int).Sub(secp256k1N, common.Big1)
+	one := Big1
+	zero := Big0
+	secp256k1nMinus1 := new(big.Int).Sub(secp256k1N, Big1)
 
 	// correct v,r,s
 	check(true, 0, one, one)
@@ -279,8 +278,20 @@ func checkhash(t *testing.T, name string, f func([]byte) []byte, msg, exp []byte
 
 func checkAddr(t *testing.T, addr0, addr1 Address) {
 	if addr0 != addr1 {
-		t.Fatalf("address mismatch: want: %s have: %s", addr0.Hex(), addr1.Hex())
+		t.Fatalf("address mismatch: want: %x have: %x", addr0, addr1)
 	}
+}
+
+// FromHex converts a hex string to bytes
+func FromHex(s string) []byte {
+	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
+		s = s[2:]
+	}
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
+	b, _ := hex.DecodeString(s)
+	return b
 }
 
 // test to help Python team with integration of libsecp256k1
@@ -292,7 +303,7 @@ func TestPythonIntegration(t *testing.T) {
 	msg0 := Keccak256([]byte("foo"))
 	sig0, _ := Sign(msg0, k0)
 
-	msg1 := common.FromHex("00000000000000000000000000000000")
+	msg1 := FromHex("00000000000000000000000000000000")
 	sig1, _ := Sign(msg0, k0)
 
 	t.Logf("msg: %x, privkey: %s sig: %x\n", msg0, kh, sig0)
@@ -310,7 +321,7 @@ func BenchmarkKeccak256Hash(b *testing.B) {
 	rand.Read(input[:])
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Keccak256Hash(input[:])
 	}
 }
@@ -329,7 +340,7 @@ func BenchmarkHashData(b *testing.B) {
 	rand.Read(input[:])
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		HashData(buffer, input[:])
 	}
 }

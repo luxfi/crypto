@@ -5,7 +5,7 @@
 package precompile
 
 import (
-// "github.com/luxfi/geth/common" // removed to avoid import cycle
+// "github.com/luxfi/crypto" // removed to avoid import cycle
 )
 
 // PrecompiledContract is the interface for EVM precompiled contracts

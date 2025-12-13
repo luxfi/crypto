@@ -8,7 +8,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
-	// "github.com/luxfi/geth/common" // removed to avoid import cycle
+	// "github.com/luxfi/crypto" // removed to avoid import cycle
 	"github.com/luxfi/crypto/lamport"
 )
 

@@ -19,12 +19,12 @@ package crypto
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/hex"
+	"math/big"
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/crypto/common"
 	"github.com/luxfi/crypto/common/hexutil"
-	"github.com/luxfi/crypto/common/math"
 )
 
 var (
@@ -33,6 +33,33 @@ var (
 	testpubkey  = hexutil.MustDecode("0x04e32df42865e97135acfb65f3bae71bdc86f4d49150ad6a440b6f15878109880a0a2b2667f7e725ceea70c673093bf67663e0312623c8e091b13cf2c0f11ef652")
 	testpubkeyc = hexutil.MustDecode("0x02e32df42865e97135acfb65f3bae71bdc86f4d49150ad6a440b6f15878109880a")
 )
+
+// mustParseBig256 parses a hex string into a big.Int, panics on error
+func mustParseBig256(s string) *big.Int {
+	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
+		s = s[2:]
+	}
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	result := new(big.Int)
+	result.SetBytes(b)
+	return result
+}
+
+// copyBytes creates a copy of a byte slice
+func copyBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	result := make([]byte, len(b))
+	copy(result, b)
+	return result
+}
 
 func TestEcrecover(t *testing.T) {
 	pubkey, err := Ecrecover(testmsg, testsig)
@@ -62,13 +89,13 @@ func TestVerifySignature(t *testing.T) {
 	if VerifySignature(testpubkey, testmsg, nil) {
 		t.Errorf("nil signature valid")
 	}
-	if VerifySignature(testpubkey, testmsg, append(common.CopyBytes(sig), 1, 2, 3)) {
+	if VerifySignature(testpubkey, testmsg, append(copyBytes(sig), 1, 2, 3)) {
 		t.Errorf("signature valid with extra bytes at the end")
 	}
 	if VerifySignature(testpubkey, testmsg, sig[:len(sig)-2]) {
 		t.Errorf("signature valid even though it's incomplete")
 	}
-	wrongkey := common.CopyBytes(testpubkey)
+	wrongkey := copyBytes(testpubkey)
 	wrongkey[10]++
 	if VerifySignature(wrongkey, testmsg, sig) {
 		t.Errorf("signature valid with wrong public key")
@@ -99,7 +126,7 @@ func TestDecompressPubkey(t *testing.T) {
 	if _, err := DecompressPubkey(testpubkeyc[:5]); err == nil {
 		t.Errorf("no error for incomplete pubkey")
 	}
-	if _, err := DecompressPubkey(append(common.CopyBytes(testpubkeyc), 1, 2, 3)); err == nil {
+	if _, err := DecompressPubkey(append(copyBytes(testpubkeyc), 1, 2, 3)); err == nil {
 		t.Errorf("no error for pubkey with extra bytes at the end")
 	}
 }
@@ -107,8 +134,8 @@ func TestDecompressPubkey(t *testing.T) {
 func TestCompressPubkey(t *testing.T) {
 	key := &ecdsa.PublicKey{
 		Curve: S256(),
-		X:     math.MustParseBig256("0xe32df42865e97135acfb65f3bae71bdc86f4d49150ad6a440b6f15878109880a"),
-		Y:     math.MustParseBig256("0x0a2b2667f7e725ceea70c673093bf67663e0312623c8e091b13cf2c0f11ef652"),
+		X:     mustParseBig256("0xe32df42865e97135acfb65f3bae71bdc86f4d49150ad6a440b6f15878109880a"),
+		Y:     mustParseBig256("0x0a2b2667f7e725ceea70c673093bf67663e0312623c8e091b13cf2c0f11ef652"),
 	}
 	compressed := CompressPubkey(key)
 	if !bytes.Equal(compressed, testpubkeyc) {
@@ -135,7 +162,7 @@ func TestPubkeyRandom(t *testing.T) {
 }
 
 func BenchmarkEcrecoverSignature(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := Ecrecover(testmsg, testsig); err != nil {
 			b.Fatal("ecrecover error", err)
 		}
@@ -144,7 +171,7 @@ func BenchmarkEcrecoverSignature(b *testing.B) {
 
 func BenchmarkVerifySignature(b *testing.B) {
 	sig := testsig[:len(testsig)-1] // remove recovery id
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if !VerifySignature(testpubkey, testmsg, sig) {
 			b.Fatal("verify error")
 		}
@@ -152,7 +179,7 @@ func BenchmarkVerifySignature(b *testing.B) {
 }
 
 func BenchmarkDecompressPubkey(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := DecompressPubkey(testpubkeyc); err != nil {
 			b.Fatal(err)
 		}
