@@ -33,6 +33,14 @@ import (
 	"github.com/luxfi/crypto/rlp"
 )
 
+// Re-export common types at the package level for convenience
+type (
+	// Address represents a 20-byte Ethereum address
+	Address = common.Address
+	// Hash represents a 32-byte Keccak256 hash
+	Hash = common.Hash
+)
+
 // SignatureLength indicates the byte length required to carry a signature with recovery id.
 const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
