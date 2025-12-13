@@ -191,6 +191,11 @@ func (k *PrivateKey) Address() ids.ShortID {
 	return k.PublicKey().Address()
 }
 
+// EthAddress returns the Ethereum address derived from the private key
+func (k *PrivateKey) EthAddress() [20]byte {
+	return k.PublicKey().EthAddress()
+}
+
 // Address returns the address of the public key as an ids.ShortID
 func (k *PublicKey) Address() ids.ShortID {
 	// Use traditional Lux address format (SHA256 + RIPEMD160)
@@ -198,6 +203,21 @@ func (k *PublicKey) Address() ids.ShortID {
 	compressedBytes := k.CompressedBytes()
 	addrBytes := PubkeyBytesToAddress(compressedBytes)
 	addr, _ := ids.ToShortID(addrBytes)
+	return addr
+}
+
+// EthAddress returns the Ethereum address derived from the public key
+// This is computed as the last 20 bytes of the Keccak256 hash of the uncompressed public key
+func (k *PublicKey) EthAddress() [20]byte {
+	// Get uncompressed public key bytes (excluding the 0x04 prefix)
+	pkBytes := k.Bytes()
+	
+	// Compute Keccak256 hash
+	hash := Keccak256(pkBytes)
+	
+	// Take the last 20 bytes as the address
+	var addr [20]byte
+	copy(addr[:], hash[12:])
 	return addr
 }
 
