@@ -6,6 +6,7 @@ package secp256k1
 import (
 	"bytes"
 	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/luxfi/node/utils/hashing"
@@ -63,12 +64,19 @@ func FuzzSignatureVerification(f *testing.F) {
 
 		// Test decompression if compressed
 		if len(pubKey) == 33 {
-			decompressed, err := DecompressPubkey(pubKey)
-			if err != nil {
+			x, y := DecompressPubkey(pubKey)
+			if x == nil || y == nil {
 				return
 			}
-			if len(decompressed) != 65 {
-				t.Errorf("Decompressed public key has wrong length: %d", len(decompressed))
+			// Reconstruct uncompressed form: 0x04 + x (32 bytes) + y (32 bytes)
+			uncompressed := make([]byte, 65)
+			uncompressed[0] = 0x04
+			xBytes := x.Bytes()
+			yBytes := y.Bytes()
+			copy(uncompressed[33-len(xBytes):33], xBytes)
+			copy(uncompressed[65-len(yBytes):65], yBytes)
+			if len(uncompressed) != 65 {
+				t.Errorf("Decompressed public key has wrong length: %d", len(uncompressed))
 			}
 		}
 	})
@@ -160,39 +168,55 @@ func FuzzPublicKeyCompression(f *testing.F) {
 	f.Fuzz(func(t *testing.T, pubKeyData []byte) {
 		// Test compression if uncompressed
 		if len(pubKeyData) == 65 && pubKeyData[0] == 0x04 {
-			compressed := CompressPubkey(pubKeyData[1:33], pubKeyData[33:65])
+			x := new(big.Int).SetBytes(pubKeyData[1:33])
+			y := new(big.Int).SetBytes(pubKeyData[33:65])
+			compressed := CompressPubkey(x, y)
 			if len(compressed) != 33 {
 				t.Errorf("Compressed public key has wrong length: %d", len(compressed))
 				return
 			}
 
 			// Try to decompress back
-			decompressed, err := DecompressPubkey(compressed)
-			if err != nil {
+			dx, dy := DecompressPubkey(compressed)
+			if dx == nil || dy == nil {
 				// Some points might not be on the curve
 				return
 			}
 
-			if len(decompressed) != 65 {
-				t.Errorf("Decompressed public key has wrong length: %d", len(decompressed))
+			// Reconstruct uncompressed form
+			uncompressed := make([]byte, 65)
+			uncompressed[0] = 0x04
+			dxBytes := dx.Bytes()
+			dyBytes := dy.Bytes()
+			copy(uncompressed[33-len(dxBytes):33], dxBytes)
+			copy(uncompressed[65-len(dyBytes):65], dyBytes)
+			if len(uncompressed) != 65 {
+				t.Errorf("Decompressed public key has wrong length: %d", len(uncompressed))
 			}
 		}
 
 		// Test decompression if compressed
 		if len(pubKeyData) == 33 && (pubKeyData[0] == 0x02 || pubKeyData[0] == 0x03) {
-			decompressed, err := DecompressPubkey(pubKeyData)
-			if err != nil {
+			x, y := DecompressPubkey(pubKeyData)
+			if x == nil || y == nil {
 				// Expected for invalid compressed keys
 				return
 			}
 
-			if len(decompressed) != 65 {
-				t.Errorf("Decompressed public key has wrong length: %d", len(decompressed))
+			// Reconstruct uncompressed form
+			uncompressed := make([]byte, 65)
+			uncompressed[0] = 0x04
+			xBytes := x.Bytes()
+			yBytes := y.Bytes()
+			copy(uncompressed[33-len(xBytes):33], xBytes)
+			copy(uncompressed[65-len(yBytes):65], yBytes)
+			if len(uncompressed) != 65 {
+				t.Errorf("Decompressed public key has wrong length: %d", len(uncompressed))
 				return
 			}
 
 			// Compress again and verify round-trip
-			recompressed := CompressPubkey(decompressed[1:33], decompressed[33:65])
+			recompressed := CompressPubkey(x, y)
 			if !bytes.Equal(recompressed, pubKeyData) {
 				// Note: This might fail for invalid input keys
 				return
@@ -251,7 +275,7 @@ func FuzzSignatureMalleability(f *testing.F) {
 func FuzzECDSAEdgeCases(f *testing.F) {
 	// Seed corpus with edge cases
 	f.Add([]byte{}, []byte{})
-	f.Add(nil, nil)
+	f.Add([]byte{0}, []byte{0})
 
 	// All zeros
 	zeros := make([]byte, 32)

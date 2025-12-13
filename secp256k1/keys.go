@@ -211,10 +211,10 @@ func (k *PublicKey) Address() ids.ShortID {
 func (k *PublicKey) EthAddress() [20]byte {
 	// Get uncompressed public key bytes (excluding the 0x04 prefix)
 	pkBytes := k.Bytes()
-	
+
 	// Compute Keccak256 hash
 	hash := Keccak256(pkBytes)
-	
+
 	// Take the last 20 bytes as the address
 	var addr [20]byte
 	copy(addr[:], hash[12:])

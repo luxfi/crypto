@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/luxfi/crypto/common"
 	"github.com/luxfi/crypto/common/hexutil"
 )
 
@@ -276,7 +277,7 @@ func checkhash(t *testing.T, name string, f func([]byte) []byte, msg, exp []byte
 	}
 }
 
-func checkAddr(t *testing.T, addr0, addr1 Address) {
+func checkAddr(t *testing.T, addr0, addr1 common.Address) {
 	if addr0 != addr1 {
 		t.Fatalf("address mismatch: want: %x have: %x", addr0, addr1)
 	}

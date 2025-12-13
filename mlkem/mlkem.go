@@ -28,6 +28,20 @@ const (
 	MLKEM1024
 )
 
+// String returns the string representation of the mode
+func (m Mode) String() string {
+	switch m {
+	case MLKEM512:
+		return "ML-KEM-512"
+	case MLKEM768:
+		return "ML-KEM-768"
+	case MLKEM1024:
+		return "ML-KEM-1024"
+	default:
+		return "unknown"
+	}
+}
+
 // Key size constants for ML-KEM-512
 const (
 	MLKEM512PublicKeySize  = mlkem512.PublicKeySize
@@ -211,7 +225,7 @@ func GenerateKey(mode Mode) (*PublicKey, *PrivateKey, error) {
 
 // Encapsulate generates a shared secret and ciphertext
 func (pk *PublicKey) Encapsulate(reader ...io.Reader) ([]byte, []byte, error) {
-	if pk.key == nil {
+	if pk == nil || pk.key == nil {
 		return nil, nil, errors.New("nil public key")
 	}
 
@@ -239,7 +253,7 @@ func (pk *PublicKey) Encapsulate(reader ...io.Reader) ([]byte, []byte, error) {
 
 // Decapsulate recovers the shared secret from a ciphertext
 func (sk *PrivateKey) Decapsulate(ciphertext []byte) ([]byte, error) {
-	if sk.key == nil {
+	if sk == nil || sk.key == nil {
 		return nil, errors.New("nil private key")
 	}
 
