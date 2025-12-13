@@ -28,10 +28,8 @@ import (
 	"io"
 	"math/big"
 	"os"
-	"sync"
 
 	"github.com/luxfi/crypto/rlp"
-	"golang.org/x/crypto/sha3"
 )
 
 // SignatureLength indicates the byte length required to carry a signature with recovery id.
@@ -40,14 +38,14 @@ const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 // RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
 const RecoveryIDOffset = 64
 
-// DigestLength sets the signature digest exact length
-const DigestLength = 32
-
 // HashLength is the expected length of the hash
 const HashLength = 32
 
 // AddressLength is the expected length of the address
 const AddressLength = 20
+
+// DigestLength sets the signature digest exact length
+const DigestLength = 32
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
@@ -145,59 +143,7 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-// NewKeccakState creates a new KeccakState
-func NewKeccakState() KeccakState {
-	return sha3.NewLegacyKeccak256().(KeccakState)
-}
 
-var hasherPool = sync.Pool{
-	New: func() any {
-		return sha3.NewLegacyKeccak256().(KeccakState)
-	},
-}
-
-// HashData hashes the provided data using the KeccakState and returns a 32 byte hash
-func HashData(kh KeccakState, data []byte) (h Hash) {
-	kh.Reset()
-	kh.Write(data)
-	kh.Read(h[:])
-	return h
-}
-
-// Keccak256 calculates and returns the Keccak256 hash of the input data.
-func Keccak256(data ...[]byte) []byte {
-	b := make([]byte, 32)
-	d := hasherPool.Get().(KeccakState)
-	d.Reset()
-	for _, b := range data {
-		d.Write(b)
-	}
-	d.Read(b)
-	hasherPool.Put(d)
-	return b
-}
-
-// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
-// converting it to an internal Hash data structure.
-func Keccak256Hash(data ...[]byte) (h Hash) {
-	d := hasherPool.Get().(KeccakState)
-	d.Reset()
-	for _, b := range data {
-		d.Write(b)
-	}
-	d.Read(h[:])
-	hasherPool.Put(d)
-	return h
-}
-
-// Keccak512 calculates and returns the Keccak512 hash of the input data.
-func Keccak512(data ...[]byte) []byte {
-	d := sha3.NewLegacyKeccak512()
-	for _, b := range data {
-		d.Write(b)
-	}
-	return d.Sum(nil)
-}
 
 // HexToAddress returns Address with byte values of s.
 func HexToAddress(s string) Address {
@@ -273,15 +219,14 @@ func FromECDSA(priv *ecdsa.PrivateKey) []byte {
 
 // UnmarshalPubkey converts bytes to a secp256k1 public key.
 func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
-	curve := S256().(EllipticCurve)
-	x, y := curve.Unmarshal(pub)
+	x, y := S256().Unmarshal(pub)
 	if x == nil {
 		return nil, errInvalidPubkey
 	}
-	if !curve.IsOnCurve(x, y) {
+	if !S256().IsOnCurve(x, y) {
 		return nil, errInvalidPubkey
 	}
-	return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
+	return &ecdsa.PublicKey{Curve: S256(), X: x, Y: y}, nil
 }
 
 // FromECDSAPub converts a secp256k1 public key to bytes.
@@ -316,7 +261,7 @@ func LoadECDSA(file string) (*ecdsa.PrivateKey, error) {
 	r := bufio.NewReader(fd)
 	buf := make([]byte, 64)
 	n, err := readASCII(buf, r)
-	if err != nil && err != io.EOF {
+	if err != nil {
 		return nil, err
 	} else if n != len(buf) {
 		return nil, errors.New("key file too short, want 64 hex characters")
@@ -418,6 +363,14 @@ func ReadBits(bigint *big.Int, buf []byte) {
 
 // wordBytes is the number of bytes in a big.Word
 const wordBytes = int(32 << (uint64(^big.Word(0)) >> 63))
+
+// HashData hashes the provided data using the KeccakState and returns a 32 byte hash
+func HashData(kh KeccakState, data []byte) (h Hash) {
+	kh.Reset()
+	kh.Write(data)
+	kh.Read(h[:])
+	return h
+}
 
 func zeroBytes(bytes []byte) {
 	clear(bytes)
