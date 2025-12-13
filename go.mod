@@ -4,6 +4,7 @@ go 1.25.4
 
 require (
 	filippo.io/age v1.2.1
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cloudflare/circl v1.6.2-0.20251204010831-23491bd573cf
 	github.com/consensys/gnark-crypto v0.19.2
@@ -18,6 +19,7 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/consensus v1.21.2
+	github.com/luxfi/geth v1.16.39
 	github.com/luxfi/ids v1.1.2
 	github.com/luxfi/ledger-lux-go v1.0.0
 	github.com/luxfi/log v1.1.22
@@ -78,7 +80,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/luxfi/database v1.2.7 // indirect
-	github.com/luxfi/geth v1.16.39 // indirect
 	github.com/luxfi/trace v0.1.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/gomega v1.38.0 // indirect

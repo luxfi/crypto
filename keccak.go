@@ -21,6 +21,7 @@ package crypto
 import (
 	"sync"
 
+	"github.com/luxfi/crypto/common"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -50,7 +51,7 @@ func Keccak256(data ...[]byte) []byte {
 
 // Keccak256Hash calculates and returns the Keccak256 hash of the input data,
 // converting it to an internal Hash data structure.
-func Keccak256Hash(data ...[]byte) (h Hash) {
+func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	d := hasherPool.Get().(KeccakState)
 	d.Reset()
 	for _, b := range data {

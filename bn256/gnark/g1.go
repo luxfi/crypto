@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/luxfi/bitutil"
+	"github.com/luxfi/crypto/bitutil"
 )
 
 // G1 is the affine representation of a G1 group element.
