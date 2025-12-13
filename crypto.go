@@ -29,6 +29,7 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/luxfi/crypto/common"
 	"github.com/luxfi/crypto/rlp"
 )
 
@@ -38,81 +39,8 @@ const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 // RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
 const RecoveryIDOffset = 64
 
-// HashLength is the expected length of the hash
-const HashLength = 32
-
-// AddressLength is the expected length of the address
-const AddressLength = 20
-
 // DigestLength sets the signature digest exact length
 const DigestLength = 32
-
-// Hash represents the 32 byte Keccak256 hash of arbitrary data.
-type Hash [HashLength]byte
-
-// BytesToHash sets b to hash.
-// If b is larger than len(h), b will be cropped from the left.
-func BytesToHash(b []byte) Hash {
-	var h Hash
-	h.SetBytes(b)
-	return h
-}
-
-// SetBytes sets the hash to the value of b.
-// If b is larger than len(h), b will be cropped from the left.
-func (h *Hash) SetBytes(b []byte) {
-	if len(b) > len(h) {
-		b = b[len(b)-HashLength:]
-	}
-	copy(h[HashLength-len(b):], b)
-}
-
-// Bytes gets the byte representation of the hash.
-func (h Hash) Bytes() []byte { return h[:] }
-
-// String implements the stringer interface and is used also by the logger when
-// doing full logging into a file.
-func (h Hash) String() string {
-	return fmt.Sprintf("%x", h[:])
-}
-
-// Hex converts a hash to a hex string.
-func (h Hash) Hex() string {
-	return fmt.Sprintf("0x%x", h[:])
-}
-
-// Address represents the 20 byte address of an Ethereum account.
-type Address [AddressLength]byte
-
-// BytesToAddress returns Address with value b.
-// If b is larger than len(h), b will be cropped from the left.
-func BytesToAddress(b []byte) Address {
-	var a Address
-	a.SetBytes(b)
-	return a
-}
-
-// SetBytes sets the address to the value of b.
-// If b is larger than len(a) it will panic.
-func (a *Address) SetBytes(b []byte) {
-	if len(b) > len(a) {
-		b = b[len(b)-AddressLength:]
-	}
-	copy(a[AddressLength-len(b):], b)
-}
-
-// Bytes gets the byte representation of the address.
-func (a Address) Bytes() []byte { return a[:] }
-
-// String implements fmt.Stringer.
-func (a Address) String() string {
-	return fmt.Sprintf("0x%x", a[:])
-}
-
-// Hex returns an EIP55-compliant hex string representation of the address.
-func (a Address) Hex() string {
-	return a.String()
-}
 
 var (
 	// Big0 is 0 represented as a big.Int
@@ -143,10 +71,8 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-
-
 // HexToAddress returns Address with byte values of s.
-func HexToAddress(s string) Address {
+func HexToAddress(s string) common.Address {
 	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
 		s = s[2:]
 	}
@@ -154,19 +80,19 @@ func HexToAddress(s string) Address {
 		s = "0" + s
 	}
 	b, _ := hex.DecodeString(s)
-	return BytesToAddress(b)
+	return common.BytesToAddress(b)
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
-func CreateAddress(b Address, nonce uint64) Address {
+func CreateAddress(b common.Address, nonce uint64) common.Address {
 	data, _ := rlp.EncodeToBytes([]interface{}{b.Bytes(), nonce})
-	return BytesToAddress(Keccak256(data)[12:])
+	return common.BytesToAddress(Keccak256(data)[12:])
 }
 
 // CreateAddress2 creates an ethereum address given the address bytes, initial
 // contract code hash and a salt.
-func CreateAddress2(b Address, salt [32]byte, inithash []byte) Address {
-	return BytesToAddress(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
+func CreateAddress2(b common.Address, salt [32]byte, inithash []byte) common.Address {
+	return common.BytesToAddress(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
 }
 
 // ToECDSA creates a private key with the given D value.
@@ -332,9 +258,9 @@ func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
 	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0 && (v == 0 || v == 1)
 }
 
-func PubkeyToAddress(p ecdsa.PublicKey) Address {
+func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
-	return BytesToAddress(Keccak256(pubBytes[1:])[12:])
+	return common.BytesToAddress(Keccak256(pubBytes[1:])[12:])
 }
 
 // PaddedBigBytes encodes a big integer as a big-endian byte slice. The byte slice's
@@ -365,7 +291,7 @@ func ReadBits(bigint *big.Int, buf []byte) {
 const wordBytes = int(32 << (uint64(^big.Word(0)) >> 63))
 
 // HashData hashes the provided data using the KeccakState and returns a 32 byte hash
-func HashData(kh KeccakState, data []byte) (h Hash) {
+func HashData(kh KeccakState, data []byte) (h common.Hash) {
 	kh.Reset()
 	kh.Write(data)
 	kh.Read(h[:])

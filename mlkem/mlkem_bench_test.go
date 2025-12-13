@@ -28,7 +28,7 @@ func benchmarkMLKEM(b *testing.B, mode Mode) {
 		}
 	})
 
-	priv, _, err := GenerateKeyPair(rand.Reader, mode)
+	pub, priv, err := GenerateKeyPair(rand.Reader, mode)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -36,14 +36,14 @@ func benchmarkMLKEM(b *testing.B, mode Mode) {
 	b.Run("Encapsulate", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			_, err := priv.PublicKey.Encapsulate(rand.Reader)
+			_, _, err := pub.Encapsulate(rand.Reader)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
 
-	result, err := priv.PublicKey.Encapsulate(rand.Reader)
+	ciphertext, _, err := pub.Encapsulate(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func benchmarkMLKEM(b *testing.B, mode Mode) {
 	b.Run("Decapsulate", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			_, err := priv.Decapsulate(result.Ciphertext)
+			_, err := priv.Decapsulate(ciphertext)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -62,12 +62,12 @@ func benchmarkMLKEM(b *testing.B, mode Mode) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			_ = priv.Bytes()
-			_ = priv.PublicKey.Bytes()
+			_ = pub.Bytes()
 		}
 	})
 
 	privBytes := priv.Bytes()
-	pubBytes := priv.PublicKey.Bytes()
+	pubBytes := pub.Bytes()
 
 	b.Run("Deserialize", func(b *testing.B) {
 		b.ReportAllocs()
@@ -98,14 +98,14 @@ func BenchmarkMLKEMMemory(b *testing.B) {
 	for _, m := range modes {
 		b.Run(m.name, func(b *testing.B) {
 			b.ReportAllocs()
-			priv, _, _ := GenerateKeyPair(rand.Reader, m.mode)
-			result, _ := priv.PublicKey.Encapsulate(rand.Reader)
+			pub, priv, _ := GenerateKeyPair(rand.Reader, m.mode)
+			ciphertext, _, _ := pub.Encapsulate(rand.Reader)
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				// Full KEM operation
-				_, _ = priv.PublicKey.Encapsulate(rand.Reader)
-				_, _ = priv.Decapsulate(result.Ciphertext)
+				_, _, _ = pub.Encapsulate(rand.Reader)
+				_, _ = priv.Decapsulate(ciphertext)
 			}
 		})
 	}
