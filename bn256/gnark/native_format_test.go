@@ -28,10 +28,14 @@ func TestSerRoundTrip(t *testing.T) {
 	bytesG2 := expectedG2.Marshal()
 
 	var gotG1 G1
-	gotG1.Unmarshal(bytesG1)
+	if _, err := gotG1.Unmarshal(bytesG1); err != nil {
+		t.Fatalf("G1 unmarshal failed: %v", err)
+	}
 
 	var gotG2 G2
-	gotG2.Unmarshal(bytesG2)
+	if _, err := gotG2.Unmarshal(bytesG2); err != nil {
+		t.Fatalf("G2 unmarshal failed: %v", err)
+	}
 
 	if !expectedG1.inner.Equal(&gotG1.inner) {
 		t.Errorf("serialization roundtrip failed for G1")
