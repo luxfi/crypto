@@ -32,8 +32,8 @@ func (g *G2) Unmarshal(buf []byte) (int, error) {
 		return 0, errors.New("invalid G2 point size")
 	}
 
-	if !bitutil.TestBytes(buf[:128]) {
-		// point at infinity
+	if bitutil.TestBytes(buf[:128]) {
+		// point at infinity (all zeros)
 		g.inner.X.A0.SetZero()
 		g.inner.X.A1.SetZero()
 		g.inner.Y.A0.SetZero()
