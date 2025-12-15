@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/luxfi/crypto/cache/lru"
+	"github.com/luxfi/cache/lru"
 	"github.com/luxfi/crypto/cb58"
 	"github.com/luxfi/crypto/hashing"
 	"github.com/luxfi/ids"

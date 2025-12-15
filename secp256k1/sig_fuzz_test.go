@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/luxfi/node/utils/hashing"
+	"github.com/luxfi/crypto/hashing"
 )
 
 // FuzzSignatureVerification tests signature verification with random inputs
