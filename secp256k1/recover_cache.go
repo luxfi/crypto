@@ -4,7 +4,7 @@
 package secp256k1
 
 import (
-	"github.com/luxfi/crypto/cache/lru"
+	"github.com/luxfi/cache/lru"
 )
 
 // RecoverCacheType provides a cache for public key recovery with methods
