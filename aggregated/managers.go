@@ -9,7 +9,6 @@ import (
 
 	"github.com/luxfi/crypto/bls"
 	"github.com/luxfi/crypto/cggmp21"
-	"github.com/luxfi/crypto/ringtail"
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
 )
@@ -47,42 +46,18 @@ func (m *BLSManager) Sign(sk *bls.SecretKey, message []byte) (*bls.Signature, er
 	return sig, nil
 }
 
-// RingtailManager manages Ringtail signature operations
-type RingtailManager struct {
+// ThresholdManager manages threshold signature operations
+// Actual threshold operations use github.com/luxfi/threshold
+type ThresholdManager struct {
 	log log.Logger
 	mu  sync.RWMutex
 }
 
-// NewRingtailManager creates a new Ringtail manager
-func NewRingtailManager(log log.Logger) *RingtailManager {
-	return &RingtailManager{
+// NewThresholdManager creates a new threshold manager
+func NewThresholdManager(log log.Logger) *ThresholdManager {
+	return &ThresholdManager{
 		log: log,
 	}
-}
-
-// CreateKeyPair generates a new Ringtail key pair
-func (m *RingtailManager) CreateKeyPair() (*ringtail.PrivateKey, *ringtail.PublicKey, error) {
-	factory := &ringtail.Factory{}
-	privKey, err := factory.NewPrivateKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pubKey, err := factory.ToPublicKey(privKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return privKey, pubKey, nil
-}
-
-// Sign creates a Ringtail ring signature
-func (m *RingtailManager) Sign(
-	sk *ringtail.PrivateKey,
-	message []byte,
-	ring []*ringtail.PublicKey,
-) (*ringtail.RingSignature, error) {
-	return sk.Sign(message, ring)
 }
 
 // CGGMP21Manager manages CGGMP21 threshold signature operations
