@@ -9,7 +9,6 @@ import (
 
 	"github.com/luxfi/crypto/bls"
 	"github.com/luxfi/crypto/cggmp21"
-	"github.com/luxfi/crypto/corona"
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
 )
@@ -47,42 +46,18 @@ func (m *BLSManager) Sign(sk *bls.SecretKey, message []byte) (*bls.Signature, er
 	return sig, nil
 }
 
-// CoronaManager manages Corona signature operations
-type CoronaManager struct {
+// ThresholdManager manages threshold signature operations
+// Actual threshold operations use github.com/luxfi/threshold
+type ThresholdManager struct {
 	log log.Logger
 	mu  sync.RWMutex
 }
 
-// NewCoronaManager creates a new Corona manager
-func NewCoronaManager(log log.Logger) *CoronaManager {
-	return &CoronaManager{
+// NewThresholdManager creates a new threshold manager
+func NewThresholdManager(log log.Logger) *ThresholdManager {
+	return &ThresholdManager{
 		log: log,
 	}
-}
-
-// CreateKeyPair generates a new Corona key pair
-func (m *CoronaManager) CreateKeyPair() (*corona.PrivateKey, *corona.PublicKey, error) {
-	factory := &corona.Factory{}
-	privKey, err := factory.NewPrivateKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pubKey, err := factory.ToPublicKey(privKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return privKey, pubKey, nil
-}
-
-// Sign creates a Corona ring signature
-func (m *CoronaManager) Sign(
-	sk *corona.PrivateKey,
-	message []byte,
-	ring []*corona.PublicKey,
-) (*corona.RingSignature, error) {
-	return sk.Sign(message, ring)
 }
 
 // CGGMP21Manager manages CGGMP21 threshold signature operations

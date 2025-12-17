@@ -6,15 +6,47 @@ package aggregated
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
 	"github.com/luxfi/crypto/bls"
-	"github.com/luxfi/crypto/corona"
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
 )
+
+// ThresholdPublicKey is a placeholder for threshold public keys.
+// Actual threshold operations use github.com/luxfi/threshold protocols.
+type ThresholdPublicKey struct {
+	Bytes []byte
+}
+
+// Equal checks if two threshold public keys are equal
+func (pk *ThresholdPublicKey) Equal(other *ThresholdPublicKey) bool {
+	if pk == nil || other == nil {
+		return pk == other
+	}
+	if len(pk.Bytes) != len(other.Bytes) {
+		return false
+	}
+	for i := range pk.Bytes {
+		if pk.Bytes[i] != other.Bytes[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ThresholdSignature is a placeholder for threshold signatures.
+// Actual threshold operations use github.com/luxfi/threshold protocols.
+type ThresholdSignature struct {
+	Bytes []byte
+}
+
+// Verify is a placeholder - actual verification uses threshold package
+func (ts *ThresholdSignature) Verify(message []byte) bool {
+	// Placeholder - actual verification would use github.com/luxfi/threshold
+	return len(ts.Bytes) > 0
+}
 
 // Import log field helpers
 var (
@@ -59,14 +91,14 @@ type SignatureConfig struct {
 
 // AggregatedSignature represents an aggregated signature with metadata
 type AggregatedSignature struct {
-	Type           SignatureType         `json:"type"`
-	Signature      []byte                `json:"signature"`
-	SignerIDs      []ids.NodeID          `json:"signerIds,omitempty"`
-	SignerCount    int                   `json:"signerCount"`
-	RingPublicKeys []*corona.PublicKey `json:"ringPublicKeys,omitempty"` // For Corona
-	AggregateKey   []byte                `json:"aggregateKey,omitempty"`   // For BLS
-	Threshold      int                   `json:"threshold,omitempty"`      // For CGGMP21
-	TotalFee       uint64                `json:"totalFee"`
+	Type              SignatureType          `json:"type"`
+	Signature         []byte                 `json:"signature"`
+	SignerIDs         []ids.NodeID           `json:"signerIds,omitempty"`
+	SignerCount       int                    `json:"signerCount"`
+	ThresholdPubKeys  []*ThresholdPublicKey  `json:"thresholdPubKeys,omitempty"` // For Corona threshold
+	AggregateKey      []byte                 `json:"aggregateKey,omitempty"`     // For BLS
+	ThresholdRequired int                    `json:"threshold,omitempty"`        // For threshold schemes
+	TotalFee          uint64                 `json:"totalFee"`
 }
 
 // SignatureAggregator manages network-wide signature aggregation
@@ -75,9 +107,9 @@ type SignatureAggregator struct {
 	log    log.Logger
 
 	// Signature managers
-	blsManager      *BLSManager
-	coronaManager *CoronaManager
-	cggmpManager    *CGGMP21Manager
+	blsManager       *BLSManager
+	thresholdManager *ThresholdManager
+	cggmpManager     *CGGMP21Manager
 
 	// Active aggregation sessions
 	sessions map[string]*AggregationSession
@@ -95,10 +127,10 @@ type AggregationSession struct {
 	SignatureType SignatureType
 
 	// Collected signatures
-	BLSSignatures      []*bls.Signature
-	BLSPublicKeys      []*bls.PublicKey
-	CoronaSignatures []*corona.RingSignature
-	CoronaRing       []*corona.PublicKey
+	BLSSignatures       []*bls.Signature
+	BLSPublicKeys       []*bls.PublicKey
+	ThresholdSignatures []*ThresholdSignature
+	ThresholdPubKeys    []*ThresholdPublicKey
 
 	// Signers
 	Signers     map[ids.NodeID]bool
@@ -124,7 +156,7 @@ func NewSignatureAggregator(config SignatureConfig, log log.Logger) (*SignatureA
 	}
 
 	if config.EnableCorona {
-		sa.coronaManager = NewCoronaManager(log)
+		sa.thresholdManager = NewThresholdManager(log)
 	}
 
 	if config.EnableCGGMP21 {
@@ -269,46 +301,39 @@ func (sa *SignatureAggregator) addBLSSignature(
 	return nil
 }
 
-// addCoronaSignature adds a Corona signature to the session
+// addCoronaSignature adds a Corona threshold signature share to the session
+// Actual threshold operations are coordinated through github.com/luxfi/threshold
 func (sa *SignatureAggregator) addCoronaSignature(
 	session *AggregationSession,
 	signerID ids.NodeID,
 	signature []byte,
 	publicKey []byte,
 ) error {
-	// Parse Corona signature
-	// For now, create a placeholder signature structure
-	// In production, implement proper deserialization
-	ringSig := &corona.RingSignature{
-		C0:       new(big.Int).SetBytes(signature[:32]),
-		S:        make([]*big.Int, corona.DefaultRingSize),
-		KeyImage: &corona.Point{X: big.NewInt(0), Y: big.NewInt(0)},
+	// Create threshold signature placeholder
+	// Actual deserialization would use github.com/luxfi/threshold
+	thresholdSig := &ThresholdSignature{
+		Bytes: signature,
 	}
 
-	// Parse public key
-	// For now, create from bytes
-	// In production, implement proper deserialization
-	pk := &corona.PublicKey{
-		Point: &corona.Point{
-			X: new(big.Int).SetBytes(publicKey[:32]),
-			Y: new(big.Int).SetBytes(publicKey[32:64]),
-		},
+	// Create threshold public key placeholder
+	pk := &ThresholdPublicKey{
+		Bytes: publicKey,
 	}
 
-	// Add to ring if not already present
-	inRing := false
-	for _, ringPK := range session.CoronaRing {
-		if ringPK.Equal(pk) {
-			inRing = true
+	// Add to participant list if not already present
+	inList := false
+	for _, existingPK := range session.ThresholdPubKeys {
+		if existingPK.Equal(pk) {
+			inList = true
 			break
 		}
 	}
-	if !inRing {
-		session.CoronaRing = append(session.CoronaRing, pk)
+	if !inList {
+		session.ThresholdPubKeys = append(session.ThresholdPubKeys, pk)
 	}
 
-	// Store signature
-	session.CoronaSignatures = append(session.CoronaSignatures, ringSig)
+	// Store signature share
+	session.ThresholdSignatures = append(session.ThresholdSignatures, thresholdSig)
 	session.Signers[signerID] = true
 	session.SignerCount++
 
@@ -414,37 +439,32 @@ func (sa *SignatureAggregator) finalizeBLS(session *AggregationSession) (*Aggreg
 	}, nil
 }
 
-// finalizeCorona creates a linkable ring signature
+// finalizeCorona aggregates threshold signature shares
+// Actual threshold aggregation uses github.com/luxfi/threshold protocols
 func (sa *SignatureAggregator) finalizeCorona(session *AggregationSession) (*AggregatedSignature, error) {
-	if len(session.CoronaSignatures) == 0 {
-		return nil, errors.New("no Corona signatures collected")
+	if len(session.ThresholdSignatures) == 0 {
+		return nil, errors.New("no threshold signatures collected")
 	}
 
-	// For Corona, we use the first signature as the aggregated result
-	// since ring signatures provide anonymity within the ring
-	ringSig := session.CoronaSignatures[0]
-
-	// Serialize signature (simplified for now)
-	// In production, implement proper serialization
-	sigBytes := make([]byte, 0)
-	sigBytes = append(sigBytes, ringSig.C0.Bytes()...)
-	for _, s := range ringSig.S {
-		if s != nil {
-			sigBytes = append(sigBytes, s.Bytes()...)
-		}
+	// Aggregate threshold signature shares
+	// In production, this would use github.com/luxfi/threshold to combine shares
+	// For now, concatenate the signature bytes as a placeholder
+	var sigBytes []byte
+	for _, sig := range session.ThresholdSignatures {
+		sigBytes = append(sigBytes, sig.Bytes...)
 	}
 
-	// Verify against the full ring
-	valid := ringSig.Verify(session.Message)
-	if !valid {
-		return nil, fmt.Errorf("ring signature verification failed")
+	// Verify threshold signature
+	// Actual verification would use the threshold package
+	if len(sigBytes) == 0 {
+		return nil, fmt.Errorf("threshold signature aggregation failed")
 	}
 
 	return &AggregatedSignature{
-		Type:           SignatureTypeCorona,
-		Signature:      sigBytes,
-		SignerCount:    len(session.CoronaRing), // Ring size, not actual signers
-		RingPublicKeys: session.CoronaRing,
+		Type:             SignatureTypeCorona,
+		Signature:        sigBytes,
+		SignerCount:      session.SignerCount,
+		ThresholdPubKeys: session.ThresholdPubKeys,
 	}, nil
 }
 
