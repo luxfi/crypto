@@ -2,6 +2,8 @@ module github.com/luxfi/crypto
 
 go 1.25.5
 
+exclude github.com/luxfi/geth v1.16.1
+
 require (
 	filippo.io/age v1.2.1
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6
