@@ -8,29 +8,29 @@ import "errors"
 // Sentinel errors for threshold signature operations.
 var (
 	// Configuration errors
-	ErrInvalidThreshold   = errors.New("threshold: invalid threshold value")
-	ErrInvalidPartyCount  = errors.New("threshold: invalid party count")
-	ErrThresholdTooHigh   = errors.New("threshold: threshold must be less than total parties")
-	ErrInvalidPartyIndex  = errors.New("threshold: party index out of range")
-	ErrInvalidConfig      = errors.New("threshold: invalid configuration")
+	ErrInvalidThreshold  = errors.New("threshold: invalid threshold value")
+	ErrInvalidPartyCount = errors.New("threshold: invalid party count")
+	ErrThresholdTooHigh  = errors.New("threshold: threshold must be less than total parties")
+	ErrInvalidPartyIndex = errors.New("threshold: party index out of range")
+	ErrInvalidConfig     = errors.New("threshold: invalid configuration")
 
 	// Scheme errors
 	ErrSchemeNotFound     = errors.New("threshold: scheme not registered")
 	ErrSchemeNotSupported = errors.New("threshold: operation not supported by scheme")
 
 	// Key errors
-	ErrInvalidKeyShare     = errors.New("threshold: invalid key share")
-	ErrInvalidPublicKey    = errors.New("threshold: invalid public key")
-	ErrKeyShareMismatch    = errors.New("threshold: key share does not match group key")
-	ErrDuplicateKeyShare   = errors.New("threshold: duplicate key share index")
-	ErrInsufficientShares  = errors.New("threshold: insufficient shares for threshold")
-	ErrKeyShareCorrupted   = errors.New("threshold: key share data corrupted")
+	ErrInvalidKeyShare    = errors.New("threshold: invalid key share")
+	ErrInvalidPublicKey   = errors.New("threshold: invalid public key")
+	ErrKeyShareMismatch   = errors.New("threshold: key share does not match group key")
+	ErrDuplicateKeyShare  = errors.New("threshold: duplicate key share index")
+	ErrInsufficientShares = errors.New("threshold: insufficient shares for threshold")
+	ErrKeyShareCorrupted  = errors.New("threshold: key share data corrupted")
 
 	// Signature errors
-	ErrInvalidSignatureShare = errors.New("threshold: invalid signature share")
-	ErrInvalidSignature      = errors.New("threshold: invalid signature")
-	ErrSignatureShareMismatch = errors.New("threshold: signature share does not match")
-	ErrDuplicateSignatureShare = errors.New("threshold: duplicate signature share index")
+	ErrInvalidSignatureShare       = errors.New("threshold: invalid signature share")
+	ErrInvalidSignature            = errors.New("threshold: invalid signature")
+	ErrSignatureShareMismatch      = errors.New("threshold: signature share does not match")
+	ErrDuplicateSignatureShare     = errors.New("threshold: duplicate signature share index")
 	ErrSignatureVerificationFailed = errors.New("threshold: signature verification failed")
 
 	// Protocol errors
@@ -42,15 +42,15 @@ var (
 	ErrMessageFromSelf       = errors.New("threshold: cannot process own message")
 
 	// Nonce errors
-	ErrNonceReused     = errors.New("threshold: nonce already used")
-	ErrNonceMissing    = errors.New("threshold: nonce state required")
-	ErrInvalidNonce    = errors.New("threshold: invalid nonce")
+	ErrNonceReused             = errors.New("threshold: nonce already used")
+	ErrNonceMissing            = errors.New("threshold: nonce state required")
+	ErrInvalidNonce            = errors.New("threshold: invalid nonce")
 	ErrNonceCommitmentMismatch = errors.New("threshold: nonce commitment mismatch")
 
 	// State errors
-	ErrNotInitialized = errors.New("threshold: not initialized")
+	ErrNotInitialized  = errors.New("threshold: not initialized")
 	ErrAlreadyComplete = errors.New("threshold: operation already complete")
-	ErrInvalidState   = errors.New("threshold: invalid state for operation")
+	ErrInvalidState    = errors.New("threshold: invalid state for operation")
 
 	// Serialization errors
 	ErrInvalidEncoding = errors.New("threshold: invalid encoding")
