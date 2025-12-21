@@ -91,14 +91,14 @@ type SignatureConfig struct {
 
 // AggregatedSignature represents an aggregated signature with metadata
 type AggregatedSignature struct {
-	Type              SignatureType          `json:"type"`
-	Signature         []byte                 `json:"signature"`
-	SignerIDs         []ids.NodeID           `json:"signerIds,omitempty"`
-	SignerCount       int                    `json:"signerCount"`
-	ThresholdPubKeys  []*ThresholdPublicKey  `json:"thresholdPubKeys,omitempty"` // For Corona threshold
-	AggregateKey      []byte                 `json:"aggregateKey,omitempty"`     // For BLS
-	ThresholdRequired int                    `json:"threshold,omitempty"`        // For threshold schemes
-	TotalFee          uint64                 `json:"totalFee"`
+	Type              SignatureType         `json:"type"`
+	Signature         []byte                `json:"signature"`
+	SignerIDs         []ids.NodeID          `json:"signerIds,omitempty"`
+	SignerCount       int                   `json:"signerCount"`
+	ThresholdPubKeys  []*ThresholdPublicKey `json:"thresholdPubKeys,omitempty"` // For Corona threshold
+	AggregateKey      []byte                `json:"aggregateKey,omitempty"`     // For BLS
+	ThresholdRequired int                   `json:"threshold,omitempty"`        // For threshold schemes
+	TotalFee          uint64                `json:"totalFee"`
 }
 
 // SignatureAggregator manages network-wide signature aggregation

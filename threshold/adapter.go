@@ -10,10 +10,10 @@ import (
 // SchemeAdapter provides a simplified interface for using threshold schemes.
 // It wraps the full scheme interfaces for common use cases.
 type SchemeAdapter struct {
-	scheme    Scheme
-	keyShare  KeyShare
-	signer    Signer
-	verifier  Verifier
+	scheme     Scheme
+	keyShare   KeyShare
+	signer     Signer
+	verifier   Verifier
 	aggregator Aggregator
 }
 
