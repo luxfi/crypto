@@ -207,12 +207,12 @@ func (pk *PublicKey) SchemeID() threshold.SchemeID {
 
 // KeyShare represents a party's BLS key share.
 type KeyShare struct {
-	index       int
-	threshold   int
+	index        int
+	threshold    int
 	totalParties int
-	secretShare *bls.SecretKey
-	publicShare *bls.PublicKey
-	groupKey    *PublicKey
+	secretShare  *bls.SecretKey
+	publicShare  *bls.PublicKey
+	groupKey     *PublicKey
 }
 
 // Index returns the party index.
@@ -868,17 +868,17 @@ func (v *Verifier) GroupKey() threshold.PublicKey {
 
 // Ensure interfaces are implemented
 var (
-	_ threshold.Scheme        = (*Scheme)(nil)
-	_ threshold.PublicKey     = (*PublicKey)(nil)
-	_ threshold.KeyShare      = (*KeyShare)(nil)
+	_ threshold.Scheme         = (*Scheme)(nil)
+	_ threshold.PublicKey      = (*PublicKey)(nil)
+	_ threshold.KeyShare       = (*KeyShare)(nil)
 	_ threshold.SignatureShare = (*SignatureShare)(nil)
-	_ threshold.Signature     = (*Signature)(nil)
-	_ threshold.TrustedDealer = (*TrustedDealer)(nil)
-	_ threshold.DKG          = (*DKG)(nil)
-	_ threshold.DKGMessage   = (*DKGMessage)(nil)
-	_ threshold.Signer       = (*Signer)(nil)
-	_ threshold.Aggregator   = (*Aggregator)(nil)
-	_ threshold.Verifier     = (*Verifier)(nil)
+	_ threshold.Signature      = (*Signature)(nil)
+	_ threshold.TrustedDealer  = (*TrustedDealer)(nil)
+	_ threshold.DKG            = (*DKG)(nil)
+	_ threshold.DKGMessage     = (*DKGMessage)(nil)
+	_ threshold.Signer         = (*Signer)(nil)
+	_ threshold.Aggregator     = (*Aggregator)(nil)
+	_ threshold.Verifier       = (*Verifier)(nil)
 )
 
 // Compilation check for unused variables

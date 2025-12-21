@@ -71,15 +71,15 @@ func MustGetScheme(id SchemeID) Scheme {
 
 // SchemeInfo provides metadata about a threshold scheme.
 type SchemeInfo struct {
-	ID              SchemeID
-	Name            string
-	Description     string
-	PostQuantum     bool
-	NonInteractive  bool
-	KeyShareSize    int
-	SignatureSize   int
-	DKGRounds       int
-	SigningRounds   int
+	ID             SchemeID
+	Name           string
+	Description    string
+	PostQuantum    bool
+	NonInteractive bool
+	KeyShareSize   int
+	SignatureSize  int
+	DKGRounds      int
+	SigningRounds  int
 }
 
 // GetSchemeInfo returns information about a registered scheme.
