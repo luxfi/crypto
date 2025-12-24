@@ -47,6 +47,19 @@ func FromBytes(skBytes []byte) (*LocalSigner, error) {
 	return &LocalSigner{sk: sk, pk: pk}, nil
 }
 
+// FromSeed derives a signer from seed bytes using proper BLS key derivation.
+// This is the preferred way to create a signer from arbitrary seed material
+// (like mnemonic-derived bytes) as it handles the key derivation properly.
+func FromSeed(seed []byte) (*LocalSigner, error) {
+	sk, err := bls.SecretKeyFromSeed(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	pk := sk.PublicKey()
+	return &LocalSigner{sk: sk, pk: pk}, nil
+}
+
 // PublicKey returns the public key that corresponds to this secret
 // key.
 func (s *LocalSigner) PublicKey() *bls.PublicKey {
