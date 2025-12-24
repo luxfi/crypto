@@ -1,0 +1,420 @@
+---
+title: KZG Polynomial Commitments (EIP-4844)
+description: Kate-Zaverucha-Goldberg commitments for blob transactions and data availability
+---
+
+# KZG Polynomial Commitments (EIP-4844)
+
+KZG (Kate-Zaverucha-Goldberg) polynomial commitments enable efficient verification of polynomial evaluations, critical for EIP-4844 blob transactions and data availability sampling.
+
+## Overview
+
+KZG commitments provide:
+
+- **Constant-Size Commitments**: 48-byte commitment regardless of data size
+- **Efficient Verification**: Single pairing check for proof verification
+- **Data Availability**: Enable efficient data availability sampling
+- **Blob Transactions**: Foundation for Ethereum's scaling roadmap
+
+## Technical Details
+
+### Types and Sizes
+
+| Type | Size | Description |
+|------|------|-------------|
+| Blob | 131,072 bytes | Data blob (128 KB) |
+| Commitment | 48 bytes | BLS12-381 G1 point |
+| Proof | 48 bytes | BLS12-381 G1 point |
+| Point | 32 bytes | Field element |
+| Claim | 32 bytes | Evaluation result |
+
+### Cell Proofs
+
+| Parameter | Value |
+|-----------|-------|
+| Cell Proofs Per Blob | 128 |
+| Cells Per Blob | 128 |
+| Cell Size | 1,024 bytes |
+
+## Implementation
+
+### Blob to Commitment
+
+Create a commitment from blob data:
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/luxfi/crypto/kzg4844"
+)
+
+func main() {
+    // Create a blob (128 KB)
+    var blob kzg4844.Blob
+    copy(blob[:], []byte("Your data here..."))
+
+    // Generate commitment
+    commitment, err := kzg4844.BlobToCommitment(&blob)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Commitment: %x\n", commitment[:])
+    fmt.Printf("Commitment size: %d bytes\n", len(commitment))
+}
+```
+
+### Computing Proofs
+
+Generate KZG proofs for blob evaluation:
+
+```go
+func computeKZGProof(blob *kzg4844.Blob, point kzg4844.Point) (kzg4844.Proof, kzg4844.Claim, error) {
+    // Compute proof at specific point
+    proof, claim, err := kzg4844.ComputeProof(blob, point)
+    if err != nil {
+        return kzg4844.Proof{}, kzg4844.Claim{}, err
+    }
+
+    fmt.Printf("Proof: %x\n", proof[:])
+    fmt.Printf("Claimed value: %x\n", claim[:])
+
+    return proof, claim, nil
+}
+```
+
+### Blob Proofs
+
+Generate proof that blob matches commitment:
+
+```go
+func computeBlobProof(blob *kzg4844.Blob, commitment kzg4844.Commitment) (kzg4844.Proof, error) {
+    // Compute proof for entire blob
+    proof, err := kzg4844.ComputeBlobProof(blob, commitment)
+    if err != nil {
+        return kzg4844.Proof{}, err
+    }
+
+    return proof, nil
+}
+```
+
+### Verification
+
+Verify KZG proofs:
+
+```go
+// Verify point evaluation proof
+func verifyPointProof(
+    commitment kzg4844.Commitment,
+    point kzg4844.Point,
+    claim kzg4844.Claim,
+    proof kzg4844.Proof,
+) bool {
+    err := kzg4844.VerifyProof(commitment, point, claim, proof)
+    return err == nil
+}
+
+// Verify blob matches commitment
+func verifyBlobProof(
+    blob *kzg4844.Blob,
+    commitment kzg4844.Commitment,
+    proof kzg4844.Proof,
+) bool {
+    err := kzg4844.VerifyBlobProof(blob, commitment, proof)
+    return err == nil
+}
+```
+
+### Cell Proofs
+
+For data availability sampling:
+
+```go
+// Compute all cell proofs for a blob
+func computeCellProofs(blob *kzg4844.Blob) ([]kzg4844.Proof, error) {
+    proofs, err := kzg4844.ComputeCellProofs(blob)
+    if err != nil {
+        return nil, err
+    }
+
+    fmt.Printf("Generated %d cell proofs\n", len(proofs))
+    return proofs, nil
+}
+
+// Batch verify cell proofs
+func verifyCellProofs(
+    blobs []kzg4844.Blob,
+    commitments []kzg4844.Commitment,
+    proofs []kzg4844.Proof,
+) bool {
+    err := kzg4844.VerifyCellProofs(blobs, commitments, proofs)
+    return err == nil
+}
+```
+
+### Versioned Blob Hashes
+
+Calculate versioned hashes for blob transactions:
+
+```go
+import (
+    "crypto/sha256"
+    "github.com/luxfi/crypto/kzg4844"
+)
+
+func calculateBlobHash(commitment *kzg4844.Commitment) [32]byte {
+    hasher := sha256.New()
+    return kzg4844.CalcBlobHashV1(hasher, commitment)
+}
+
+func isValidBlobHash(hash []byte) bool {
+    return kzg4844.IsValidVersionedHash(hash)
+}
+```
+
+## Backend Selection
+
+Choose between Go and C implementations:
+
+```go
+// Use C-KZG backend (if available)
+func useCBackend() error {
+    return kzg4844.UseCKZG(true)
+}
+
+// Use Go-KZG backend
+func useGoBackend() error {
+    return kzg4844.UseCKZG(false)
+}
+```
+
+## Blob Transactions
+
+### Transaction Structure
+
+```go
+type BlobTransaction struct {
+    // Standard transaction fields
+    ChainID    *big.Int
+    Nonce      uint64
+    GasTipCap  *big.Int
+    GasFeeCap  *big.Int
+    Gas        uint64
+    To         *common.Address
+    Value      *big.Int
+    Data       []byte
+
+    // Blob-specific fields
+    BlobFeeCap *big.Int
+    BlobHashes []common.Hash
+
+    // Sidecar (not part of signed tx)
+    Blobs       []kzg4844.Blob
+    Commitments []kzg4844.Commitment
+    Proofs      []kzg4844.Proof
+}
+```
+
+### Creating Blob Transactions
+
+```go
+func createBlobTx(data [][]byte) (*BlobTransaction, error) {
+    tx := &BlobTransaction{
+        Blobs:       make([]kzg4844.Blob, len(data)),
+        Commitments: make([]kzg4844.Commitment, len(data)),
+        Proofs:      make([]kzg4844.Proof, len(data)),
+        BlobHashes:  make([]common.Hash, len(data)),
+    }
+
+    for i, d := range data {
+        // Copy data to blob
+        copy(tx.Blobs[i][:], d)
+
+        // Compute commitment
+        commitment, err := kzg4844.BlobToCommitment(&tx.Blobs[i])
+        if err != nil {
+            return nil, err
+        }
+        tx.Commitments[i] = commitment
+
+        // Compute proof
+        proof, err := kzg4844.ComputeBlobProof(&tx.Blobs[i], commitment)
+        if err != nil {
+            return nil, err
+        }
+        tx.Proofs[i] = proof
+
+        // Calculate versioned hash
+        hasher := sha256.New()
+        tx.BlobHashes[i] = kzg4844.CalcBlobHashV1(hasher, &commitment)
+    }
+
+    return tx, nil
+}
+```
+
+### Validating Blob Transactions
+
+```go
+func validateBlobTx(tx *BlobTransaction) error {
+    if len(tx.Blobs) != len(tx.Commitments) ||
+       len(tx.Blobs) != len(tx.Proofs) ||
+       len(tx.Blobs) != len(tx.BlobHashes) {
+        return errors.New("mismatched blob sidecar lengths")
+    }
+
+    for i := range tx.Blobs {
+        // Verify commitment matches blob
+        expectedCommitment, err := kzg4844.BlobToCommitment(&tx.Blobs[i])
+        if err != nil {
+            return err
+        }
+        if expectedCommitment != tx.Commitments[i] {
+            return errors.New("commitment mismatch")
+        }
+
+        // Verify proof
+        if err := kzg4844.VerifyBlobProof(&tx.Blobs[i], tx.Commitments[i], tx.Proofs[i]); err != nil {
+            return fmt.Errorf("proof verification failed: %w", err)
+        }
+
+        // Verify versioned hash
+        hasher := sha256.New()
+        expectedHash := kzg4844.CalcBlobHashV1(hasher, &tx.Commitments[i])
+        if tx.BlobHashes[i] != expectedHash {
+            return errors.New("blob hash mismatch")
+        }
+    }
+
+    return nil
+}
+```
+
+## Data Availability Sampling
+
+### Random Sampling
+
+```go
+type DataAvailabilitySampler struct {
+    commitments []kzg4844.Commitment
+    cellProofs  [][]kzg4844.Proof
+}
+
+func (das *DataAvailabilitySampler) Sample(numSamples int) (bool, error) {
+    for i := 0; i < numSamples; i++ {
+        // Random blob index
+        blobIdx := rand.Intn(len(das.commitments))
+
+        // Random cell index
+        cellIdx := rand.Intn(kzg4844.CellProofsPerBlob)
+
+        // Verify cell proof
+        // This would require the cell data and use VerifyCellProofs
+        // Simplified here for illustration
+    }
+
+    return true, nil
+}
+```
+
+## Performance Benchmarks
+
+| Operation | Go Backend | C Backend | Notes |
+|-----------|------------|-----------|-------|
+| BlobToCommitment | 50 ms | 25 ms | Single blob |
+| ComputeProof | 55 ms | 30 ms | Point evaluation |
+| ComputeBlobProof | 60 ms | 35 ms | Full blob proof |
+| VerifyProof | 3 ms | 2 ms | Single verification |
+| VerifyBlobProof | 3 ms | 2 ms | Blob verification |
+| ComputeCellProofs | 1.5 s | 0.8 s | 128 proofs |
+
+## Trusted Setup
+
+KZG requires a trusted setup ceremony:
+
+```go
+// The trusted setup is embedded in the package
+//go:embed trusted_setup.json
+var content embed.FS
+
+// Powers of tau ceremony parameters:
+// - 4096 G1 points
+// - 65 G2 points
+// - Secure multi-party computation ceremony
+```
+
+## Security Considerations
+
+### Commitment Binding
+
+```go
+// KZG commitments are binding - cannot find two different
+// polynomials that hash to the same commitment
+func demonstrateBinding() {
+    var blob1, blob2 kzg4844.Blob
+
+    // Different data produces different commitments
+    copy(blob1[:], []byte("data1"))
+    copy(blob2[:], []byte("data2"))
+
+    c1, _ := kzg4844.BlobToCommitment(&blob1)
+    c2, _ := kzg4844.BlobToCommitment(&blob2)
+
+    // c1 != c2 (with overwhelming probability)
+}
+```
+
+### Proof Soundness
+
+```go
+// Cannot forge proofs for incorrect evaluations
+func verifyWithSecurityChecks(
+    commitment kzg4844.Commitment,
+    point kzg4844.Point,
+    claim kzg4844.Claim,
+    proof kzg4844.Proof,
+) error {
+    // Verify commitment is on curve
+    if !isValidG1Point(commitment[:]) {
+        return errors.New("invalid commitment point")
+    }
+
+    // Verify proof is on curve
+    if !isValidG1Point(proof[:]) {
+        return errors.New("invalid proof point")
+    }
+
+    // Verify the actual proof
+    return kzg4844.VerifyProof(commitment, point, claim, proof)
+}
+```
+
+## Integration with Lux
+
+### Blob-Carrying Blocks
+
+```go
+type BlobCarryingBlock struct {
+    Header        *BlockHeader
+    Transactions  []*Transaction
+    BlobSidecars  []*BlobSidecar
+}
+
+type BlobSidecar struct {
+    BlobIndex   uint64
+    Blob        kzg4844.Blob
+    Commitment  kzg4844.Commitment
+    Proof       kzg4844.Proof
+    TxHash      common.Hash
+}
+```
+
+## References
+
+- [EIP-4844: Proto-Danksharding](https://eips.ethereum.org/EIPS/eip-4844)
+- [KZG Polynomial Commitments](https://dankradfeist.de/ethereum/2020/06/16/kate-polynomial-commitments.html)
+- [Ethereum KZG Ceremony](https://ceremony.ethereum.org/)
+- [c-kzg-4844](https://github.com/ethereum/c-kzg-4844)

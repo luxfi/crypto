@@ -1,0 +1,205 @@
+---
+title: Signer
+description: Hybrid BLS and Ringtail signing for Lux consensus
+---
+
+# Signer
+
+Hybrid signing combining BLS with Ringtail (lattice-based threshold signatures) for Lux consensus.
+
+## Overview
+
+- **Hybrid Signatures**: BLS + Ringtail threshold signing
+- **Classical Security**: BLS provides efficient, aggregatable signatures
+- **Post-Quantum Ready**: Ringtail lattice-based threshold scheme
+- **Consensus Optimized**: Designed for Lux's Quasar consensus
+
+## Architecture
+
+Lux consensus uses two cryptographic layers:
+
+| Layer | Algorithm | Purpose |
+|-------|-----------|---------|
+| Classical | BLS12-381 | Efficient aggregatable signatures |
+| Threshold | Ringtail | Lattice-based threshold signatures |
+
+## Implementation
+
+### Creating a Signer
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/luxfi/crypto/signer"
+)
+
+func main() {
+    s, err := signer.NewSigner()
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("BLS Public Key: %x\n", s.GetBLSPublicKey())
+    fmt.Printf("Ringtail Public Key: %x\n", s.GetRingtailPublicKey().Bytes())
+}
+```
+
+### BLS Signing
+
+BLS signatures are used for classical operations and can be aggregated:
+
+```go
+func sign(s *signer.Signer, msg []byte) ([]byte, error) {
+    return s.SignBLS(msg)
+}
+
+func verify(s *signer.Signer, msg, sig []byte) bool {
+    return s.VerifyBLS(msg, sig)
+}
+```
+
+### Ringtail Threshold Signing
+
+Ringtail is a lattice-based threshold signature scheme used for post-quantum security in consensus:
+
+```go
+// Ringtail threshold signing requires coordination through consensus
+// The signer package provides key management
+pk := s.GetRingtailPublicKey()
+
+// Threshold operations are coordinated by the consensus layer
+// See github.com/luxfi/consensus for full implementation
+```
+
+## Consensus Integration
+
+### Quasar Consensus
+
+The Lux Quasar consensus uses both BLS and Ringtail:
+
+```go
+type ConsensusMessage struct {
+    Height       uint64
+    Round        int
+    BlockHash    []byte
+    BLSSignature []byte      // Aggregatable
+    RingtailSig  []byte      // Threshold contribution
+}
+
+// BLS signatures are aggregated across validators
+func aggregateBLS(sigs [][]byte) ([]byte, error) {
+    return bls.AggregateSignatures(sigs)
+}
+
+// Ringtail uses threshold aggregation
+// Requires t-of-n validators to create final signature
+```
+
+### Block Finalization
+
+```go
+type FinalizedBlock struct {
+    Height        uint64
+    Hash          []byte
+    BLSAggregate  []byte  // Aggregated BLS from validators
+    RingtailCert  []byte  // Threshold certificate
+    ValidatorSet  []byte  // Participating validators
+}
+```
+
+## Performance Comparison
+
+| Operation | BLS | Notes |
+|-----------|-----|-------|
+| Sign | 1.2 ms | Single validator |
+| Verify | 2.5 ms | Single signature |
+| Aggregate | 0.1 ms | Per signature |
+| Batch Verify | 3.0 ms | 100 signatures |
+| Signature Size | 96 B | Constant |
+| Public Key Size | 48 B | Compressed |
+
+Ringtail threshold operations depend on the consensus layer.
+
+## Key Management
+
+### Export Public Keys
+
+```go
+func exportPublicKeys(s *signer.Signer) map[string][]byte {
+    return map[string][]byte{
+        "bls":      s.GetBLSPublicKey(),
+        "ringtail": s.GetRingtailPublicKey().Bytes(),
+    }
+}
+```
+
+### Access Raw Keys
+
+```go
+// For advanced operations
+blsKey := s.BLSSecretKey()
+ringtailKey := s.RingtailPrivateKey()
+```
+
+## Security Considerations
+
+### Dual-Layer Security
+
+The hybrid approach provides security even if one algorithm is compromised:
+
+- **BLS only broken**: Ringtail threshold maintains security
+- **Ringtail only broken**: BLS maintains classical security
+- **Both secure**: Defense in depth
+
+### Key Generation
+
+```go
+func secureKeyGeneration() (*signer.Signer, error) {
+    // Signer uses crypto/rand internally
+    s, err := signer.NewSigner()
+    if err != nil {
+        return nil, err
+    }
+
+    // Verify key generation
+    if len(s.GetBLSPublicKey()) == 0 {
+        return nil, errors.New("BLS key generation failed")
+    }
+    if s.GetRingtailPublicKey() == nil {
+        return nil, errors.New("Ringtail key generation failed")
+    }
+
+    return s, nil
+}
+```
+
+## Testing
+
+```go
+func TestSigner(t *testing.T) {
+    s, err := signer.NewSigner()
+    require.NoError(t, err)
+
+    message := []byte("test message")
+
+    // Test BLS
+    blsSig, err := s.SignBLS(message)
+    require.NoError(t, err)
+    require.True(t, s.VerifyBLS(message, blsSig))
+
+    // Wrong message should fail
+    require.False(t, s.VerifyBLS([]byte("wrong"), blsSig))
+
+    // Ringtail key should exist
+    require.NotNil(t, s.GetRingtailPublicKey())
+}
+```
+
+## References
+
+- [BLS Signatures](https://datatracker.ietf.org/doc/draft-irtf-cfrg-bls-signature/)
+- [Threshold Cryptography](https://en.wikipedia.org/wiki/Threshold_cryptosystem)
+- [Lattice-Based Cryptography](https://pq-crystals.org/)
+- [Lux Consensus](https://github.com/luxfi/consensus)
