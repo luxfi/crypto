@@ -63,6 +63,17 @@ func SecretKeyToBytes(sk *SecretKey) []byte {
 	return sk.sk.Serialize()
 }
 
+// SecretKeyFromSeed derives a secret key from a seed using proper BLS key derivation.
+// The seed is passed through HKDF internally by blst.KeyGen, so any 32+ byte input
+// will produce a valid secret key.
+func SecretKeyFromSeed(seed []byte) (*SecretKey, error) {
+	if len(seed) < 32 {
+		return nil, errors.New("seed must be at least 32 bytes")
+	}
+	sk := blst.KeyGen(seed)
+	return &SecretKey{sk: sk}, nil
+}
+
 // SecretKeyFromBytes parses the big-endian format of the secret key into a
 // secret key.
 func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
