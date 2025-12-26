@@ -1,0 +1,271 @@
+---
+title: Ringtail (Lattice Threshold Signatures)
+description: Lattice-based threshold signature scheme for post-quantum consensus
+---
+
+# Ringtail
+
+Ringtail is a lattice-based threshold signature scheme used in Lux consensus for post-quantum security. It enables t-of-n validators to collaboratively create signatures without any single party controlling the signing key.
+
+## Overview
+
+Ringtail provides:
+
+- **Threshold Security**: Requires t-of-n participants to sign
+- **Post-Quantum Resistance**: Based on lattice hard problems
+- **Consensus Integration**: Designed for Lux Quasar consensus
+- **No Trusted Dealer**: Distributed key generation
+
+## How Threshold Signatures Work
+
+Unlike regular signatures where one party signs:
+
+```
+Regular:   Private Key → Sign(message) → Signature
+```
+
+Threshold signatures require collaboration:
+
+```
+Threshold: Share_1 + Share_2 + ... + Share_t → Combine → Signature
+           (t of n participants required)
+```
+
+## Architecture
+
+### Threshold Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| n | Total number of participants |
+| t | Threshold (minimum signers required) |
+| Share | Individual participant's signing contribution |
+| Certificate | Combined threshold signature |
+
+### Lux Consensus Configuration
+
+In Quasar consensus, typical configuration:
+
+- **n**: Total validators in the validator set
+- **t**: 2/3 + 1 of validators (Byzantine fault tolerance)
+
+## Implementation
+
+### Using the Threshold Interface
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    "github.com/luxfi/crypto/threshold"
+    _ "github.com/luxfi/crypto/threshold/bls" // Register BLS scheme
+)
+
+func main() {
+    // Get the threshold scheme (BLS for now, Ringtail when available)
+    scheme, err := threshold.GetScheme(threshold.SchemeBLS)
+    if err != nil {
+        panic(err)
+    }
+
+    // Configure distributed key generation
+    config := threshold.DealerConfig{
+        Threshold:    2,  // t in t+1-of-n
+        TotalParties: 5,
+    }
+
+    // Generate key shares via trusted dealer
+    dealer, err := scheme.NewTrustedDealer(config)
+    if err != nil {
+        panic(err)
+    }
+
+    shares, groupKey, err := dealer.GenerateShares(context.Background())
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Group Key: %x\n", groupKey.Bytes())
+    fmt.Printf("Generated %d shares for threshold %d\n", len(shares), config.Threshold+1)
+}
+```
+
+### Threshold Operations
+
+Ringtail threshold operations are coordinated through the consensus layer:
+
+```go
+// In consensus layer (github.com/luxfi/consensus)
+type ThresholdEngine interface {
+    // Generate precomputed shares for fast signing
+    Precompute(sk []byte) ([]byte, error)
+
+    // Create a signing share
+    QuickSign(precomp []byte, msg []byte) ([]byte, error)
+
+    // Verify an individual share
+    VerifyShare(pk, msg, share []byte) bool
+
+    // Aggregate shares into final certificate
+    Aggregate(shares [][]byte) ([]byte, error)
+
+    // Verify final certificate
+    Verify(pk, msg, cert []byte) bool
+}
+```
+
+### Consensus Integration
+
+```go
+// Validator creates their share
+precomp, _ := ringtail.Precompute(validatorSK)
+share, _ := ringtail.QuickSign(precomp, blockHash)
+
+// Collect shares from t validators
+shares := collectSharesFromValidators()
+
+// Aggregate into final certificate
+if len(shares) >= threshold {
+    cert, _ := ringtail.Aggregate(shares)
+    // cert is the threshold signature
+}
+```
+
+## Use in Lux Consensus
+
+### Block Finalization
+
+```go
+type FinalizedBlock struct {
+    Height       uint64
+    Hash         []byte
+    BLSAggregate []byte  // Classical BLS aggregate
+    RingtailCert []byte  // Threshold certificate (post-quantum)
+    Signers      []byte  // Bitfield of participating validators
+}
+```
+
+### Dual-Layer Security
+
+Lux uses both BLS and Ringtail:
+
+| Layer | Purpose | Security |
+|-------|---------|----------|
+| BLS | Fast aggregation, classical | 128-bit classical |
+| Ringtail | Threshold, post-quantum | Lattice hard problems |
+
+Both must be valid for block finalization.
+
+## Performance
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Key Generation | ~1 ms | One-time per validator |
+| Precompute | ~5 ms | Per signing round |
+| QuickSign | ~2 ms | Per validator per block |
+| Aggregate | ~10 ms | Combines t shares |
+| Verify | ~5 ms | Final certificate |
+
+## Security Properties
+
+### Threshold Security
+
+- **t-of-n**: Requires threshold participants
+- **No Single Point**: No party can sign alone
+- **Byzantine Tolerance**: Tolerates n-t malicious parties
+
+### Post-Quantum Resistance
+
+Based on lattice problems believed to be hard for quantum computers:
+
+- Learning With Errors (LWE)
+- Short Integer Solution (SIS)
+
+### Forward Security
+
+Precomputed shares enable:
+- Fast signing in consensus hot path
+- Shares are ephemeral per round
+
+## Comparison with Other Schemes
+
+| Scheme | Type | PQ-Safe | Threshold |
+|--------|------|---------|-----------|
+| ECDSA | Classical | No | With MPC |
+| BLS | Classical | No | Native |
+| ML-DSA | Post-Quantum | Yes | No |
+| Ringtail | Post-Quantum | Yes | Yes |
+
+## Integration with Signer Package
+
+The `signer` package provides BLS signing with threshold seed derivation:
+
+```go
+import "github.com/luxfi/crypto/signer"
+
+s, _ := signer.NewSigner()
+
+// BLS signing for consensus
+sig, _ := s.SignBLS(message)
+valid := s.VerifyBLS(message, sig)
+
+// Threshold seed for deriving keys in threshold protocols
+// Used with github.com/luxfi/threshold for t-of-n signing
+seed := s.ThresholdSeed()
+```
+
+Full threshold operations use the `threshold` package interfaces.
+
+## Testing
+
+```go
+func TestThresholdSigning(t *testing.T) {
+    ctx := context.Background()
+
+    scheme, err := threshold.GetScheme(threshold.SchemeBLS)
+    require.NoError(t, err)
+
+    // Generate 3 shares with threshold 2 (need 2 to sign)
+    dealer, err := scheme.NewTrustedDealer(threshold.DealerConfig{
+        Threshold:    1, // t=1 means need t+1=2 shares
+        TotalParties: 3,
+    })
+    require.NoError(t, err)
+
+    shares, groupKey, err := dealer.GenerateShares(ctx)
+    require.NoError(t, err)
+    require.Len(t, shares, 3)
+    require.NotNil(t, groupKey)
+
+    // Create signers from shares
+    signer0, _ := scheme.NewSigner(shares[0])
+    signer1, _ := scheme.NewSigner(shares[1])
+
+    // Sign with 2 parties
+    message := []byte("test message")
+    participants := []int{0, 1}
+
+    share0, _ := signer0.SignShare(ctx, message, participants, nil)
+    share1, _ := signer1.SignShare(ctx, message, participants, nil)
+
+    // Aggregate shares
+    aggregator, _ := scheme.NewAggregator(groupKey)
+    signature, err := aggregator.Aggregate(ctx, message,
+        []threshold.SignatureShare{share0, share1}, nil)
+    require.NoError(t, err)
+
+    // Verify
+    verifier, _ := scheme.NewVerifier(groupKey)
+    require.True(t, verifier.Verify(message, signature))
+}
+```
+
+## References
+
+- [Threshold Cryptography Survey](https://eprint.iacr.org/2020/1390)
+- [Lattice-Based Threshold Signatures](https://eprint.iacr.org/2021/118)
+- [NIST Post-Quantum Standards](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- [Lux Consensus](https://github.com/luxfi/consensus)

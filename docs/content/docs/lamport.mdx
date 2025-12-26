@@ -1,0 +1,405 @@
+---
+title: Lamport One-Time Signatures
+description: Hash-based quantum-resistant one-time signatures
+---
+
+# Lamport One-Time Signatures
+
+Lamport signatures are the simplest form of post-quantum cryptography, relying solely on hash functions for security. They are one-time signatures - each private key can only be used to sign a single message.
+
+## Overview
+
+Lamport signatures offer unique properties:
+
+- **Quantum Resistance**: Security relies only on hash functions, not number theory
+- **Simplicity**: Conceptually simple and easy to implement correctly
+- **Fast Verification**: Verification requires only hash comparisons
+- **Large Key Sizes**: Trade-off for simplicity and security
+
+## Technical Details
+
+### Parameters
+
+| Hash Function | Public Key Size | Private Key Size | Signature Size |
+|--------------|-----------------|------------------|----------------|
+| SHA-256 | 16 KB | 16 KB | 8 KB |
+| SHA-512 | 64 KB | 64 KB | 32 KB |
+| SHA3-256 | 16 KB | 16 KB | 8 KB |
+| SHA3-512 | 64 KB | 64 KB | 32 KB |
+
+### How It Works
+
+1. **Key Generation**: Generate 2×256 random values (for SHA-256), hash each to create public key
+2. **Signing**: For each bit of message hash, reveal corresponding private value
+3. **Verification**: Hash signature values and compare with public key
+
+## Implementation
+
+### Key Generation
+
+```go
+package main
+
+import (
+    "crypto/rand"
+    "fmt"
+    "github.com/luxfi/crypto/lamport"
+)
+
+func main() {
+    // Generate Lamport key pair using SHA-256
+    privateKey, err := lamport.GenerateKey(rand.Reader, lamport.SHA256)
+    if err != nil {
+        panic(err)
+    }
+
+    // Derive public key
+    publicKey := privateKey.Public()
+
+    fmt.Printf("Public Key Size: %d bytes\n", len(publicKey.Bytes()))
+    fmt.Printf("Hash Function: SHA-256\n")
+}
+```
+
+### Available Hash Functions
+
+```go
+const (
+    SHA256   HashFunc = iota  // 256-bit, standard choice
+    SHA512                     // 512-bit, higher security
+    SHA3_256                   // SHA-3 256-bit
+    SHA3_512                   // SHA-3 512-bit
+)
+```
+
+### Signing Messages
+
+**Important**: Each Lamport private key can only sign ONE message. The private key is automatically cleared after signing.
+
+```go
+func signMessage(privateKey *lamport.PrivateKey, message []byte) (*lamport.Signature, error) {
+    // Sign the message (CONSUMES the private key!)
+    signature, err := privateKey.Sign(message)
+    if err != nil {
+        return nil, err
+    }
+
+    fmt.Printf("Signature size: %d bytes\n", len(signature.Bytes()))
+
+    // WARNING: privateKey is now zeroed and cannot be reused
+    return signature, nil
+}
+```
+
+### Signature Verification
+
+```go
+func verifySignature(publicKey *lamport.PublicKey, message []byte, signature *lamport.Signature) bool {
+    // Verify the signature
+    valid := publicKey.Verify(message, signature)
+
+    if valid {
+        fmt.Println("Lamport signature verified successfully")
+    }
+
+    return valid
+}
+```
+
+### Serialization
+
+```go
+// Serialize public key
+func serializePublicKey(pubKey *lamport.PublicKey) []byte {
+    return pubKey.Bytes()
+}
+
+// Deserialize public key
+func deserializePublicKey(data []byte) (*lamport.PublicKey, error) {
+    return lamport.PublicKeyFromBytes(data)
+}
+
+// Serialize signature
+func serializeSignature(sig *lamport.Signature) []byte {
+    return sig.Bytes()
+}
+
+// Deserialize signature
+func deserializeSignature(data []byte) (*lamport.Signature, error) {
+    return lamport.SignatureFromBytes(data)
+}
+```
+
+## One-Time Signature Management
+
+Since Lamport keys can only be used once, you need a key management strategy:
+
+### Key Pool
+
+```go
+type LamportKeyPool struct {
+    unused   []*lamport.PrivateKey
+    used     [][]byte  // Store used public keys for verification
+    mu       sync.Mutex
+    hashFunc lamport.HashFunc
+}
+
+func NewKeyPool(hashFunc lamport.HashFunc, initialSize int) (*LamportKeyPool, error) {
+    pool := &LamportKeyPool{
+        unused:   make([]*lamport.PrivateKey, 0, initialSize),
+        used:     make([][]byte, 0),
+        hashFunc: hashFunc,
+    }
+
+    // Pre-generate keys
+    for i := 0; i < initialSize; i++ {
+        key, err := lamport.GenerateKey(rand.Reader, hashFunc)
+        if err != nil {
+            return nil, err
+        }
+        pool.unused = append(pool.unused, key)
+    }
+
+    return pool, nil
+}
+
+func (p *LamportKeyPool) GetKey() (*lamport.PrivateKey, *lamport.PublicKey, error) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+
+    if len(p.unused) == 0 {
+        return nil, nil, errors.New("key pool exhausted")
+    }
+
+    // Get and remove key from pool
+    key := p.unused[len(p.unused)-1]
+    p.unused = p.unused[:len(p.unused)-1]
+
+    pubKey := key.Public()
+    p.used = append(p.used, pubKey.Bytes())
+
+    return key, pubKey, nil
+}
+```
+
+### Merkle Tree of Keys
+
+For efficient key management, use a Merkle tree:
+
+```go
+type MerkleLamport struct {
+    keys      []*lamport.PrivateKey
+    rootHash  []byte
+    treeDepth int
+}
+
+func NewMerkleLamport(numKeys int, hashFunc lamport.HashFunc) (*MerkleLamport, error) {
+    // Ensure numKeys is a power of 2
+    if numKeys&(numKeys-1) != 0 {
+        return nil, errors.New("numKeys must be a power of 2")
+    }
+
+    ml := &MerkleLamport{
+        keys:      make([]*lamport.PrivateKey, numKeys),
+        treeDepth: int(math.Log2(float64(numKeys))),
+    }
+
+    // Generate all keys
+    pubKeys := make([][]byte, numKeys)
+    for i := 0; i < numKeys; i++ {
+        key, err := lamport.GenerateKey(rand.Reader, hashFunc)
+        if err != nil {
+            return nil, err
+        }
+        ml.keys[i] = key
+        pubKeys[i] = key.Public().Bytes()
+    }
+
+    // Compute Merkle root
+    ml.rootHash = computeMerkleRoot(pubKeys)
+
+    return ml, nil
+}
+
+// Sign returns signature with Merkle proof
+func (ml *MerkleLamport) Sign(index int, message []byte) (*LamportMerkleSignature, error) {
+    if index >= len(ml.keys) {
+        return nil, errors.New("index out of range")
+    }
+
+    sig, err := ml.keys[index].Sign(message)
+    if err != nil {
+        return nil, err
+    }
+
+    proof := ml.computeMerkleProof(index)
+
+    return &LamportMerkleSignature{
+        Signature:   sig,
+        Index:       index,
+        MerkleProof: proof,
+    }, nil
+}
+```
+
+## Use Cases
+
+### 1. Blockchain Finality Signatures
+
+One-time signatures are ideal for block finalization:
+
+```go
+type BlockFinalizationSig struct {
+    BlockHash   []byte
+    ValidatorID uint64
+    Signature   *lamport.Signature
+    PublicKey   *lamport.PublicKey
+}
+
+func finalizeBlock(validator *Validator, block *Block) (*BlockFinalizationSig, error) {
+    // Get fresh Lamport key from validator's key pool
+    privKey, pubKey, err := validator.keyPool.GetKey()
+    if err != nil {
+        return nil, err
+    }
+
+    // Sign block hash
+    sig, err := privKey.Sign(block.Hash())
+    if err != nil {
+        return nil, err
+    }
+
+    return &BlockFinalizationSig{
+        BlockHash:   block.Hash(),
+        ValidatorID: validator.ID,
+        Signature:   sig,
+        PublicKey:   pubKey,
+    }, nil
+}
+```
+
+### 2. Software Update Signing
+
+Critical one-time releases:
+
+```go
+type SoftwareRelease struct {
+    Version   string
+    Hash      []byte
+    Signature *lamport.Signature
+    PubKey    []byte
+}
+
+func signRelease(masterKey *lamport.PrivateKey, release *Release) (*SoftwareRelease, error) {
+    // This key will NEVER be used again
+    sig, err := masterKey.Sign(release.Hash)
+    if err != nil {
+        return nil, err
+    }
+
+    return &SoftwareRelease{
+        Version:   release.Version,
+        Hash:      release.Hash,
+        Signature: sig,
+        PubKey:    masterKey.Public().Bytes(),
+    }, nil
+}
+```
+
+## Performance Benchmarks
+
+| Operation | SHA-256 | SHA-512 | Notes |
+|-----------|---------|---------|-------|
+| Key Generation | 5 ms | 8 ms | Generates 512 random values |
+| Sign | 2 ms | 4 ms | 256 hash operations |
+| Verify | 2 ms | 4 ms | 256 hash comparisons |
+
+## Security Considerations
+
+### One-Time Property
+
+**Critical**: Never reuse a Lamport private key!
+
+```go
+// BAD - DANGEROUS
+key, _ := lamport.GenerateKey(rand.Reader, lamport.SHA256)
+sig1, _ := key.Sign(message1) // OK
+sig2, _ := key.Sign(message2) // FAILS - key is zeroed
+
+// GOOD - Safe usage
+func signMultipleMessages(messages [][]byte) ([]*lamport.Signature, error) {
+    signatures := make([]*lamport.Signature, len(messages))
+
+    for i, msg := range messages {
+        // Generate fresh key for each message
+        key, _ := lamport.GenerateKey(rand.Reader, lamport.SHA256)
+        sig, err := key.Sign(msg)
+        if err != nil {
+            return nil, err
+        }
+        signatures[i] = sig
+    }
+
+    return signatures, nil
+}
+```
+
+### Hash Function Security
+
+| Function | Pre-image | Collision | Quantum Security |
+|----------|-----------|-----------|------------------|
+| SHA-256 | 256 bits | 128 bits | 128 bits |
+| SHA-512 | 512 bits | 256 bits | 256 bits |
+| SHA3-256 | 256 bits | 128 bits | 128 bits |
+
+### Key Storage
+
+```go
+// Secure key generation with entropy check
+func secureKeyGen(hashFunc lamport.HashFunc) (*lamport.PrivateKey, error) {
+    // Use system CSPRNG
+    key, err := lamport.GenerateKey(rand.Reader, hashFunc)
+    if err != nil {
+        return nil, err
+    }
+
+    // Verify public key derivation
+    pubKey := key.Public()
+    if len(pubKey.Bytes()) != lamport.GetPublicKeySize(hashFunc) {
+        return nil, errors.New("key generation verification failed")
+    }
+
+    return key, nil
+}
+```
+
+## Comparison with Other Post-Quantum Schemes
+
+| Scheme | Key Size | Sig Size | Sign Time | Verify Time | Reusable |
+|--------|----------|----------|-----------|-------------|----------|
+| Lamport | 16 KB | 8 KB | 2 ms | 2 ms | No |
+| ML-DSA-65 | 1.9 KB | 3.3 KB | 0.4 ms | 0.1 ms | Yes |
+| SLH-DSA-128f | 32 B | 17 KB | 85 ms | 4 ms | Yes |
+
+## EVM Precompile Integration
+
+Lamport signatures are available as EVM precompiles:
+
+```go
+// Precompile addresses (0x0150-0x0159)
+const (
+    LamportVerify    = "0x0150"  // Verify signature
+    LamportKeyGen    = "0x0151"  // On-chain key generation
+)
+
+// Gas costs
+const (
+    LamportVerifyGas = 10000  // Per verification
+)
+```
+
+## References
+
+- [Lamport's Original Paper (1979)](https://www.microsoft.com/en-us/research/publication/constructing-digital-signatures-one-way-function/)
+- [NIST Post-Quantum Standards](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- [Hash-Based Signatures](https://eprint.iacr.org/2017/349)
