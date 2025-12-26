@@ -1,0 +1,578 @@
+---
+title: EVM Precompiled Contracts
+description: Post-quantum cryptographic precompiles for the Lux EVM
+---
+
+# EVM Precompiled Contracts
+
+Lux provides EVM precompiled contracts for post-quantum cryptographic operations, enabling smart contracts to use quantum-resistant algorithms efficiently.
+
+## Overview
+
+Precompiled contracts offer:
+
+- **Gas Efficiency**: Native implementation is faster than EVM bytecode
+- **Post-Quantum Security**: Access to ML-DSA, ML-KEM, SLH-DSA from Solidity
+- **Standardized Interfaces**: Consistent API across all crypto operations
+- **CGO Optimization**: Automatic use of optimized C libraries when available
+
+## Address Ranges
+
+| Algorithm | Address Range | Description |
+|-----------|---------------|-------------|
+| ML-DSA (FIPS 204) | 0x0110-0x0119 | Post-quantum signatures |
+| ML-KEM (FIPS 203) | 0x0120-0x0129 | Post-quantum key exchange |
+| SLH-DSA (FIPS 205) | 0x0130-0x0139 | Hash-based signatures |
+| SHAKE (FIPS 202) | 0x0140-0x0149 | Extendable output functions |
+| Lamport | 0x0150-0x0159 | One-time signatures |
+| BLS | 0x0160-0x0169 | BLS signature operations |
+
+## Precompile Interface
+
+### Go Interface
+
+```go
+package precompile
+
+// PrecompiledContract is the interface for EVM precompiled contracts
+type PrecompiledContract interface {
+    RequiredGas(input []byte) uint64  // Calculate gas cost
+    Run(input []byte) ([]byte, error) // Execute the precompile
+}
+
+// Registry contains all available precompiled contracts
+type Registry struct {
+    contracts map[Address]PrecompiledContract
+    addresses []Address
+}
+
+// Get returns a precompiled contract by address
+func (r *Registry) Get(addr Address) (PrecompiledContract, bool) {
+    contract, exists := r.contracts[addr]
+    return contract, exists
+}
+```
+
+### Global Registry
+
+```go
+// PostQuantumRegistry contains all post-quantum precompiles
+var PostQuantumRegistry = NewRegistry()
+
+func init() {
+    // Register ML-DSA precompiles
+    PostQuantumRegistry.Register(
+        Address{0x01, 0x10},
+        &MLDSAVerify{},
+    )
+
+    // Register ML-KEM precompiles
+    PostQuantumRegistry.Register(
+        Address{0x01, 0x20},
+        &MLKEMDecapsulate{},
+    )
+
+    // Register SHAKE precompiles
+    PostQuantumRegistry.Register(
+        Address{0x01, 0x40},
+        &SHAKE256{},
+    )
+}
+```
+
+## ML-DSA Precompiles
+
+### ML-DSA Verify (0x0110)
+
+Verify ML-DSA signatures on-chain:
+
+```go
+type MLDSAVerify struct{}
+
+func (m *MLDSAVerify) RequiredGas(input []byte) uint64 {
+    // Gas cost based on security level
+    mode := input[0]
+    switch mode {
+    case 44: // ML-DSA-44
+        return 50000
+    case 65: // ML-DSA-65
+        return 75000
+    case 87: // ML-DSA-87
+        return 100000
+    default:
+        return 100000
+    }
+}
+
+func (m *MLDSAVerify) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0]: mode (44, 65, or 87)
+    // [1:pubKeyLen+1]: public key
+    // [pubKeyLen+1:pubKeyLen+msgLen+1]: message
+    // [rest]: signature
+
+    mode := mldsa.Mode(input[0])
+    // Parse and verify signature
+
+    if valid {
+        return []byte{1}, nil
+    }
+    return []byte{0}, nil
+}
+```
+
+### Solidity Interface
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IMLDSAVerify {
+    function verify(
+        uint8 mode,
+        bytes calldata publicKey,
+        bytes calldata message,
+        bytes calldata signature
+    ) external view returns (bool);
+}
+
+contract MLDSAVerifier {
+    address constant MLDSA_VERIFY = address(0x0110);
+
+    function verifyMLDSA65(
+        bytes calldata publicKey,
+        bytes calldata message,
+        bytes calldata signature
+    ) external view returns (bool) {
+        bytes memory input = abi.encodePacked(
+            uint8(65),
+            publicKey,
+            message,
+            signature
+        );
+
+        (bool success, bytes memory result) = MLDSA_VERIFY.staticcall(input);
+        require(success, "Precompile call failed");
+
+        return result[0] == 1;
+    }
+}
+```
+
+## ML-KEM Precompiles
+
+### ML-KEM Decapsulate (0x0120)
+
+Decapsulate shared secrets on-chain:
+
+```go
+type MLKEMDecapsulate struct{}
+
+func (m *MLKEMDecapsulate) RequiredGas(input []byte) uint64 {
+    mode := input[0]
+    switch mode {
+    case 0: // ML-KEM-512
+        return 30000
+    case 1: // ML-KEM-768
+        return 45000
+    case 2: // ML-KEM-1024
+        return 60000
+    default:
+        return 60000
+    }
+}
+
+func (m *MLKEMDecapsulate) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0]: mode (0=512, 1=768, 2=1024)
+    // [1:privKeyLen+1]: private key (decapsulation key)
+    // [rest]: ciphertext
+
+    // Decapsulate and return shared secret
+    sharedSecret, err := mlkem.Decapsulate(privateKey, ciphertext)
+    if err != nil {
+        return nil, err
+    }
+
+    return sharedSecret, nil
+}
+```
+
+### Solidity Interface
+
+```solidity
+interface IMLKEMDecapsulate {
+    function decapsulate(
+        uint8 mode,
+        bytes calldata privateKey,
+        bytes calldata ciphertext
+    ) external view returns (bytes32 sharedSecret);
+}
+
+contract QuantumKeyExchange {
+    address constant MLKEM_DECAP = address(0x0120);
+
+    function establishSharedSecret(
+        bytes calldata encryptedKey,
+        bytes calldata ciphertext
+    ) external view returns (bytes32) {
+        // Decrypt the ML-KEM private key
+        bytes memory privateKey = decrypt(encryptedKey);
+
+        bytes memory input = abi.encodePacked(
+            uint8(1), // ML-KEM-768
+            privateKey,
+            ciphertext
+        );
+
+        (bool success, bytes memory result) = MLKEM_DECAP.staticcall(input);
+        require(success, "Decapsulation failed");
+
+        return bytes32(result);
+    }
+}
+```
+
+## SHAKE Precompiles
+
+### SHAKE256 (0x0140)
+
+Extendable-output hash function:
+
+```go
+type SHAKE256 struct{}
+
+func (s *SHAKE256) RequiredGas(input []byte) uint64 {
+    // 10 gas per 32 bytes of input
+    // Plus 5 gas per 32 bytes of output
+    outputLen := binary.BigEndian.Uint32(input[:4])
+    inputLen := len(input) - 4
+
+    gasInput := uint64((inputLen + 31) / 32 * 10)
+    gasOutput := uint64((outputLen + 31) / 32 * 5)
+
+    return gasInput + gasOutput + 100 // Base cost
+}
+
+func (s *SHAKE256) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0:4]: output length (big endian)
+    // [4:]: data to hash
+
+    outputLen := binary.BigEndian.Uint32(input[:4])
+    data := input[4:]
+
+    // Generate SHAKE256 output
+    output := make([]byte, outputLen)
+    sha3.ShakeSum256(output, data)
+
+    return output, nil
+}
+```
+
+### Solidity Interface
+
+```solidity
+interface ISHAKE256 {
+    function hash(
+        uint32 outputLength,
+        bytes calldata data
+    ) external view returns (bytes memory);
+}
+
+contract ShakeHasher {
+    address constant SHAKE256 = address(0x0140);
+
+    function shake256(
+        bytes calldata data,
+        uint32 outputLen
+    ) external view returns (bytes memory) {
+        bytes memory input = abi.encodePacked(
+            outputLen,
+            data
+        );
+
+        (bool success, bytes memory result) = SHAKE256.staticcall(input);
+        require(success, "SHAKE256 failed");
+
+        return result;
+    }
+
+    // Derive key material
+    function deriveKey(
+        bytes calldata seed,
+        bytes calldata info
+    ) external view returns (bytes32) {
+        bytes memory combined = abi.encodePacked(seed, info);
+        bytes memory result = this.shake256(combined, 32);
+        return bytes32(result);
+    }
+}
+```
+
+## BLS Precompiles
+
+### BLS Verify (0x0160)
+
+Verify BLS signatures:
+
+```go
+type BLSVerify struct{}
+
+func (b *BLSVerify) RequiredGas(input []byte) uint64 {
+    return 50000 // Base verification cost
+}
+
+func (b *BLSVerify) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0:48]: public key (compressed G1)
+    // [48:144]: signature (compressed G2)
+    // [144:]: message
+
+    pubKey, err := bls.PublicKeyFromCompressedBytes(input[:48])
+    if err != nil {
+        return []byte{0}, nil
+    }
+
+    sig, err := bls.SignatureFromBytes(input[48:144])
+    if err != nil {
+        return []byte{0}, nil
+    }
+
+    message := input[144:]
+
+    if bls.Verify(pubKey, sig, message) {
+        return []byte{1}, nil
+    }
+    return []byte{0}, nil
+}
+```
+
+### BLS Aggregate Verify (0x0161)
+
+Verify aggregated signatures:
+
+```go
+type BLSAggregateVerify struct{}
+
+func (b *BLSAggregateVerify) RequiredGas(input []byte) uint64 {
+    // Parse number of public keys
+    numKeys := binary.BigEndian.Uint32(input[:4])
+    return 50000 + uint64(numKeys)*10000
+}
+
+func (b *BLSAggregateVerify) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0:4]: number of public keys
+    // [4:4+48*n]: public keys (compressed G1)
+    // [4+48*n:4+48*n+96]: aggregated signature (compressed G2)
+    // [rest]: message
+
+    // Parse and verify aggregate signature
+    if bls.VerifyAggregateCommon(publicKeys, message, aggSig) {
+        return []byte{1}, nil
+    }
+    return []byte{0}, nil
+}
+```
+
+## Lamport Precompiles
+
+### Lamport Verify (0x0150)
+
+Verify Lamport one-time signatures:
+
+```go
+type LamportVerify struct{}
+
+func (l *LamportVerify) RequiredGas(input []byte) uint64 {
+    hashFunc := input[0]
+    switch hashFunc {
+    case 0: // SHA256
+        return 100000 // 256 hash operations
+    case 1: // SHA512
+        return 200000 // 512 hash operations
+    default:
+        return 100000
+    }
+}
+
+func (l *LamportVerify) Run(input []byte) ([]byte, error) {
+    // Input format:
+    // [0]: hash function (0=SHA256, 1=SHA512)
+    // [1:pubKeyLen+1]: public key
+    // [pubKeyLen+1:pubKeyLen+msgLen+1]: message hash
+    // [rest]: signature
+
+    hashFunc := lamport.HashFunc(input[0])
+    // Parse and verify
+
+    if pubKey.VerifyHash(msgHash, signature) {
+        return []byte{1}, nil
+    }
+    return []byte{0}, nil
+}
+```
+
+## Gas Costs Summary
+
+| Precompile | Address | Gas Cost |
+|------------|---------|----------|
+| ML-DSA-44 Verify | 0x0110 | 50,000 |
+| ML-DSA-65 Verify | 0x0110 | 75,000 |
+| ML-DSA-87 Verify | 0x0110 | 100,000 |
+| ML-KEM-512 Decap | 0x0120 | 30,000 |
+| ML-KEM-768 Decap | 0x0120 | 45,000 |
+| ML-KEM-1024 Decap | 0x0120 | 60,000 |
+| SHAKE256 | 0x0140 | 100 + 10/32B input + 5/32B output |
+| Lamport-SHA256 | 0x0150 | 100,000 |
+| BLS Verify | 0x0160 | 50,000 |
+| BLS Aggregate Verify | 0x0161 | 50,000 + 10,000/key |
+
+## Smart Contract Example
+
+Complete example using post-quantum precompiles:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract PostQuantumAuth {
+    address constant MLDSA_VERIFY = address(0x0110);
+    address constant SHAKE256 = address(0x0140);
+
+    mapping(address => bytes) public publicKeys;
+
+    event KeyRegistered(address indexed user, bytes publicKey);
+    event ActionAuthorized(address indexed user, bytes32 actionHash);
+
+    function registerKey(bytes calldata mldsaPublicKey) external {
+        require(mldsaPublicKey.length == 1952, "Invalid ML-DSA-65 key size");
+        publicKeys[msg.sender] = mldsaPublicKey;
+        emit KeyRegistered(msg.sender, mldsaPublicKey);
+    }
+
+    function authorizeAction(
+        bytes32 actionHash,
+        bytes calldata signature
+    ) external {
+        bytes memory publicKey = publicKeys[msg.sender];
+        require(publicKey.length > 0, "No key registered");
+
+        // Prepare verification input
+        bytes memory input = abi.encodePacked(
+            uint8(65), // ML-DSA-65
+            publicKey,
+            abi.encodePacked(actionHash),
+            signature
+        );
+
+        // Call precompile
+        (bool success, bytes memory result) = MLDSA_VERIFY.staticcall(input);
+        require(success && result[0] == 1, "Signature verification failed");
+
+        emit ActionAuthorized(msg.sender, actionHash);
+    }
+
+    function deriveSessionKey(
+        bytes calldata masterSecret,
+        uint256 sessionId
+    ) external view returns (bytes32) {
+        bytes memory input = abi.encodePacked(
+            uint32(32), // Output 32 bytes
+            masterSecret,
+            sessionId
+        );
+
+        (bool success, bytes memory result) = SHAKE256.staticcall(input);
+        require(success, "Key derivation failed");
+
+        return bytes32(result);
+    }
+}
+```
+
+## Testing Precompiles
+
+```go
+func TestMLDSAPrecompile(t *testing.T) {
+    // Generate key pair
+    pub, priv, err := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
+    require.NoError(t, err)
+
+    message := []byte("test message")
+    signature, err := priv.Sign(rand.Reader, message, crypto.Hash(0))
+    require.NoError(t, err)
+
+    // Create precompile input
+    input := make([]byte, 0)
+    input = append(input, 65) // Mode
+    input = append(input, pub.Bytes()...)
+    input = append(input, message...)
+    input = append(input, signature...)
+
+    // Run precompile
+    precompile := &MLDSAVerify{}
+    result, err := precompile.Run(input)
+    require.NoError(t, err)
+    require.Equal(t, byte(1), result[0])
+
+    // Test gas calculation
+    gas := precompile.RequiredGas(input)
+    require.Equal(t, uint64(75000), gas)
+}
+```
+
+## Security Considerations
+
+### Input Validation
+
+```go
+func (m *MLDSAVerify) Run(input []byte) ([]byte, error) {
+    // Always validate input length
+    if len(input) < minInputLength {
+        return nil, errors.New("input too short")
+    }
+
+    // Validate mode
+    mode := input[0]
+    if mode != 44 && mode != 65 && mode != 87 {
+        return nil, errors.New("invalid mode")
+    }
+
+    // Validate key size matches mode
+    expectedKeySize := getKeySize(mode)
+    if len(input) < 1+expectedKeySize {
+        return nil, errors.New("invalid public key size")
+    }
+
+    // Continue with verification...
+}
+```
+
+### Gas Griefing Prevention
+
+```go
+func (s *SHAKE256) RequiredGas(input []byte) uint64 {
+    // Cap maximum output length to prevent DoS
+    outputLen := binary.BigEndian.Uint32(input[:4])
+    if outputLen > maxOutputLength {
+        outputLen = maxOutputLength
+    }
+
+    // Ensure minimum gas cost
+    gas := calculateGas(input, outputLen)
+    if gas < minGas {
+        return minGas
+    }
+
+    return gas
+}
+```
+
+## References
+
+- [EIP-2537: BLS12-381 Precompiles](https://eips.ethereum.org/EIPS/eip-2537)
+- [NIST FIPS 202: SHA-3](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf)
+- [NIST FIPS 204: ML-DSA](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf)
+- [Solidity Precompiles](https://docs.soliditylang.org/en/latest/units-and-global-variables.html#precompiled-contracts)
