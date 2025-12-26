@@ -52,6 +52,20 @@ func SecretKeyToBytes(sk *SecretKey) []byte {
 	return data
 }
 
+// SecretKeyFromSeed derives a secret key from a seed using proper BLS key derivation.
+// The seed is passed through internal key derivation, so any 32+ byte input
+// will produce a valid secret key.
+func SecretKeyFromSeed(seed []byte) (*SecretKey, error) {
+	if len(seed) < 32 {
+		return nil, errors.New("seed must be at least 32 bytes")
+	}
+	sk, err := blssign.KeyGen[blssign.KeyG1SigG2](seed, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &SecretKey{sk: sk}, nil
+}
+
 func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
 	if len(skBytes) != SecretKeyLen {
 		return nil, ErrFailedSecretKeyDeserialize
