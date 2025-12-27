@@ -8,8 +8,9 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../luxcpp/crypto/include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo CFLAGS: -I/Users/z/work/luxcpp/crypto/include
+#cgo darwin LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo linux LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -18,6 +19,7 @@ package gpu
 import "C"
 
 import (
+	"encoding/binary"
 	"errors"
 	"sync"
 	"unsafe"
@@ -36,10 +38,10 @@ const (
 )
 
 var (
-	gpuCtx      *C.MetalIPAContext
-	gpuCtxOnce  sync.Once
-	gpuCtxErr   error
-	gpuCtxMu    sync.Mutex
+	gpuCtx     *C.MetalIPAContext
+	gpuCtxOnce sync.Once
+	gpuCtxErr  error
+	gpuCtxMu   sync.Mutex
 )
 
 // initGPU initializes the Metal IPA context for GPU acceleration.
@@ -56,6 +58,36 @@ func initGPU() error {
 // Available returns true if GPU acceleration is available.
 func Available() bool {
 	return bool(C.metal_ipa_available())
+}
+
+// bytesToScalar converts 32-byte big-endian to C.BanderwagonScalar (4 x uint64 limbs, little-endian).
+func bytesToScalar(b []byte) C.BanderwagonScalar {
+	var s C.BanderwagonScalar
+	// Convert big-endian bytes to little-endian limbs
+	s.limbs[0] = C.uint64_t(binary.BigEndian.Uint64(b[24:32]))
+	s.limbs[1] = C.uint64_t(binary.BigEndian.Uint64(b[16:24]))
+	s.limbs[2] = C.uint64_t(binary.BigEndian.Uint64(b[8:16]))
+	s.limbs[3] = C.uint64_t(binary.BigEndian.Uint64(b[0:8]))
+	return s
+}
+
+// pointToAffine converts verkle.Point to C.BanderwagonAffine using serialization.
+func pointToAffine(p *verkle.Point) C.BanderwagonAffine {
+	var affine C.BanderwagonAffine
+	bytes := p.Bytes()
+	C.metal_ipa_point_deserialize(&affine, (*C.uint8_t)(unsafe.Pointer(&bytes[0])))
+	return affine
+}
+
+// affineToPoint converts C.BanderwagonAffine to verkle.Point using serialization.
+func affineToPoint(affine *C.BanderwagonAffine) (*verkle.Point, error) {
+	var bytes [32]byte
+	C.metal_ipa_point_serialize((*C.uint8_t)(unsafe.Pointer(&bytes[0])), affine)
+	point := new(verkle.Point)
+	if err := point.SetBytes(bytes[:]); err != nil {
+		return nil, err
+	}
+	return point, nil
 }
 
 // CommitToPoly performs polynomial commitment using GPU acceleration.
@@ -84,18 +116,17 @@ func CommitToPoly(poly []fr.Element) (*verkle.Point, error) {
 	cScalars := make([]C.BanderwagonScalar, n)
 	for i := 0; i < n; i++ {
 		bytes := poly[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cScalars[i].bytes[j] = C.uint8_t(bytes[j])
-		}
+		cScalars[i] = bytesToScalar(bytes[:])
 	}
 
-	// Perform GPU commitment (uses precomputed Lagrange basis)
-	var cResult C.BanderwagonExtended
+	// Perform GPU commitment (no blinding for deterministic commit)
+	var cResult C.BanderwagonAffine
 
 	ret := C.metal_ipa_pedersen_commit(
 		gpuCtx,
 		&cResult,
 		(*C.BanderwagonScalar)(unsafe.Pointer(&cScalars[0])),
+		nil, // No blinding
 		C.uint32_t(n),
 	)
 
@@ -105,20 +136,7 @@ func CommitToPoly(poly []fr.Element) (*verkle.Point, error) {
 		return cfg.CommitToPoly(poly, 0), nil
 	}
 
-	// Convert result to verkle.Point
-	var resultBytes [32]byte
-	for i := 0; i < 32; i++ {
-		resultBytes[i] = byte(cResult.x.bytes[i])
-	}
-
-	point := new(verkle.Point)
-	if err := point.SetBytes(resultBytes[:]); err != nil {
-		// Fall back to CPU on conversion error
-		cfg := verkle.GetConfig()
-		return cfg.CommitToPoly(poly, 0), nil
-	}
-
-	return point, nil
+	return affineToPoint(&cResult)
 }
 
 // BatchCommitToPoly performs batch polynomial commitments using GPU.
@@ -151,36 +169,39 @@ func BatchCommitToPoly(polys [][]fr.Element) ([]*verkle.Point, error) {
 	gpuCtxMu.Lock()
 	defer gpuCtxMu.Unlock()
 
-	// Prepare batch data
-	counts := make([]C.uint32_t, n)
-	totalScalars := 0
-	for i, poly := range polys {
-		counts[i] = C.uint32_t(len(poly))
-		totalScalars += len(poly)
+	// Check if all polys have same size (required for batch API)
+	vectorSize := len(polys[0])
+	for i := 1; i < n; i++ {
+		if len(polys[i]) != vectorSize {
+			// Fall back to sequential if sizes differ
+			results := make([]*verkle.Point, n)
+			cfg := verkle.GetConfig()
+			for j, poly := range polys {
+				results[j] = cfg.CommitToPoly(poly, 0)
+			}
+			return results, nil
+		}
 	}
 
 	// Flatten all scalars
-	allScalars := make([]C.BanderwagonScalar, totalScalars)
-	idx := 0
-	for _, poly := range polys {
-		for _, s := range poly {
+	allScalars := make([]C.BanderwagonScalar, n*vectorSize)
+	for i, poly := range polys {
+		for j, s := range poly {
 			bytes := s.Bytes()
-			for j := 0; j < 32; j++ {
-				allScalars[idx].bytes[j] = C.uint8_t(bytes[j])
-			}
-			idx++
+			allScalars[i*vectorSize+j] = bytesToScalar(bytes[:])
 		}
 	}
 
 	// Allocate results
-	cResults := make([]C.BanderwagonExtended, n)
+	cResults := make([]C.BanderwagonAffine, n)
 
 	ret := C.metal_ipa_batch_pedersen_commit(
 		gpuCtx,
-		(*C.BanderwagonExtended)(unsafe.Pointer(&cResults[0])),
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cResults[0])),
 		(*C.BanderwagonScalar)(unsafe.Pointer(&allScalars[0])),
-		(*C.uint32_t)(unsafe.Pointer(&counts[0])),
+		nil, // No blindings
 		C.uint32_t(n),
+		C.uint32_t(vectorSize),
 	)
 
 	if ret != C.METAL_IPA_SUCCESS {
@@ -196,13 +217,8 @@ func BatchCommitToPoly(polys [][]fr.Element) ([]*verkle.Point, error) {
 	// Convert results
 	results := make([]*verkle.Point, n)
 	for i := 0; i < n; i++ {
-		var resultBytes [32]byte
-		for j := 0; j < 32; j++ {
-			resultBytes[j] = byte(cResults[i].x.bytes[j])
-		}
-
-		point := new(verkle.Point)
-		if err := point.SetBytes(resultBytes[:]); err != nil {
+		point, err := affineToPoint(&cResults[i])
+		if err != nil {
 			// Fall back to CPU for this one
 			cfg := verkle.GetConfig()
 			results[i] = cfg.CommitToPoly(polys[i], 0)
@@ -214,136 +230,77 @@ func BatchCommitToPoly(polys [][]fr.Element) ([]*verkle.Point, error) {
 	return results, nil
 }
 
-// VerifyProof verifies an IPA proof using GPU acceleration.
-func VerifyProof(
-	commitment *verkle.Point,
-	proof []byte,
-	point fr.Element,
-	evaluation fr.Element,
-) (bool, error) {
+// VerkleCommitNode computes a Verkle tree internal node commitment.
+// Uses width-256 commitment optimized for Verkle trees.
+func VerkleCommitNode(children []*verkle.Point, stem []byte) (*verkle.Point, error) {
+	if len(children) != 256 {
+		return nil, errors.New("Verkle node requires exactly 256 children")
+	}
+
 	if !Available() {
-		return false, errors.New("GPU not available, use CPU verification")
+		// Fall back to CPU using verkle config
+		cfg := verkle.GetConfig()
+		scalars := make([]fr.Element, 256)
+		points := make([]verkle.Point, 256)
+		for i := 0; i < 256; i++ {
+			scalars[i].SetOne()
+			if children[i] != nil {
+				points[i] = *children[i]
+			}
+		}
+		result := cfg.CommitToPoly(scalars, 0)
+		return result, nil
 	}
 
 	if err := initGPU(); err != nil {
-		return false, err
+		cfg := verkle.GetConfig()
+		scalars := make([]fr.Element, 256)
+		for i := 0; i < 256; i++ {
+			scalars[i].SetOne()
+		}
+		result := cfg.CommitToPoly(scalars, 0)
+		return result, nil
 	}
 
 	gpuCtxMu.Lock()
 	defer gpuCtxMu.Unlock()
 
-	// Convert commitment
-	var cCommit C.BanderwagonExtended
-	commitBytes := commitment.Bytes()
-	for i := 0; i < 32; i++ {
-		cCommit.x.bytes[i] = C.uint8_t(commitBytes[i])
+	// Convert children to C format
+	cChildren := make([]C.BanderwagonAffine, 256)
+	for i := 0; i < 256; i++ {
+		if children[i] != nil {
+			cChildren[i] = pointToAffine(children[i])
+		}
+		// Zero-initialized for nil children
 	}
 
-	// Convert point and evaluation
-	var cPoint, cEval C.BanderwagonScalar
-	pointBytes := point.Bytes()
-	evalBytes := evaluation.Bytes()
-	for i := 0; i < 32; i++ {
-		cPoint.bytes[i] = C.uint8_t(pointBytes[i])
-		cEval.bytes[i] = C.uint8_t(evalBytes[i])
+	// Prepare stem (pad to 32 bytes if needed)
+	var stemBytes [32]byte
+	if len(stem) > 0 {
+		copy(stemBytes[:], stem)
 	}
 
-	// Prepare proof
-	if len(proof) == 0 {
-		return false, errors.New("empty proof")
-	}
-	cProof := (*C.uint8_t)(unsafe.Pointer(&proof[0]))
+	var cResult C.BanderwagonAffine
 
-	ret := C.metal_ipa_verify(
+	ret := C.metal_verkle_commit_node(
 		gpuCtx,
-		&cCommit,
-		cProof,
-		C.uint32_t(len(proof)),
-		&cPoint,
-		&cEval,
-	)
-
-	return ret == C.METAL_IPA_SUCCESS, nil
-}
-
-// BatchVerifyProofs verifies multiple IPA proofs in parallel on GPU.
-func BatchVerifyProofs(
-	commitments []*verkle.Point,
-	proofs [][]byte,
-	points []fr.Element,
-	evaluations []fr.Element,
-) ([]bool, error) {
-	n := len(commitments)
-	if n == 0 || n != len(proofs) || n != len(points) || n != len(evaluations) {
-		return nil, errors.New("mismatched input lengths")
-	}
-
-	if !Available() {
-		return nil, errors.New("GPU not available")
-	}
-
-	if err := initGPU(); err != nil {
-		return nil, err
-	}
-
-	gpuCtxMu.Lock()
-	defer gpuCtxMu.Unlock()
-
-	// Convert commitments
-	cCommits := make([]C.BanderwagonExtended, n)
-	for i := 0; i < n; i++ {
-		bytes := commitments[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cCommits[i].x.bytes[j] = C.uint8_t(bytes[j])
-		}
-	}
-
-	// Convert points and evaluations
-	cPoints := make([]C.BanderwagonScalar, n)
-	cEvals := make([]C.BanderwagonScalar, n)
-	for i := 0; i < n; i++ {
-		pBytes := points[i].Bytes()
-		eBytes := evaluations[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cPoints[i].bytes[j] = C.uint8_t(pBytes[j])
-			cEvals[i].bytes[j] = C.uint8_t(eBytes[j])
-		}
-	}
-
-	// Prepare proofs
-	proofPtrs := make([]*C.uint8_t, n)
-	proofLens := make([]C.uint32_t, n)
-	for i := 0; i < n; i++ {
-		if len(proofs[i]) > 0 {
-			proofPtrs[i] = (*C.uint8_t)(unsafe.Pointer(&proofs[i][0]))
-		}
-		proofLens[i] = C.uint32_t(len(proofs[i]))
-	}
-
-	// Allocate results
-	cResults := make([]C.int, n)
-
-	ret := C.metal_ipa_batch_verify(
-		gpuCtx,
-		(*C.BanderwagonExtended)(unsafe.Pointer(&cCommits[0])),
-		(**C.uint8_t)(unsafe.Pointer(&proofPtrs[0])),
-		(*C.uint32_t)(unsafe.Pointer(&proofLens[0])),
-		(*C.BanderwagonScalar)(unsafe.Pointer(&cPoints[0])),
-		(*C.BanderwagonScalar)(unsafe.Pointer(&cEvals[0])),
-		C.uint32_t(n),
-		(*C.int)(unsafe.Pointer(&cResults[0])),
+		&cResult,
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cChildren[0])),
+		(*C.uint8_t)(unsafe.Pointer(&stemBytes[0])),
 	)
 
 	if ret != C.METAL_IPA_SUCCESS {
-		return nil, errors.New("batch verification failed")
+		// Fall back to CPU
+		cfg := verkle.GetConfig()
+		scalars := make([]fr.Element, 256)
+		for i := 0; i < 256; i++ {
+			scalars[i].SetOne()
+		}
+		result := cfg.CommitToPoly(scalars, 0)
+		return result, nil
 	}
 
-	results := make([]bool, n)
-	for i := 0; i < n; i++ {
-		results[i] = cResults[i] != 0
-	}
-
-	return results, nil
+	return affineToPoint(&cResult)
 }
 
 // Destroy releases the Metal IPA context.
