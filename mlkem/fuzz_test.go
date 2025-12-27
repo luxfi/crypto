@@ -81,9 +81,9 @@ func FuzzMLKEMEncapsDecaps(f *testing.F) {
 func FuzzMLKEMMalformedCiphertext(f *testing.F) {
 	f.Add([]byte{}, uint8(0))
 	f.Add([]byte{0x00}, uint8(0))
-	f.Add(bytes.Repeat([]byte{0xff}, 768), uint8(0))    // MLKEM512 ct size
-	f.Add(bytes.Repeat([]byte{0xaa}, 1088), uint8(1))   // MLKEM768 ct size
-	f.Add(bytes.Repeat([]byte{0xbb}, 1568), uint8(2))   // MLKEM1024 ct size
+	f.Add(bytes.Repeat([]byte{0xff}, 768), uint8(0))  // MLKEM512 ct size
+	f.Add(bytes.Repeat([]byte{0xaa}, 1088), uint8(1)) // MLKEM768 ct size
+	f.Add(bytes.Repeat([]byte{0xbb}, 1568), uint8(2)) // MLKEM1024 ct size
 	f.Add(bytes.Repeat([]byte{0x00}, 1088), uint8(1))
 	f.Add(bytes.Repeat([]byte{0xde, 0xad}, 800), uint8(2))
 
@@ -126,9 +126,9 @@ func FuzzMLKEMMalformedCiphertext(f *testing.F) {
 func FuzzMLKEMMalformedPublicKey(f *testing.F) {
 	f.Add([]byte{}, uint8(0))
 	f.Add(bytes.Repeat([]byte{0xff}, 48), uint8(0))
-	f.Add(bytes.Repeat([]byte{0x00}, 800), uint8(0))    // MLKEM512 pk size
-	f.Add(bytes.Repeat([]byte{0xaa}, 1184), uint8(1))   // MLKEM768 pk size
-	f.Add(bytes.Repeat([]byte{0xbb}, 1568), uint8(2))   // MLKEM1024 pk size
+	f.Add(bytes.Repeat([]byte{0x00}, 800), uint8(0))  // MLKEM512 pk size
+	f.Add(bytes.Repeat([]byte{0xaa}, 1184), uint8(1)) // MLKEM768 pk size
+	f.Add(bytes.Repeat([]byte{0xbb}, 1568), uint8(2)) // MLKEM1024 pk size
 	f.Add(bytes.Repeat([]byte{0xde, 0xad, 0xbe, 0xef}, 300), uint8(1))
 
 	f.Fuzz(func(t *testing.T, garbagePK []byte, modeIdx uint8) {
