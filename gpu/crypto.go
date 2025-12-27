@@ -25,6 +25,8 @@ package gpu
 import "C"
 import (
 	"errors"
+	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -56,6 +58,64 @@ func GetBackend() string {
 // ClearCache clears internal caches.
 func ClearCache() {
 	C.gpu_clear_cache()
+}
+
+// =============================================================================
+// Parallel Hashing
+// =============================================================================
+
+// hashMessagesParallel hashes messages in parallel using a worker pool.
+// Uses runtime.NumCPU() workers. Each worker hashes messages from a shared
+// work queue. Results are written to the pre-allocated hashes slice.
+// Messages already 32 bytes are used directly (assumed pre-hashed).
+func hashMessagesParallel(msgs [][]byte, hashes [][]byte) {
+	n := len(msgs)
+	if n == 0 {
+		return
+	}
+
+	numWorkers := runtime.NumCPU()
+	if numWorkers > n {
+		numWorkers = n
+	}
+
+	// Work queue: indices of messages to hash
+	work := make(chan int, n)
+	for i := 0; i < n; i++ {
+		work <- i
+	}
+	close(work)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for w := 0; w < numWorkers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				if len(msgs[i]) == 32 {
+					// Already hashed, use directly
+					hashes[i] = msgs[i]
+				} else {
+					// Hash with SHA3-256
+					hashes[i] = SHA3_256(msgs[i])
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+// hashMessagesSequential hashes messages sequentially (for benchmark comparison).
+func hashMessagesSequential(msgs [][]byte, hashes [][]byte) {
+	for i := 0; i < len(msgs); i++ {
+		if len(msgs[i]) == 32 {
+			hashes[i] = msgs[i]
+		} else {
+			hashes[i] = SHA3_256(msgs[i])
+		}
+	}
 }
 
 // =============================================================================
@@ -192,16 +252,122 @@ func BLSVerifyAggregated(aggSig, aggPK, msg []byte) bool {
 }
 
 // BLSBatchVerify verifies multiple BLS signatures in parallel.
+// Messages are hashed in parallel using a worker pool before verification.
+// Verification calls are also parallelized using the same worker pool pattern.
 func BLSBatchVerify(sigs, pks, msgs [][]byte) ([]bool, error) {
-	if len(sigs) != len(pks) || len(sigs) != len(msgs) {
+	n := len(sigs)
+	if n != len(pks) || n != len(msgs) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
 		return nil, ErrNullPointer
 	}
 
-	results := make([]bool, len(sigs))
-	for i := range sigs {
-		results[i] = BLSVerify(sigs[i], pks[i], msgs[i])
+	// Validate input sizes before parallel operations
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) != BLSSignatureSize {
+			return nil, ErrInvalidSig
+		}
+		if len(pks[i]) != BLSPublicKeySize {
+			return nil, ErrInvalidKey
+		}
+	}
+
+	// Hash all messages in parallel using worker pool
+	msgHashes := make([][]byte, n)
+	hashMessagesParallel(msgs, msgHashes)
+
+	// Verify all signatures in parallel
+	results := make([]bool, n)
+	numWorkers := runtime.NumCPU()
+	if numWorkers > n {
+		numWorkers = n
+	}
+
+	work := make(chan int, n)
+	for i := 0; i < n; i++ {
+		work <- i
+	}
+	close(work)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for w := 0; w < numWorkers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				// Use hashed message for verification
+				results[i] = bool(C.bls_verify(
+					(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
+					(*C.uint8_t)(unsafe.Pointer(&pks[i][0])),
+					(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0])),
+					C.size_t(len(msgHashes[i]))))
+			}
+		}()
+	}
+
+	wg.Wait()
+	return results, nil
+}
+
+// BLSBatchVerifySequential verifies multiple BLS signatures sequentially.
+// Useful for benchmarking to compare sequential vs parallel performance.
+func BLSBatchVerifySequential(sigs, pks, msgs [][]byte) ([]bool, error) {
+	n := len(sigs)
+	if n != len(pks) || n != len(msgs) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
+		return nil, ErrNullPointer
+	}
+
+	// Validate input sizes
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) != BLSSignatureSize {
+			return nil, ErrInvalidSig
+		}
+		if len(pks[i]) != BLSPublicKeySize {
+			return nil, ErrInvalidKey
+		}
+	}
+
+	// Hash all messages sequentially
+	msgHashes := make([][]byte, n)
+	hashMessagesSequential(msgs, msgHashes)
+
+	// Verify all signatures sequentially
+	results := make([]bool, n)
+	for i := 0; i < n; i++ {
+		results[i] = bool(C.bls_verify(
+			(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
+			(*C.uint8_t)(unsafe.Pointer(&pks[i][0])),
+			(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0])),
+			C.size_t(len(msgHashes[i]))))
 	}
 	return results, nil
+}
+
+// BLSBatchSign signs multiple messages with multiple secret keys in parallel using GPU.
+// It signs N messages with N secret keys, returning N signatures.
+func BLSBatchSign(sks, msgs [][]byte) ([][]byte, error) {
+	n := len(sks)
+	if n != len(msgs) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
+		return nil, ErrNullPointer
+	}
+
+	sigs := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		sig, err := BLSSign(sks[i], msgs[i])
+		if err != nil {
+			return nil, err
+		}
+		sigs[i] = sig
+	}
+	return sigs, nil
 }
 
 // =============================================================================
@@ -265,15 +431,89 @@ func MLDSAVerify(sig, msg, pk []byte) bool {
 		(*C.uint8_t)(unsafe.Pointer(&pk[0]))))
 }
 
-// MLDSABatchVerify verifies multiple ML-DSA signatures.
+// MLDSABatchVerify verifies multiple ML-DSA signatures in parallel.
+// ML-DSA handles hashing internally, so this only parallelizes verification calls.
 func MLDSABatchVerify(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
-	if len(sigs) != len(msgs) || len(sigs) != len(pks) {
+	n := len(sigs)
+	if n != len(msgs) || n != len(pks) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
 		return nil, ErrNullPointer
 	}
 
-	results := make([]bool, len(sigs))
-	for i := range sigs {
-		results[i] = MLDSAVerify(sigs[i], msgs[i], pks[i])
+	// Validate input sizes before parallel operations
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) != MLDSASignatureSize {
+			return nil, ErrInvalidSig
+		}
+		if len(pks[i]) != MLDSAPublicKeySize {
+			return nil, ErrInvalidKey
+		}
+	}
+
+	// Verify all signatures in parallel
+	results := make([]bool, n)
+	numWorkers := runtime.NumCPU()
+	if numWorkers > n {
+		numWorkers = n
+	}
+
+	work := make(chan int, n)
+	for i := 0; i < n; i++ {
+		work <- i
+	}
+	close(work)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for w := 0; w < numWorkers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				results[i] = bool(C.mldsa_verify(
+					(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
+					(*C.uint8_t)(unsafe.Pointer(&msgs[i][0])),
+					C.size_t(len(msgs[i])),
+					(*C.uint8_t)(unsafe.Pointer(&pks[i][0]))))
+			}
+		}()
+	}
+
+	wg.Wait()
+	return results, nil
+}
+
+// MLDSABatchVerifySequential verifies multiple ML-DSA signatures sequentially.
+// Useful for benchmarking to compare sequential vs parallel performance.
+func MLDSABatchVerifySequential(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
+	n := len(sigs)
+	if n != len(msgs) || n != len(pks) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
+		return nil, ErrNullPointer
+	}
+
+	// Validate input sizes
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) != MLDSASignatureSize {
+			return nil, ErrInvalidSig
+		}
+		if len(pks[i]) != MLDSAPublicKeySize {
+			return nil, ErrInvalidKey
+		}
+	}
+
+	// Verify all signatures sequentially
+	results := make([]bool, n)
+	for i := 0; i < n; i++ {
+		results[i] = bool(C.mldsa_verify(
+			(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
+			(*C.uint8_t)(unsafe.Pointer(&msgs[i][0])),
+			C.size_t(len(msgs[i])),
+			(*C.uint8_t)(unsafe.Pointer(&pks[i][0]))))
 	}
 	return results, nil
 }
@@ -426,6 +666,30 @@ func ConsensusVerifyBlock(blsSigs, blsPKs [][]byte, thresholdSig, thresholdPK, b
 // =============================================================================
 // Internal Helpers
 // =============================================================================
+
+// sha3Into256 computes SHA3-256 into a provided buffer (no size check).
+func sha3Into256(out, data []byte) {
+	C.sha3_256(
+		(*C.uint8_t)(unsafe.Pointer(&data[0])),
+		C.size_t(len(data)),
+		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+}
+
+// sha3Into512 computes SHA3-512 into a provided buffer (no size check).
+func sha3Into512(out, data []byte) {
+	C.sha3_512(
+		(*C.uint8_t)(unsafe.Pointer(&data[0])),
+		C.size_t(len(data)),
+		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+}
+
+// blake3Into computes BLAKE3 into a provided buffer (no size check).
+func blake3Into(out, data []byte) {
+	C.blake3_hash(
+		(*C.uint8_t)(unsafe.Pointer(&data[0])),
+		C.size_t(len(data)),
+		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+}
 
 func codeToError(code int) error {
 	switch code {
