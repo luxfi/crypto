@@ -1,6 +1,6 @@
 # AI Assistant Knowledge Base
 
-**Last Updated**: 2026-01-05
+**Last Updated**: 2026-03-22
 **Project**: crypto
 **Organization**: luxfi
 **Repo**: github.com/luxfi/crypto
@@ -58,6 +58,18 @@ cd docs && pnpm build    # Build static site
 | Package | Purpose | LP Reference |
 |---------|---------|--------------|
 | **precompile/** | Post-quantum EVM precompiles | LP-2517 |
+
+### Go 1.26 Features (v1.17.44, 2026-03-22)
+| Package | Purpose | Notes |
+|---------|---------|-------|
+| **secret/** | Secure key material handling | `runtime/secret.Do()` with `GOEXPERIMENT=runtimesecret`, no-op stub otherwise |
+| **encryption/hpke.go** | HPKE encryption (RFC 9180) | Uses Go 1.26 stdlib `crypto/hpke`, X25519 + ML-KEM-768+X25519 hybrid |
+
+Key changes:
+- `secret.Do()` wraps BLS key generation, ECDSA key loading/parsing, HPKE decryption
+- `crypto/hpke` stdlib replaces need for circl HPKE in encryption/ (circl wrapper in hpke/ kept for backward compat)
+- `crypto/rand.Read` never errors in Go 1.26 (panics on failure) -- simplified `random.go`
+- CI: new `test-runtimesecret` job builds/tests with `GOEXPERIMENT=runtimesecret`
 
 ### Supporting Packages
 - **blake2b/, hash/** - Hash functions (SHA, BLAKE, Keccak, SHAKE)
@@ -413,7 +425,7 @@ Static docs site at `docs/` using fumadocs:
 
 ## Key Technologies
 
-- **Go 1.21+** - Implementation language
+- **Go 1.26.1** - Implementation language (uses crypto/hpke, runtime/secret)
 - **Cloudflare CIRCL v1.6.1** - FIPS-compliant PQ implementations
 - **CGO optimizations** - Performance-critical operations
 - **fumadocs** - Documentation framework
