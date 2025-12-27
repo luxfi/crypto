@@ -50,29 +50,22 @@ jobs:
       with:
         go-version: '1.26.1'
 
-    - name: Build binaries
-      run: |
-        # Build for multiple platforms
-        GOOS=linux GOARCH=amd64 go build -o dist/crypto-linux-amd64 ./...
-        GOOS=linux GOARCH=arm64 go build -o dist/crypto-linux-arm64 ./...
-        GOOS=darwin GOARCH=amd64 go build -o dist/crypto-darwin-amd64 ./...
-        GOOS=darwin GOARCH=arm64 go build -o dist/crypto-darwin-arm64 ./...
-        GOOS=windows GOARCH=amd64 go build -o dist/crypto-windows-amd64.exe ./...
+    - name: Verify build
+      run: go build ./...
     
     - name: Generate changelog
       id: changelog
-      uses: mikepenz/release-changelog-builder-action@v4
+      uses: mikepenz/release-changelog-builder-action@v5
       with:
         configuration: ".github/changelog-config.json"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         body: ${{ steps.changelog.outputs.changelog }}
-        files: |
-          dist/*
+        generate_release_notes: true
         draft: false
         prerelease: false
       env:
