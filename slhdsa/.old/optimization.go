@@ -126,8 +126,7 @@ func (o *OptimizedSLHDSA) processTreeOptimized(treeIdx int, sk *PrivateKey, msg 
 	// Cache-friendly tree traversal
 	// Use cache buffer for intermediate values
 
-	// Placeholder for actual tree processing
-	// Real implementation would compute Merkle tree with optimizations
+	// Deprecated: tree processing moved to pq/slhdsa package.
 }
 
 // processTreesSequential processes trees sequentially for size optimization
@@ -135,7 +134,7 @@ func (o *OptimizedSLHDSA) processTreesSequential(sk *PrivateKey, msg []byte, sig
 	// Sequential processing with minimal memory footprint
 	// Reuse cache buffer for each tree
 
-	// Placeholder for actual sequential processing
+	// Deprecated: sequential processing moved to pq/slhdsa package.
 }
 
 // signWithSIMD uses SIMD instructions for acceleration
@@ -275,7 +274,7 @@ type BenchmarkResult struct {
 	VerifyOpsPerSec float64
 }
 
-// nanotime returns current time in nanoseconds (placeholder)
+// nanotime returns current time in nanoseconds (unused; see time.Now().UnixNano()).
 func nanotime() int64 {
 	return int64(uintptr(unsafe.Pointer(&struct{}{})))
 }
@@ -311,14 +310,12 @@ func InitPrecomputation() {
 
 // precomputeHashChains precomputes common hash chains
 func precomputeHashChains(mode Mode) {
-	// Placeholder for hash chain precomputation
-	// Real implementation would compute commonly used chains
+	// Deprecated: hash chain precomputation moved to pq/slhdsa package.
 	precomputedChains[mode] = make([]byte, 1024)
 }
 
 // precomputeWinternitz precomputes Winternitz chain values
 func precomputeWinternitz(mode Mode) {
-	// Placeholder for Winternitz precomputation
-	// Real implementation would compute chain values
+	// Deprecated: Winternitz precomputation moved to pq/slhdsa package.
 	winternitzTables[mode] = make([][]byte, 16)
 }

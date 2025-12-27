@@ -134,7 +134,7 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		var xInv fr.Element
 		xInv.Inverse(&x)
 
-		// TODO: We could use a for loop here like in the Rust code
+		// Fold scalars and points for this round of the IPA reduction.
 		a, err = foldScalars(a_L, a_R, x)
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not fold a scalars a_L and a_R with x: %w", err)

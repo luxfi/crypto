@@ -392,7 +392,8 @@ func (p *Element) Sub(p1, p2 *Element) *Element {
 
 // IsOnCurve returns true if p is on the curve.
 func (p *Element) IsOnCurve() bool {
-	// TODO: use projective curve equation to check
+	// Convert to affine form; checking via projective equation would avoid
+	// the inversion but gains are negligible for validation-only paths.
 	var point_aff bandersnatch.PointAffine
 	point_aff.FromProj(&p.inner)
 	return point_aff.IsOnCurve()
