@@ -1,9 +1,9 @@
+//go:build cgo
+
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build luxgpu
-
-// NOTE: Requires luxcpp/crypto. Build with: go build -tags=luxgpu
+// Requires luxcpp/crypto C++ library for GPU acceleration.
 // Package gpu provides GPU-accelerated ML-DSA operations via Metal/CUDA.
 // This package links to luxcpp/crypto for hardware acceleration.
 // The C++ library handles automatic fallback to CPU when GPU is unavailable.
