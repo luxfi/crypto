@@ -324,41 +324,12 @@ func (p *Party) Round4_Open(sessionID string, round3msgs map[int]*Round3Message)
 	return msg, nil
 }
 
-// Finalize computes the final signature
+// Finalize computes the final signature.
+// This requires a full CGGMP21 implementation with Paillier-based MtA
+// (multiplicative-to-additive) conversion. Use github.com/luxfi/threshold
+// for production threshold signing.
 func (p *Party) Finalize(sessionID string, round4msgs map[int]*Round4Message) (*Signature, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	session, exists := p.sessions[sessionID]
-	if !exists {
-		return nil, errors.New("session not found")
-	}
-
-	// Store delta values
-	for idx, msg := range round4msgs {
-		session.Deltas[idx] = msg.DeltaI
-	}
-
-	// Compute R = product([k_j * gamma_j]G) for all j
-	// In practice, this involves point multiplication
-
-	// For now, simulate signature computation
-	r := new(big.Int).SetBytes([]byte("simulated_r_value"))
-
-	// Compute s_i (partial signature)
-	// s_i = m * chi_i + r * sigma_i
-	// where sigma_i is the lagrange-adjusted share
-
-	s := new(big.Int).SetBytes([]byte("simulated_s_value"))
-
-	// Store final signature
-	session.R = r
-	session.S = s
-
-	return &Signature{
-		R: r,
-		S: s,
-	}, nil
+	return nil, errors.New("cggmp21: Finalize not implemented — use github.com/luxfi/threshold for production threshold ECDSA")
 }
 
 // Helper functions
