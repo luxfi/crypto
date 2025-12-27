@@ -31,6 +31,7 @@ import (
 
 	"github.com/luxfi/crypto/common"
 	"github.com/luxfi/crypto/rlp"
+	"github.com/luxfi/crypto/secret"
 )
 
 // Re-export common types at the package level for convenience
@@ -181,7 +182,12 @@ func HexToECDSA(hexkey string) (*ecdsa.PrivateKey, error) {
 	} else if err != nil {
 		return nil, errors.New("invalid hex data for private key")
 	}
-	return ToECDSA(b)
+	var key *ecdsa.PrivateKey
+	secret.Do(func() {
+		key, err = ToECDSA(b)
+		clear(b)
+	})
+	return key, err
 }
 
 // LoadECDSA loads a secp256k1 private key from the given file.
@@ -204,7 +210,12 @@ func LoadECDSA(file string) (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 
-	return HexToECDSA(string(buf))
+	var key *ecdsa.PrivateKey
+	secret.Do(func() {
+		key, err = HexToECDSA(string(buf))
+		clear(buf)
+	})
+	return key, err
 }
 
 // readASCII reads into 'buf', stopping when the buffer is full or
