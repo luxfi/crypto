@@ -12,12 +12,64 @@
 package gpu
 
 /*
-#cgo pkg-config: lux-crypto
+#cgo pkg-config: lux-crypto-only
 #cgo darwin,arm64 CFLAGS: -DUSE_METAL=1
 #cgo linux CFLAGS: -DUSE_CUDA=1
 #cgo LDFLAGS: -lstdc++
 
 #include <lux/crypto/crypto.h>
+
+// Short aliases for Go code readability (hides lux_ prefix)
+#define crypto_gpu_available      lux_crypto_gpu_available
+#define crypto_get_backend        lux_crypto_get_backend
+#define crypto_clear_cache        lux_crypto_clear_cache
+
+// BLS
+#define bls_keygen                lux_crypto_bls_keygen
+#define bls_sk_to_pk              lux_crypto_bls_sk_to_pk
+#define bls_sign                  lux_crypto_bls_sign
+#define bls_verify                lux_crypto_bls_verify
+#define bls_aggregate_signatures  lux_crypto_bls_aggregate_signatures
+#define bls_aggregate_public_keys lux_crypto_bls_aggregate_public_keys
+#define bls_verify_aggregated     lux_crypto_bls_verify_aggregated
+#define bls_batch_verify          lux_crypto_bls_batch_verify
+#define bls_batch_sign            lux_crypto_bls_batch_sign
+
+// ML-DSA
+#define mldsa_keygen              lux_crypto_mldsa_keygen
+#define mldsa_sign                lux_crypto_mldsa_sign
+#define mldsa_verify              lux_crypto_mldsa_verify
+#define mldsa_batch_verify        lux_crypto_mldsa_batch_verify
+
+// Threshold
+#define threshold_create          lux_crypto_threshold_create
+#define threshold_destroy         lux_crypto_threshold_destroy
+#define threshold_keygen          lux_crypto_threshold_keygen
+#define threshold_partial_sign    lux_crypto_threshold_partial_sign
+#define threshold_combine         lux_crypto_threshold_combine
+#define threshold_verify          lux_crypto_threshold_verify
+
+// Hashing
+#define crypto_sha3_256           lux_crypto_sha3_256
+#define crypto_sha3_512           lux_crypto_sha3_512
+#define crypto_blake3             lux_crypto_blake3
+#define crypto_batch_hash         lux_crypto_batch_hash
+
+// Consensus
+#define consensus_verify_block    lux_crypto_consensus_verify_block
+
+// Error codes
+#define CRYPTO_SUCCESS            LUX_CRYPTO_SUCCESS
+#define CRYPTO_ERROR_INVALID      LUX_CRYPTO_ERROR_INVALID
+#define CRYPTO_ERROR_INVALID_KEY  LUX_CRYPTO_ERROR_INVALID_KEY
+#define CRYPTO_ERROR_INVALID_SIG  LUX_CRYPTO_ERROR_INVALID_SIG
+#define CRYPTO_ERROR_NULL_PTR     LUX_CRYPTO_ERROR_NULL_PTR
+#define CRYPTO_ERROR_GPU          LUX_CRYPTO_ERROR_GPU
+#define CRYPTO_ERROR_THRESHOLD    LUX_CRYPTO_ERROR_THRESHOLD
+#define CRYPTO_ERROR_HASH         LUX_CRYPTO_ERROR_HASH
+
+// Types
+#define ThresholdContext          LuxCryptoThresholdContext
 
 */
 import "C"
