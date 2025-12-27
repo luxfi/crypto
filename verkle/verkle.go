@@ -23,7 +23,7 @@ type (
 	StateDiff      = upstream.StateDiff
 	NodeResolverFn = upstream.NodeResolverFn
 	IPAConfig      = upstream.IPAConfig
-	Proof = upstream.Proof
+	Proof          = upstream.Proof
 )
 
 // --- Constants ---
