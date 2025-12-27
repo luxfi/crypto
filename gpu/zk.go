@@ -1,4 +1,4 @@
-//go:build luxgpu
+//go:build cgo
 
 // Package gpu provides GPU-accelerated ZK cryptographic operations.
 //
