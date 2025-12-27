@@ -1,30 +1,13 @@
-//go:build cgo && gpu
+//go:build !gpu || !cgo
 
-// Package gpu provides GPU-accelerated ZK cryptographic operations.
-//
-// This package wraps github.com/luxfi/gpu for unified GPU support:
-//   - Metal (Apple Silicon via MLX)
-//   - CUDA (NVIDIA via MLX)
-//   - CPU fallback (gnark-crypto)
-//
-// Operations:
-//   - Poseidon2 hash (BN254/Fr) for Merkle trees
-//   - Multi-scalar multiplication (MSM) for commitments
-//   - Batch commitment/nullifier operations
-//
-// Threshold-gated routing:
-//   - Below threshold: CPU (lower latency)
-//   - Above threshold: GPU (higher throughput)
-//
-// Build with: go build -tags cgo
+// Package gpu provides CPU-only ZK cryptographic operations when GPU support
+// is disabled or CGO is unavailable.
 package gpu
 
 import (
 	"encoding/binary"
 	"errors"
 	"sync"
-
-	cgo "github.com/luxfi/gpu"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/poseidon2"
 	gnarkHash "github.com/consensys/gnark-crypto/hash"
@@ -68,15 +51,16 @@ var (
 
 // Fr256 represents a 256-bit field element (BN254 scalar field).
 // Uses 4 x 64-bit limbs in little-endian order.
-type Fr256 = cgo.Fr256
+type Fr256 [4]uint64
 
 // =============================================================================
 // ZK Context
 // =============================================================================
 
-// ZKContext provides GPU-accelerated ZK operations with automatic routing.
+// ZKContext provides CPU-only ZK operations with automatic routing.
 type ZKContext struct {
-	mu         sync.RWMutex
+	mu sync.RWMutex
+
 	gpuEnabled bool
 	deviceName string
 
@@ -94,14 +78,9 @@ var (
 // GetZKContext returns the global ZK context.
 func GetZKContext() *ZKContext {
 	initOnce.Do(func() {
-		gpuEnabled := cgo.ZKGPUAvailable()
-		deviceName := cgo.ZKGetBackend()
-		if !gpuEnabled {
-			deviceName = "CPU (gnark-crypto)"
-		}
 		defaultZKContext = &ZKContext{
-			gpuEnabled: gpuEnabled,
-			deviceName: deviceName,
+			gpuEnabled: false,
+			deviceName: "CPU (gnark-crypto)",
 		}
 	})
 	return defaultZKContext
@@ -190,14 +169,13 @@ func fr256FromBytes(f *Fr256, buf []byte) error {
 
 // Poseidon2HashPair computes Poseidon2(left, right) with automatic routing.
 func (z *ZKContext) Poseidon2HashPair(left, right *Fr256) Fr256 {
-	// Single hash always uses CPU (GPU overhead not worth it)
 	z.mu.Lock()
 	z.cpuCalls++
 	z.mu.Unlock()
 	return poseidon2HashPairCPU(left, right)
 }
 
-// Poseidon2BatchHashPair computes batch Poseidon2 hashes with threshold routing.
+// Poseidon2BatchHashPair computes batch Poseidon2 hashes with CPU routing.
 func (z *ZKContext) Poseidon2BatchHashPair(left, right []Fr256) ([]Fr256, error) {
 	n := len(left)
 	if n != len(right) {
@@ -207,15 +185,6 @@ func (z *ZKContext) Poseidon2BatchHashPair(left, right []Fr256) ([]Fr256, error)
 		return nil, nil
 	}
 
-	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdPoseidon2 {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.Poseidon2Hash(left, right)
-	}
-
-	// CPU path using gnark-crypto
 	z.mu.Lock()
 	z.cpuCalls++
 	z.mu.Unlock()
@@ -241,15 +210,6 @@ func (z *ZKContext) Poseidon2MerkleLayer(nodes []Fr256) ([]Fr256, error) {
 
 	parentCount := n / 2
 
-	// Check threshold for GPU routing
-	if z.GPUEnabled() && parentCount >= ThresholdMerkle {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.MerkleLayer(nodes)
-	}
-
-	// CPU path
 	z.mu.Lock()
 	z.cpuCalls++
 	z.mu.Unlock()
@@ -271,14 +231,6 @@ func (z *ZKContext) Poseidon2MerkleRoot(leaves []Fr256) (Fr256, error) {
 
 	if n == 1 {
 		return leaves[0], nil
-	}
-
-	// Use GPU if available and above threshold
-	if z.GPUEnabled() && n >= ThresholdMerkle*2 {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.MerkleRoot(leaves)
 	}
 
 	// CPU path - build tree layer by layer
@@ -303,14 +255,6 @@ func (z *ZKContext) Poseidon2MerkleTree(leaves []Fr256) ([]Fr256, error) {
 
 	if n == 1 {
 		return []Fr256{leaves[0]}, nil
-	}
-
-	// Use GPU if available and above threshold
-	if z.GPUEnabled() && n >= ThresholdMerkle*2 {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.MerkleTree(leaves)
 	}
 
 	// CPU path - collect all internal nodes
@@ -345,7 +289,7 @@ func (z *ZKContext) Poseidon2Nullifier(key, commitment, index *Fr256) Fr256 {
 	return poseidon2HashPairCPU(&intermediate, index)
 }
 
-// BatchCommitment computes batch commitments with threshold routing.
+// BatchCommitment computes batch commitments with CPU routing.
 func (z *ZKContext) BatchCommitment(values, blindings, salts []Fr256) ([]Fr256, error) {
 	n := len(values)
 	if n != len(blindings) || n != len(salts) {
@@ -355,15 +299,6 @@ func (z *ZKContext) BatchCommitment(values, blindings, salts []Fr256) ([]Fr256, 
 		return nil, nil
 	}
 
-	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdCommitment {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.BatchCommitment(values, blindings, salts)
-	}
-
-	// CPU path
 	z.mu.Lock()
 	z.cpuCalls++
 	z.mu.Unlock()
@@ -376,7 +311,7 @@ func (z *ZKContext) BatchCommitment(values, blindings, salts []Fr256) ([]Fr256, 
 	return result, nil
 }
 
-// BatchNullifier computes batch nullifiers with threshold routing.
+// BatchNullifier computes batch nullifiers with CPU routing.
 func (z *ZKContext) BatchNullifier(keys, commitments, indices []Fr256) ([]Fr256, error) {
 	n := len(keys)
 	if n != len(commitments) || n != len(indices) {
@@ -386,15 +321,6 @@ func (z *ZKContext) BatchNullifier(keys, commitments, indices []Fr256) ([]Fr256,
 		return nil, nil
 	}
 
-	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdCommitment {
-		z.mu.Lock()
-		z.gpuCalls++
-		z.mu.Unlock()
-		return cgo.BatchNullifier(keys, commitments, indices)
-	}
-
-	// CPU path
 	z.mu.Lock()
 	z.cpuCalls++
 	z.mu.Unlock()
