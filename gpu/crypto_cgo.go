@@ -1,4 +1,4 @@
-//go:build cgo
+//go:build cgo && gpu
 
 // Package gpu provides GPU-accelerated cryptographic operations.
 //
