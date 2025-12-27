@@ -13,7 +13,7 @@ import (
 
 	"github.com/luxfi/cache/lru"
 	"github.com/luxfi/crypto/cb58"
-	"github.com/luxfi/crypto/hashing"
+	"github.com/luxfi/crypto/hash"
 	"github.com/luxfi/ids"
 )
 
@@ -48,7 +48,7 @@ func init() {
 
 // PubkeyBytesToAddress converts public key bytes to an address using SHA256 + RIPEMD160
 func PubkeyBytesToAddress(pubkey []byte) []byte {
-	return hashing.PubkeyBytesToAddress(pubkey)
+	return hash.PubkeyBytesToAddress(pubkey)
 }
 
 // RecoverCache is a cache for recovered public keys
@@ -144,7 +144,7 @@ func (k *PrivateKey) Sign(msg []byte) ([]byte, error) {
 
 // SignArray signs a message and returns a fixed-size array
 func (k *PrivateKey) SignArray(msg []byte) ([SignatureLen]byte, error) {
-	return k.SignHashArray(hashing.ComputeHash256(msg))
+	return k.SignHashArray(hash.ComputeHash256(msg))
 }
 
 // SignHash signs a hash with the private key
@@ -246,12 +246,12 @@ func (k *PublicKey) VerifyHash(hash, sig []byte) bool {
 
 // Verify verifies a signature against a message
 func (k *PublicKey) Verify(msg, sig []byte) bool {
-	return k.VerifyHash(hashing.ComputeHash256(msg), sig)
+	return k.VerifyHash(hash.ComputeHash256(msg), sig)
 }
 
 // RecoverPublicKey recovers the public key from a message and signature
 func RecoverPublicKey(msg, sig []byte) (*PublicKey, error) {
-	return RecoverPublicKeyFromHash(hashing.ComputeHash256(msg), sig)
+	return RecoverPublicKeyFromHash(hash.ComputeHash256(msg), sig)
 }
 
 // RecoverPublicKeyFromHash recovers the public key from a hash and signature
