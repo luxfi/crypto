@@ -21,4 +21,6 @@ var (
 	ErrNoSignatures               = errors.New("no signatures")
 	ErrFailedSignatureAggregation = errors.New("couldn't aggregate signatures")
 	ErrFailedSecretKeyDeserialize = errors.New("couldn't deserialize secret key")
+	ErrInvalidInput               = errors.New("invalid input")
+	ErrGPUNotAvailable            = errors.New("GPU not available")
 )
