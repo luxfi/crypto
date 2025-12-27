@@ -80,7 +80,8 @@ func NewPrivateKey() (*PrivateKey, error) {
 	}, nil
 }
 
-// ToPrivateKey converts bytes to a private key
+// ToPrivateKey converts bytes to a private key.
+// The input bytes are copied — the caller may safely zero the original after this call.
 func ToPrivateKey(b []byte) (*PrivateKey, error) {
 	if len(b) != PrivateKeyLen {
 		return nil, errInvalidPrivateKeyLength
@@ -104,9 +105,13 @@ func ToPrivateKey(b []byte) (*PrivateKey, error) {
 		return nil, errors.New("invalid private key")
 	}
 
+	// Copy input bytes so callers can safely zero the original.
+	keyCopy := make([]byte, PrivateKeyLen)
+	copy(keyCopy, b)
+
 	return &PrivateKey{
 		sk:    priv,
-		bytes: b,
+		bytes: keyCopy,
 	}, nil
 }
 
