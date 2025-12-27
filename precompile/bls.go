@@ -404,7 +404,7 @@ func computeLagrangeCoeff(indices []uint64, i, t int) fr.Element {
 		xi.SetUint64(indices[i] + 1) // 1-indexed for proper interpolation
 		xj.SetUint64(indices[j] + 1)
 
-		num.Neg(&xj)       // -x_j
+		num.Neg(&xj)        // -x_j
 		denom.Sub(&xi, &xj) // x_i - x_j
 		denom.Inverse(&denom)
 
