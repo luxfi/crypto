@@ -1,9 +1,9 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build !metal
+//go:build !luxgpu
 
-// Package gpu provides GPU-accelerated ML-KEM operations.
+// Package gpu provides ML-KEM operations with optional GPU acceleration.
 // This is the stub implementation for non-CGO builds.
 package gpu
 
