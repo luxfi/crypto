@@ -18,6 +18,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/cloudflare/circl/ecc/bls12381"
@@ -81,13 +82,9 @@ func (s *Scheme) PublicKeySize() int {
 }
 
 // NewDKG creates a new distributed key generation instance.
+// BLS DKG is not yet implemented here. Use threshold/protocols/frost for production DKG.
 func (s *Scheme) NewDKG(config threshold.DKGConfig) (threshold.DKG, error) {
-	if err := config.Validate(); err != nil {
-		return nil, err
-	}
-	return &DKG{
-		config: config,
-	}, nil
+	return nil, fmt.Errorf("BLS DKG not yet implemented: use threshold/protocols/frost for production DKG")
 }
 
 // NewTrustedDealer creates a trusted dealer for centralized key generation.
