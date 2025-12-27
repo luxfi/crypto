@@ -43,13 +43,13 @@ lint:
 	golangci-lint run --timeout=5m || true
 	@echo "✅ Linting complete"
 
-# Run tests (exclude cgo/ when native C libs not installed)
+# Run tests (exclude cgo/ when native C libs not installed, timeout per package)
 test:
 	@echo "Running tests..."
 	@if pkg-config --exists lux-crypto lux-gpu 2>/dev/null; then \
-		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 $(ALL_PACKAGES); \
+		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 120s $(ALL_PACKAGES); \
 	else \
-		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 $$($(GOCMD) list ./... | grep -v /cgo); \
+		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 120s $$($(GOCMD) list ./... | grep -v /cgo); \
 	fi
 	@echo "Tests complete"
 
