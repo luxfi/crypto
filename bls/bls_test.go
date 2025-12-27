@@ -309,6 +309,39 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsIdentityKey(t *testing.T) {
+	msg := []byte("test message")
+
+	// Create a valid signature for testing
+	sk, err := NewSecretKey()
+	if err != nil {
+		t.Fatalf("Failed to generate secret key: %v", err)
+	}
+	sig, _ := sk.Sign(msg)
+
+	// Create a zero/identity public key by constructing all-zero bytes
+	// This represents the identity point (point at infinity) in G1
+	zeroKeyBytes := make([]byte, PublicKeyLen)
+	
+	// Attempt to parse the zero key
+	zeroPk, err := PublicKeyFromCompressedBytes(zeroKeyBytes)
+	// If parsing fails (which is expected for identity point), the test passes
+	if err != nil {
+		// This is the expected behavior - identity point should fail to parse
+		return
+	}
+
+	// If it somehow parses, verify should reject it
+	if Verify(zeroPk, sig, msg) {
+		t.Fatal("Verify should reject identity/zero public key")
+	}
+
+	// Also test VerifyProofOfPossession
+	if VerifyProofOfPossession(zeroPk, sig, msg) {
+		t.Fatal("VerifyProofOfPossession should reject identity/zero public key")
+	}
+}
+
 func TestVerifyProofOfPossession(t *testing.T) {
 	msg := []byte("proof of possession")
 
