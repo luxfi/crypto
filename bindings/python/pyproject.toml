@@ -1,0 +1,27 @@
+[project]
+name = "luxcrypto"
+version = "0.1.0"
+description = "Python bindings for Lux post-quantum cryptography (ML-KEM, ML-DSA)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Lux Industries Inc", email = "dev@lux.network" }]
+requires-python = ">=3.10"
+keywords = ["pq", "post-quantum", "mlkem", "mldsa", "fips203", "fips204", "lux"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security :: Cryptography",
+]
+
+[project.urls]
+Homepage = "https://lux.network"
+Repository = "https://github.com/luxfi/crypto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["luxcrypto"]
