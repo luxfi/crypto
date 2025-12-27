@@ -75,9 +75,9 @@ func FuzzMLDSASignVerify(f *testing.F) {
 func FuzzMLDSAMalformedSignature(f *testing.F) {
 	f.Add([]byte{}, uint8(0))
 	f.Add(bytes.Repeat([]byte{0xff}, 96), uint8(0))
-	f.Add(bytes.Repeat([]byte{0xaa}, 2420), uint8(0))   // MLDSA44 sig size
-	f.Add(bytes.Repeat([]byte{0xbb}, 3309), uint8(1))   // MLDSA65 sig size
-	f.Add(bytes.Repeat([]byte{0xcc}, 4627), uint8(2))   // MLDSA87 sig size
+	f.Add(bytes.Repeat([]byte{0xaa}, 2420), uint8(0)) // MLDSA44 sig size
+	f.Add(bytes.Repeat([]byte{0xbb}, 3309), uint8(1)) // MLDSA65 sig size
+	f.Add(bytes.Repeat([]byte{0xcc}, 4627), uint8(2)) // MLDSA87 sig size
 	f.Add(bytes.Repeat([]byte{0x00}, 4627), uint8(2))
 	f.Add([]byte{0x01}, uint8(1))
 	f.Add(bytes.Repeat([]byte{0xde, 0xad}, 2000), uint8(0))
@@ -112,9 +112,9 @@ func FuzzMLDSAMalformedSignature(f *testing.F) {
 func FuzzMLDSAMalformedPublicKey(f *testing.F) {
 	f.Add([]byte{}, uint8(0))
 	f.Add(bytes.Repeat([]byte{0xff}, 48), uint8(0))
-	f.Add(bytes.Repeat([]byte{0x00}, 1312), uint8(0))   // MLDSA44 pk size
-	f.Add(bytes.Repeat([]byte{0xaa}, 1952), uint8(1))   // MLDSA65 pk size
-	f.Add(bytes.Repeat([]byte{0xbb}, 2592), uint8(2))   // MLDSA87 pk size
+	f.Add(bytes.Repeat([]byte{0x00}, 1312), uint8(0)) // MLDSA44 pk size
+	f.Add(bytes.Repeat([]byte{0xaa}, 1952), uint8(1)) // MLDSA65 pk size
+	f.Add(bytes.Repeat([]byte{0xbb}, 2592), uint8(2)) // MLDSA87 pk size
 	f.Add(bytes.Repeat([]byte{0xde, 0xad, 0xbe, 0xef}, 500), uint8(1))
 
 	f.Fuzz(func(t *testing.T, garbagePK []byte, modeIdx uint8) {
