@@ -6,14 +6,14 @@ exclude github.com/luxfi/geth v1.16.1
 
 require (
 	filippo.io/age v1.2.1
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251221085550-b8e13ca38217
-	github.com/cloudflare/circl v1.6.2-0.20251204010831-23491bd573cf
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251230134950-44c893854e3f
+	github.com/cloudflare/circl v1.6.2
 	github.com/consensys/gnark-crypto v0.19.2
 	github.com/crate-crypto/go-eth-kzg v1.4.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/c-kzg-4844/v2 v2.1.5
 	github.com/google/gofuzz v1.2.0
-	github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
+	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
 	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/cache v1.1.0
 	github.com/luxfi/gpu v0.29.4
@@ -26,6 +26,7 @@ require (
 	golang.org/x/crypto v0.46.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
+	lukechampine.com/blake3 v1.2.1
 )
 
 require (
