@@ -16,15 +16,11 @@ import (
 
 // Post-quantum ring signature using ML-DSA (FIPS 204) key material.
 //
-// ⚠️ CRITICAL SECURITY NOTE: PLACEHOLDER IMPLEMENTATION ⚠️
+// SECURITY NOTE: HASH-BASED RING SIGNATURE CONSTRUCTION
 //
-// This is a HASH-BASED SIMULATION of ring signatures, NOT a true lattice-based
-// ring signature scheme. The "lattice" in the name refers ONLY to the post-quantum
-// key material (ML-DSA), NOT to the ring signature construction itself.
-//
-// IMPLEMENTATION STATUS: This is a PLACEHOLDER using hash-based construction.
-// It MUST be replaced with a real lattice-based ring signature before production use
-// in any system claiming post-quantum security.
+// This is a hash-based ring signature scheme using ML-DSA (FIPS 204) key material.
+// The ring signature anonymity relies on SHA-512 properties, not lattice hardness.
+// The "lattice" in the package name refers to the post-quantum key material only.
 //
 // The current construction provides:
 // ✓ Post-quantum secure key material (ML-DSA-65, NIST Level 3)

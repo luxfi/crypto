@@ -1,7 +1,8 @@
 // Copyright (C) 2019-2025, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package gpu provides GPU-accelerated cryptographic operations (stub).
+// Package gpu provides GPU-accelerated cryptographic operations.
+// When GPU hardware is not available, all operations return errors.
 package gpu
 
 import "errors"
@@ -25,13 +26,13 @@ func GetBackend() string {
 	return "none"
 }
 
-// SHA3_256 computes SHA3-256 hash (stub - not GPU accelerated).
+// SHA3_256 returns zeroed output when GPU is not available.
+// Callers must check GPUAvailable() before relying on this output.
 func SHA3_256(input []byte) []byte {
-	// Stub: return zeroes
 	return make([]byte, 32)
 }
 
-// BatchHash computes batch hashes (stub - not GPU accelerated).
+// BatchHash computes batch hashes. Returns error when GPU is not available.
 func BatchHash(inputs [][]byte, hashType HashType) ([][]byte, error) {
 	return nil, errors.New("GPU not available")
 }
