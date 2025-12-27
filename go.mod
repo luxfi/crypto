@@ -5,12 +5,12 @@ go 1.26.1
 exclude github.com/luxfi/geth v1.16.1
 
 require (
-	filippo.io/age v1.2.1
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251230134950-44c893854e3f
+	filippo.io/age v1.3.1
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260215031811-a0ab0b218a81
 	github.com/btcsuite/btcd/btcutil v1.1.6
-	github.com/cloudflare/circl v1.6.2
+	github.com/cloudflare/circl v1.6.3
 	github.com/consensys/gnark-crypto v0.19.2
-	github.com/crate-crypto/go-eth-kzg v1.4.0
+	github.com/crate-crypto/go-eth-kzg v1.5.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/c-kzg-4844/v2 v2.1.5
 	github.com/google/btree v1.1.3
@@ -26,12 +26,13 @@ require (
 	github.com/supranational/blst v0.3.16
 	github.com/zeebo/blake3 v0.2.4
 	go.uber.org/mock v0.6.0
-	golang.org/x/crypto v0.46.0
+	golang.org/x/crypto v0.48.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.41.0
 )
 
 require (
+	filippo.io/hpke v0.4.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
