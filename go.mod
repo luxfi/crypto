@@ -15,6 +15,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
 	github.com/leanovate/gopter v0.2.11
+	github.com/luxfi/cache v1.1.0
 	github.com/luxfi/ids v1.2.4
 	github.com/luxfi/log v1.1.26
 	github.com/mr-tron/base58 v1.2.0
@@ -31,6 +32,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/luxfi/utils v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
