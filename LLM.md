@@ -1,6 +1,6 @@
 # AI Assistant Knowledge Base
 
-**Last Updated**: 2025-12-19
+**Last Updated**: 2026-01-05
 **Project**: crypto
 **Organization**: luxfi
 **Repo**: github.com/luxfi/crypto
@@ -8,6 +8,7 @@
 ## Project Overview
 
 Lux cryptography library implementing post-quantum standards and consensus primitives.
+TLS certificate utilities live in the top-level `github.com/luxfi/tls` module.
 
 ## Essential Commands
 
@@ -59,7 +60,7 @@ cd docs && pnpm build    # Build static site
 | **precompile/** | Post-quantum EVM precompiles | LP-2517 |
 
 ### Supporting Packages
-- **blake2b/, hashing/** - Hash functions (SHA, BLAKE, Keccak, SHAKE)
+- **blake2b/, hash/** - Hash functions (SHA, BLAKE, Keccak, SHAKE)
 - **kem/** - Key encapsulation interface
 - **ecies/** - Hybrid encryption
 - **cb58/** - Base58 encoding
@@ -1457,7 +1458,7 @@ The Go module proxy cached `github.com/luxfi/geth@v1.16.1` which had incorrect m
 | sdk | v1.16.28 | Added exclude, bumped deps (needs more work) |
 
 ### Pending Work
-- **SDK**: Needs import migration from `github.com/luxfi/node/utils/constants` to `github.com/luxfi/constants`
+- **SDK**: Needs import migration from `github.com/luxfi/utils/constants` to `github.com/luxfi/constants`
 - **SDK**: API rename: Subnet→Chain (e.g., `tx.Net` → `tx.Chain`, `txs.ChainValidator.Net` → `txs.ChainValidator.Chain`)
 - **CLI**: Uses local replaces, needs SDK fixes first
 

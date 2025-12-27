@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build gpu && darwin
+//go:build cgo && darwin
 
 // Package blake3 provides Blake3 hash functions via luxcpp/crypto.
 // This CGO version provides optimized hashing with automatic CPU/GPU selection.
@@ -9,17 +9,20 @@
 package blake3
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../luxcpp/crypto/include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo CFLAGS: -I/Users/z/work/luxcpp/crypto/include
+#cgo LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
 
 #include <stdint.h>
 #include <stdlib.h>
 
 // C API from luxcpp/crypto
-extern void crypto_blake3(uint8_t* out, const uint8_t* in, size_t len);
-extern int crypto_batch_hash(uint8_t** outs, const uint8_t* const* ins, const size_t* lens, uint32_t count, int hash_type);
-extern int crypto_gpu_available(void);
-extern const char* crypto_get_backend(void);
+#include <lux/crypto/crypto.h>
+
+// Short aliases for Go code readability (hides lux_crypto_ prefix)
+#define crypto_gpu_available    lux_crypto_gpu_available
+#define crypto_get_backend      lux_crypto_get_backend
+#define crypto_blake3           lux_crypto_blake3
+#define crypto_batch_hash       lux_crypto_batch_hash
 */
 import "C"
 
