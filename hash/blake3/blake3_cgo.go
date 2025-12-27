@@ -42,7 +42,7 @@ const (
 
 var (
 	// useGPU indicates if GPU acceleration is available
-	useGPU = C.crypto_gpu_available() != 0
+	useGPU = bool(C.crypto_gpu_available())
 )
 
 // GPUAvailable returns true if GPU acceleration is available.
