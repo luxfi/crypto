@@ -10,8 +10,10 @@ require (
 	github.com/cloudflare/circl v1.6.2
 	github.com/consensys/gnark-crypto v0.19.2
 	github.com/crate-crypto/go-eth-kzg v1.4.0
+	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/c-kzg-4844/v2 v2.1.5
+	github.com/ethereum/go-verkle v0.2.2
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
 	github.com/leanovate/gopter v0.2.11
