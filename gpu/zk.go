@@ -1,3 +1,5 @@
+//go:build luxgpu
+
 // Package gpu provides GPU-accelerated ZK cryptographic operations.
 //
 // This package wraps github.com/luxfi/gpu for unified GPU support:
@@ -13,6 +15,8 @@
 // Threshold-gated routing:
 //   - Below threshold: CPU (lower latency)
 //   - Above threshold: GPU (higher throughput)
+//
+// Build with: go build -tags cgo
 package gpu
 
 import (
@@ -20,7 +24,7 @@ import (
 	"errors"
 	"sync"
 
-	luxgpu "github.com/luxfi/gpu"
+	cgo "github.com/luxfi/gpu"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/poseidon2"
 	gnarkHash "github.com/consensys/gnark-crypto/hash"
@@ -64,7 +68,7 @@ var (
 
 // Fr256 represents a 256-bit field element (BN254 scalar field).
 // Uses 4 x 64-bit limbs in little-endian order.
-type Fr256 = luxgpu.Fr256
+type Fr256 = cgo.Fr256
 
 // =============================================================================
 // ZK Context
@@ -90,8 +94,8 @@ var (
 // GetZKContext returns the global ZK context.
 func GetZKContext() *ZKContext {
 	initOnce.Do(func() {
-		gpuEnabled := luxgpu.ZKGPUAvailable()
-		deviceName := luxgpu.ZKGetBackend()
+		gpuEnabled := cgo.ZKGPUAvailable()
+		deviceName := cgo.ZKGetBackend()
 		if !gpuEnabled {
 			deviceName = "CPU (gnark-crypto)"
 		}
@@ -208,7 +212,7 @@ func (z *ZKContext) Poseidon2BatchHashPair(left, right []Fr256) ([]Fr256, error)
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.Poseidon2Hash(left, right)
+		return cgo.Poseidon2Hash(left, right)
 	}
 
 	// CPU path using gnark-crypto
@@ -242,7 +246,7 @@ func (z *ZKContext) Poseidon2MerkleLayer(nodes []Fr256) ([]Fr256, error) {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.MerkleLayer(nodes)
+		return cgo.MerkleLayer(nodes)
 	}
 
 	// CPU path
@@ -274,7 +278,7 @@ func (z *ZKContext) Poseidon2MerkleRoot(leaves []Fr256) (Fr256, error) {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.MerkleRoot(leaves)
+		return cgo.MerkleRoot(leaves)
 	}
 
 	// CPU path - build tree layer by layer
@@ -306,7 +310,7 @@ func (z *ZKContext) Poseidon2MerkleTree(leaves []Fr256) ([]Fr256, error) {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.MerkleTree(leaves)
+		return cgo.MerkleTree(leaves)
 	}
 
 	// CPU path - collect all internal nodes
@@ -356,7 +360,7 @@ func (z *ZKContext) BatchCommitment(values, blindings, salts []Fr256) ([]Fr256, 
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.BatchCommitment(values, blindings, salts)
+		return cgo.BatchCommitment(values, blindings, salts)
 	}
 
 	// CPU path
@@ -387,7 +391,7 @@ func (z *ZKContext) BatchNullifier(keys, commitments, indices []Fr256) ([]Fr256,
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return luxgpu.BatchNullifier(keys, commitments, indices)
+		return cgo.BatchNullifier(keys, commitments, indices)
 	}
 
 	// CPU path
