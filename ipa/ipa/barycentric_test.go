@@ -151,8 +151,8 @@ func TestComputeBarycentricCoefficients(t *testing.T) {
 	}
 }
 
-// another way to evaluate a point outside of the domain
-// TODO, we can probably remove this and just interpolate and evaluate in tests
+// evalOutsideDomain evaluates a polynomial at a point outside the precomputed domain.
+// Kept as a test helper; production code uses PrecomputedWeights directly.
 func evalOutsideDomain(preComp *PrecomputedWeights, f []fr.Element, point fr.Element) fr.Element {
 
 	pointMinusDomain := make([]fr.Element, domainSize)
