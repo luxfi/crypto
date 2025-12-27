@@ -9,8 +9,8 @@ import (
 	"crypto/rand"
 	"errors"
 
-	blst "github.com/supranational/blst/bindings/go"
 	"github.com/luxfi/crypto/secret"
+	blst "github.com/supranational/blst/bindings/go"
 )
 
 // Domain separation tags
