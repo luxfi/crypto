@@ -2,50 +2,54 @@ package gpu
 
 import (
 	"testing"
-
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 )
 
-// TestFr256Conversion tests Fr256 <-> gnark-crypto conversion.
-func TestFr256Conversion(t *testing.T) {
-	// Create a random field element
-	var e fr.Element
-	e.SetRandom()
-
-	// Convert to Fr256
-	var f Fr256
-	f.FromGnark(&e)
-
-	// Convert back
-	e2 := f.ToGnark()
-
-	// Should be equal
-	if !e.Equal(&e2) {
-		t.Errorf("Conversion roundtrip failed: got %v, want %v", e2, e)
-	}
-}
-
-// TestFr256Bytes tests Fr256 byte serialization.
-func TestFr256Bytes(t *testing.T) {
+// TestFr256Type tests that Fr256 is correctly defined.
+func TestFr256Type(t *testing.T) {
 	var f Fr256
 	f[0] = 0x1234567890abcdef
 	f[1] = 0xfedcba0987654321
 	f[2] = 0xabcdef0123456789
 	f[3] = 0x9876543210fedcba
 
-	// Serialize
-	buf := f.Bytes()
+	// Verify 4 limbs of 64 bits each
+	if len(f) != 4 {
+		t.Fatalf("Expected 4 limbs, got %d", len(f))
+	}
+
+	// Test copy semantics
+	f2 := f
+	if f != f2 {
+		t.Error("Copy failed")
+	}
+
+	// Modify copy should not affect original
+	f2[0] = 0
+	if f[0] == 0 {
+		t.Error("Copy modified original")
+	}
+}
+
+// TestFr256ByteHelpers tests internal byte conversion helpers.
+func TestFr256ByteHelpers(t *testing.T) {
+	var f Fr256
+	f[0] = 0x1234567890abcdef
+	f[1] = 0xfedcba0987654321
+	f[2] = 0xabcdef0123456789
+	f[3] = 0x9876543210fedcba
+
+	// Use internal helpers via roundtrip through hash
+	// The byte conversion is exercised in poseidon2HashPairCPU
+	buf := fr256ToBytes(&f)
 	if len(buf) != 32 {
 		t.Fatalf("Expected 32 bytes, got %d", len(buf))
 	}
 
-	// Deserialize
 	var f2 Fr256
-	if err := f2.SetBytes(buf); err != nil {
-		t.Fatalf("SetBytes failed: %v", err)
+	if err := fr256FromBytes(&f2, buf); err != nil {
+		t.Fatalf("fr256FromBytes failed: %v", err)
 	}
 
-	// Should be equal
 	if f != f2 {
 		t.Errorf("Byte roundtrip failed: got %v, want %v", f2, f)
 	}

@@ -1,21 +1,18 @@
 // Package gpu provides GPU-accelerated ZK cryptographic operations.
 //
-// This file provides threshold-gated routing between CPU and GPU:
-//   - Below threshold: CPU execution (lower latency for small batches)
-//   - Above threshold: GPU execution (higher throughput for large batches)
+// This package wraps github.com/luxfi/gpu for unified GPU support:
+//   - Metal (Apple Silicon via MLX)
+//   - CUDA (NVIDIA via MLX)
+//   - CPU fallback (gnark-crypto)
 //
 // Operations:
 //   - Poseidon2 hash (BN254/Fr) for Merkle trees
 //   - Multi-scalar multiplication (MSM) for commitments
 //   - Batch commitment/nullifier operations
 //
-// Threshold constants (tuned for Apple Silicon M-series):
-//
-//	POSEIDON2:   64 hashes    - GPU faster above this
-//	MERKLE:     128 leaf pairs - GPU faster above this
-//	MSM:        256 point-scalar pairs - GPU faster above this
-//	COMMITMENT: 128 commitments - GPU faster above this
-//	FRI:        512 evaluations - GPU faster above this
+// Threshold-gated routing:
+//   - Below threshold: CPU (lower latency)
+//   - Above threshold: GPU (higher throughput)
 package gpu
 
 import (
@@ -23,7 +20,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	luxgpu "github.com/luxfi/gpu"
+
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/poseidon2"
 	gnarkHash "github.com/consensys/gnark-crypto/hash"
 )
@@ -31,10 +29,6 @@ import (
 // =============================================================================
 // Threshold Constants
 // =============================================================================
-//
-// These thresholds define the batch size above which GPU acceleration
-// provides better performance than CPU. Below threshold, the GPU dispatch
-// overhead exceeds the compute savings.
 
 const (
 	// ThresholdPoseidon2 is the minimum batch size for GPU Poseidon2 hashing.
@@ -65,86 +59,12 @@ var (
 )
 
 // =============================================================================
-// GPU Function Hooks (set by platform-specific files: zk_metal.go, zk_cuda.go)
-// =============================================================================
-
-// GPUHooks contains function pointers to GPU implementations.
-// These are set by platform-specific init() functions.
-type GPUHooks struct {
-	// Poseidon2 batch hash
-	HashPair func(left, right []Fr256) ([]Fr256, error)
-	// Merkle layer computation
-	MerkleLayer func(nodes []Fr256) ([]Fr256, error)
-	// Complete Merkle tree
-	MerkleTree func(leaves []Fr256) ([]Fr256, error)
-	// Batch commitment
-	BatchCommitment func(values, blindings, salts []Fr256) ([]Fr256, error)
-	// Batch nullifier
-	BatchNullifier func(keys, commitments, indices []Fr256) ([]Fr256, error)
-}
-
-// gpuHooks is the global GPU hooks instance.
-// Set by zk_metal.go or zk_cuda.go depending on platform.
-var gpuHooks *GPUHooks
-
-// RegisterGPUHooks registers GPU implementation functions.
-// Called by platform-specific init() functions.
-func RegisterGPUHooks(hooks *GPUHooks) {
-	gpuHooks = hooks
-}
-
-// hasGPUHook returns true if a specific GPU hook is available.
-func hasGPUHook(hook interface{}) bool {
-	return hook != nil
-}
-
-// =============================================================================
 // Field Element Type (BN254 Fr - 256-bit)
 // =============================================================================
 
 // Fr256 represents a 256-bit field element (BN254 scalar field).
 // Uses 4 x 64-bit limbs in little-endian order.
-type Fr256 [4]uint64
-
-// ToGnark converts Fr256 to gnark-crypto fr.Element.
-func (f *Fr256) ToGnark() fr.Element {
-	var e fr.Element
-	e[0] = f[0]
-	e[1] = f[1]
-	e[2] = f[2]
-	e[3] = f[3]
-	return e
-}
-
-// FromGnark converts gnark-crypto fr.Element to Fr256.
-func (f *Fr256) FromGnark(e *fr.Element) {
-	f[0] = e[0]
-	f[1] = e[1]
-	f[2] = e[2]
-	f[3] = e[3]
-}
-
-// Bytes returns the Fr256 as a 32-byte big-endian slice.
-func (f *Fr256) Bytes() []byte {
-	buf := make([]byte, 32)
-	binary.BigEndian.PutUint64(buf[0:8], f[3])
-	binary.BigEndian.PutUint64(buf[8:16], f[2])
-	binary.BigEndian.PutUint64(buf[16:24], f[1])
-	binary.BigEndian.PutUint64(buf[24:32], f[0])
-	return buf
-}
-
-// SetBytes sets the Fr256 from a 32-byte big-endian slice.
-func (f *Fr256) SetBytes(buf []byte) error {
-	if len(buf) != 32 {
-		return ErrInvalidInput
-	}
-	f[3] = binary.BigEndian.Uint64(buf[0:8])
-	f[2] = binary.BigEndian.Uint64(buf[8:16])
-	f[1] = binary.BigEndian.Uint64(buf[16:24])
-	f[0] = binary.BigEndian.Uint64(buf[24:32])
-	return nil
-}
+type Fr256 = luxgpu.Fr256
 
 // =============================================================================
 // ZK Context
@@ -170,11 +90,10 @@ var (
 // GetZKContext returns the global ZK context.
 func GetZKContext() *ZKContext {
 	initOnce.Do(func() {
-		// GPU is available if hooks are registered (by zk_metal.go or zk_cuda.go)
-		gpuEnabled := gpuHooks != nil
-		deviceName := "CPU (gnark-crypto)"
-		if gpuEnabled {
-			deviceName = "GPU (Metal/CUDA)"
+		gpuEnabled := luxgpu.ZKGPUAvailable()
+		deviceName := luxgpu.ZKGetBackend()
+		if !gpuEnabled {
+			deviceName = "CPU (gnark-crypto)"
 		}
 		defaultZKContext = &ZKContext{
 			gpuEnabled: gpuEnabled,
@@ -217,17 +136,15 @@ var poseidon2HasherPool = sync.Pool{
 }
 
 // poseidon2HashPairCPU computes Poseidon2(left, right) using gnark-crypto.
-// Uses Merkle-Damgard construction for 2-to-1 compression.
 func poseidon2HashPairCPU(left, right *Fr256) Fr256 {
-	// Get a hasher from the pool
 	h := poseidon2HasherPool.Get().(gnarkHash.StateStorer)
 	defer poseidon2HasherPool.Put(h)
 
 	h.Reset()
 
 	// Write left and right as bytes
-	leftBytes := left.Bytes()
-	rightBytes := right.Bytes()
+	leftBytes := fr256ToBytes(left)
+	rightBytes := fr256ToBytes(right)
 
 	_, _ = h.Write(leftBytes)
 	_, _ = h.Write(rightBytes)
@@ -237,9 +154,35 @@ func poseidon2HashPairCPU(left, right *Fr256) Fr256 {
 
 	// Convert back to Fr256
 	var out Fr256
-	_ = out.SetBytes(resultBytes[:32])
+	_ = fr256FromBytes(&out, resultBytes[:32])
 	return out
 }
+
+// fr256ToBytes converts Fr256 to 32-byte big-endian slice.
+func fr256ToBytes(f *Fr256) []byte {
+	buf := make([]byte, 32)
+	binary.BigEndian.PutUint64(buf[0:8], f[3])
+	binary.BigEndian.PutUint64(buf[8:16], f[2])
+	binary.BigEndian.PutUint64(buf[16:24], f[1])
+	binary.BigEndian.PutUint64(buf[24:32], f[0])
+	return buf
+}
+
+// fr256FromBytes sets Fr256 from 32-byte big-endian slice.
+func fr256FromBytes(f *Fr256, buf []byte) error {
+	if len(buf) != 32 {
+		return ErrInvalidInput
+	}
+	f[3] = binary.BigEndian.Uint64(buf[0:8])
+	f[2] = binary.BigEndian.Uint64(buf[8:16])
+	f[1] = binary.BigEndian.Uint64(buf[16:24])
+	f[0] = binary.BigEndian.Uint64(buf[24:32])
+	return nil
+}
+
+// =============================================================================
+// Public API - Poseidon2
+// =============================================================================
 
 // Poseidon2HashPair computes Poseidon2(left, right) with automatic routing.
 func (z *ZKContext) Poseidon2HashPair(left, right *Fr256) Fr256 {
@@ -261,11 +204,11 @@ func (z *ZKContext) Poseidon2BatchHashPair(left, right []Fr256) ([]Fr256, error)
 	}
 
 	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdPoseidon2 && gpuHooks != nil && gpuHooks.HashPair != nil {
+	if z.GPUEnabled() && n >= ThresholdPoseidon2 {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return gpuHooks.HashPair(left, right)
+		return luxgpu.Poseidon2Hash(left, right)
 	}
 
 	// CPU path using gnark-crypto
@@ -286,8 +229,6 @@ func (z *ZKContext) Poseidon2BatchHashPair(left, right []Fr256) ([]Fr256, error)
 // =============================================================================
 
 // Poseidon2MerkleLayer computes one layer of a Merkle tree.
-// Input: current layer nodes (must be even count)
-// Output: parent nodes (half the size)
 func (z *ZKContext) Poseidon2MerkleLayer(nodes []Fr256) ([]Fr256, error) {
 	n := len(nodes)
 	if n == 0 || n%2 != 0 {
@@ -297,11 +238,11 @@ func (z *ZKContext) Poseidon2MerkleLayer(nodes []Fr256) ([]Fr256, error) {
 	parentCount := n / 2
 
 	// Check threshold for GPU routing
-	if z.GPUEnabled() && parentCount >= ThresholdMerkle && gpuHooks != nil && gpuHooks.MerkleLayer != nil {
+	if z.GPUEnabled() && parentCount >= ThresholdMerkle {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return gpuHooks.MerkleLayer(nodes)
+		return luxgpu.MerkleLayer(nodes)
 	}
 
 	// CPU path
@@ -318,7 +259,6 @@ func (z *ZKContext) Poseidon2MerkleLayer(nodes []Fr256) ([]Fr256, error) {
 }
 
 // Poseidon2MerkleRoot computes the Merkle root from leaves.
-// Leaves must be a power of 2.
 func (z *ZKContext) Poseidon2MerkleRoot(leaves []Fr256) (Fr256, error) {
 	n := len(leaves)
 	if n == 0 || (n&(n-1)) != 0 {
@@ -329,7 +269,15 @@ func (z *ZKContext) Poseidon2MerkleRoot(leaves []Fr256) (Fr256, error) {
 		return leaves[0], nil
 	}
 
-	// Build tree layer by layer
+	// Use GPU if available and above threshold
+	if z.GPUEnabled() && n >= ThresholdMerkle*2 {
+		z.mu.Lock()
+		z.gpuCalls++
+		z.mu.Unlock()
+		return luxgpu.MerkleRoot(leaves)
+	}
+
+	// CPU path - build tree layer by layer
 	current := leaves
 	for len(current) > 1 {
 		next, err := z.Poseidon2MerkleLayer(current)
@@ -342,9 +290,7 @@ func (z *ZKContext) Poseidon2MerkleRoot(leaves []Fr256) (Fr256, error) {
 	return current[0], nil
 }
 
-// Poseidon2MerkleTree builds a complete Merkle tree and returns all internal nodes.
-// Returns: [layer_n-1, layer_n-2, ..., layer_0, root]
-// Total internal nodes: num_leaves - 1
+// Poseidon2MerkleTree builds a complete Merkle tree.
 func (z *ZKContext) Poseidon2MerkleTree(leaves []Fr256) ([]Fr256, error) {
 	n := len(leaves)
 	if n == 0 || (n&(n-1)) != 0 {
@@ -355,7 +301,15 @@ func (z *ZKContext) Poseidon2MerkleTree(leaves []Fr256) ([]Fr256, error) {
 		return []Fr256{leaves[0]}, nil
 	}
 
-	// Collect all internal nodes
+	// Use GPU if available and above threshold
+	if z.GPUEnabled() && n >= ThresholdMerkle*2 {
+		z.mu.Lock()
+		z.gpuCalls++
+		z.mu.Unlock()
+		return luxgpu.MerkleTree(leaves)
+	}
+
+	// CPU path - collect all internal nodes
 	allNodes := make([]Fr256, 0, n-1)
 	current := leaves
 
@@ -375,16 +329,14 @@ func (z *ZKContext) Poseidon2MerkleTree(leaves []Fr256) ([]Fr256, error) {
 // Commitment and Nullifier Operations
 // =============================================================================
 
-// Poseidon2Commitment computes commitment = Poseidon2(value, blinding, salt).
+// Poseidon2Commitment computes commitment = Poseidon2(Poseidon2(value, blinding), salt).
 func (z *ZKContext) Poseidon2Commitment(value, blinding, salt *Fr256) Fr256 {
-	// Hash: Poseidon2(Poseidon2(value, blinding), salt)
 	intermediate := poseidon2HashPairCPU(value, blinding)
 	return poseidon2HashPairCPU(&intermediate, salt)
 }
 
-// Poseidon2Nullifier computes nullifier = Poseidon2(key, commitment, index).
+// Poseidon2Nullifier computes nullifier = Poseidon2(Poseidon2(key, commitment), index).
 func (z *ZKContext) Poseidon2Nullifier(key, commitment, index *Fr256) Fr256 {
-	// Hash: Poseidon2(Poseidon2(key, commitment), index)
 	intermediate := poseidon2HashPairCPU(key, commitment)
 	return poseidon2HashPairCPU(&intermediate, index)
 }
@@ -400,11 +352,11 @@ func (z *ZKContext) BatchCommitment(values, blindings, salts []Fr256) ([]Fr256, 
 	}
 
 	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdCommitment && gpuHooks != nil && gpuHooks.BatchCommitment != nil {
+	if z.GPUEnabled() && n >= ThresholdCommitment {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return gpuHooks.BatchCommitment(values, blindings, salts)
+		return luxgpu.BatchCommitment(values, blindings, salts)
 	}
 
 	// CPU path
@@ -431,11 +383,11 @@ func (z *ZKContext) BatchNullifier(keys, commitments, indices []Fr256) ([]Fr256,
 	}
 
 	// Check threshold for GPU routing
-	if z.GPUEnabled() && n >= ThresholdCommitment && gpuHooks != nil && gpuHooks.BatchNullifier != nil {
+	if z.GPUEnabled() && n >= ThresholdCommitment {
 		z.mu.Lock()
 		z.gpuCalls++
 		z.mu.Unlock()
-		return gpuHooks.BatchNullifier(keys, commitments, indices)
+		return luxgpu.BatchNullifier(keys, commitments, indices)
 	}
 
 	// CPU path
