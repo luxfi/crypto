@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/luxfi/crypto/hashing"
+	"github.com/luxfi/crypto/hash"
 )
 
 // FuzzSignatureVerification tests signature verification with random inputs
@@ -21,7 +21,7 @@ func FuzzSignatureVerification(f *testing.F) {
 	// Add a valid signature
 	privKey := make([]byte, 32)
 	privKey[31] = 1 // Simple valid private key
-	msg := hashing.ComputeHash256([]byte("test message"))
+	msg := hash.ComputeHash256([]byte("test message"))
 	if sig, err := Sign(msg, privKey); err == nil {
 		f.Add(msg, sig)
 	}
@@ -31,10 +31,10 @@ func FuzzSignatureVerification(f *testing.F) {
 	copy(validSig[:32], bytes.Repeat([]byte{0xaa}, 32))
 	copy(validSig[32:64], bytes.Repeat([]byte{0xbb}, 32))
 	validSig[64] = 0
-	f.Add(hashing.ComputeHash256([]byte("test")), validSig)
+	f.Add(hash.ComputeHash256([]byte("test")), validSig)
 
 	validSig[64] = 1
-	f.Add(hashing.ComputeHash256([]byte("test2")), validSig)
+	f.Add(hash.ComputeHash256([]byte("test2")), validSig)
 
 	f.Fuzz(func(t *testing.T, msg []byte, sig []byte) {
 		// Ensure msg is 32 bytes (hash size)
@@ -86,16 +86,16 @@ func FuzzSignatureVerification(f *testing.F) {
 func FuzzSignatureCreation(f *testing.F) {
 	// Seed corpus
 	f.Add(bytes.Repeat([]byte{0x01}, 32), bytes.Repeat([]byte{0x02}, 32))
-	f.Add(bytes.Repeat([]byte{0xff}, 32), hashing.ComputeHash256([]byte("test")))
+	f.Add(bytes.Repeat([]byte{0xff}, 32), hash.ComputeHash256([]byte("test")))
 
 	// Add some valid private keys
 	validKey1 := make([]byte, 32)
 	validKey1[31] = 1
-	f.Add(validKey1, hashing.ComputeHash256([]byte("message1")))
+	f.Add(validKey1, hash.ComputeHash256([]byte("message1")))
 
 	validKey2 := make([]byte, 32)
 	copy(validKey2, []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef})
-	f.Add(validKey2, hashing.ComputeHash256([]byte("message2")))
+	f.Add(validKey2, hash.ComputeHash256([]byte("message2")))
 
 	f.Fuzz(func(t *testing.T, privKey []byte, msg []byte) {
 		// Ensure proper sizes
@@ -158,7 +158,7 @@ func FuzzPublicKeyCompression(f *testing.F) {
 	// Generate a valid public key
 	privKey := make([]byte, 32)
 	privKey[31] = 42
-	msg := hashing.ComputeHash256([]byte("test"))
+	msg := hash.ComputeHash256([]byte("test"))
 	if sig, err := Sign(msg, privKey); err == nil {
 		if pubKey, err := RecoverPubkey(msg, sig); err == nil {
 			f.Add(pubKey)
@@ -267,7 +267,7 @@ func FuzzSignatureMalleability(f *testing.F) {
 		sig[64] = v & 1 // Ensure v is 0 or 1
 
 		// Create a random message
-		msg := hashing.ComputeHash256(append(r, s...))
+		msg := hash.ComputeHash256(append(r, s...))
 
 		// Try to verify - should not panic
 		pubKey, err := RecoverPubkey(msg, sig)
@@ -304,7 +304,7 @@ func FuzzECDSAEdgeCases(f *testing.F) {
 		0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
 		0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
 	})
-	f.Add(nearOrder, hashing.ComputeHash256([]byte("edge")))
+	f.Add(nearOrder, hash.ComputeHash256([]byte("edge")))
 
 	f.Fuzz(func(t *testing.T, privKey []byte, msg []byte) {
 		// Handle nil and empty cases
