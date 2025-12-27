@@ -242,12 +242,12 @@ func TestMLKEM768KAT_WrapperRoundtrip(t *testing.T) {
 // roundtrip for all three ML-KEM security levels.
 func TestMLKEM768KAT_AllModes(t *testing.T) {
 	modes := []struct {
-		name    string
-		mode    Mode
-		pkSize  int
-		skSize  int
-		ctSize  int
-		ssSize  int
+		name   string
+		mode   Mode
+		pkSize int
+		skSize int
+		ctSize int
+		ssSize int
 	}{
 		{"ML-KEM-512", MLKEM512, MLKEM512PublicKeySize, MLKEM512PrivateKeySize, MLKEM512CiphertextSize, MLKEM512SharedKeySize},
 		{"ML-KEM-768", MLKEM768, MLKEM768PublicKeySize, MLKEM768PrivateKeySize, MLKEM768CiphertextSize, MLKEM768SharedKeySize},
