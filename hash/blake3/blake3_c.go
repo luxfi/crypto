@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build cgo && darwin
+//go:build cgo && darwin && luxcpp
 
 // Package blake3 provides Blake3 hash functions via luxcpp/crypto.
 // This CGO version provides optimized hashing with automatic CPU/GPU selection.
