@@ -1,0 +1,49 @@
+{
+  "name": "luxcrypto",
+  "version": "0.1.0",
+  "description": "Node.js bindings for Lux post-quantum cryptography (ML-KEM-768, ML-DSA-65) via libluxcrypto",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "test": "node --loader ts-node/esm src/test.ts"
+  },
+  "keywords": [
+    "pq",
+    "post-quantum",
+    "mlkem",
+    "mldsa",
+    "fips203",
+    "fips204",
+    "lux",
+    "cryptography"
+  ],
+  "author": "Lux Industries Inc <dev@lux.network>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luxfi/crypto"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
