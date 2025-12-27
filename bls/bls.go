@@ -13,6 +13,12 @@ import (
 	blssign "github.com/cloudflare/circl/sign/bls"
 )
 
+// Domain separation tags - must match the CGO version (blst) exactly
+var (
+	dstSignature = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_")
+	dstPoP       = []byte("BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_")
+)
+
 type (
 	SecretKey struct {
 		sk *blssign.PrivateKey[blssign.KeyG1SigG2]
@@ -91,8 +97,32 @@ func (sk *SecretKey) Sign(msg []byte) (*Signature, error) {
 	return &Signature{sig: blssign.Sign(sk.sk, msg)}, nil
 }
 
+// SignProofOfPossession signs a [msg] to prove the ownership of this secret key.
+// Uses the PoP DST (BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_) for domain separation.
+// This MUST use a different DST than Sign() to prevent cross-protocol attacks.
 func (sk *SecretKey) SignProofOfPossession(msg []byte) (*Signature, error) {
-	return sk.Sign(msg)
+	if sk == nil || sk.sk == nil {
+		return nil, errors.New("nil secret key")
+	}
+
+	// Get the scalar from the private key
+	skBytes, err := sk.sk.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create scalar from private key bytes
+	var scalar bls12381.Scalar
+	scalar.SetBytes(skBytes)
+
+	// Hash message to G2 with PoP DST
+	var sigPoint bls12381.G2
+	sigPoint.Hash(msg, dstPoP)
+
+	// Multiply by secret key scalar: sig = sk * H(msg)
+	sigPoint.ScalarMult(&scalar, &sigPoint)
+
+	return &Signature{sig: sigPoint.BytesCompressed()}, nil
 }
 
 func PublicKeyToCompressedBytes(pk *PublicKey) []byte {
@@ -184,6 +214,8 @@ func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 	return blssign.Verify(pk.pk, msg, sig.sig)
 }
 
+// VerifyProofOfPossession verifies the possession of the secret pre-image of [pk].
+// Uses the PoP DST (BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_) for domain separation.
 func VerifyProofOfPossession(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if pk == nil || pk.pk == nil || sig == nil {
 		return false
@@ -192,7 +224,45 @@ func VerifyProofOfPossession(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if isIdentityG1(pk.pk) {
 		return false
 	}
-	return Verify(pk, sig, msg)
+
+	// Parse the signature as a G2 point
+	var sigPoint bls12381.G2
+	if err := sigPoint.SetBytes(sig.sig); err != nil {
+		return false
+	}
+
+	// Get the public key as a G1 point
+	pkBytes, err := pk.pk.MarshalBinary()
+	if err != nil {
+		return false
+	}
+	var pkPoint bls12381.G1
+	if err := pkPoint.SetBytes(pkBytes); err != nil {
+		return false
+	}
+
+	// Hash message to G2 with PoP DST
+	var hashPoint bls12381.G2
+	hashPoint.Hash(msg, dstPoP)
+
+	// BLS verification: e(pk, H(msg)) == e(G1, sig)
+	// This is equivalent to: e(pk, H(msg)) * e(-G1, sig) == 1
+	// Or: e(pk, H(msg)) == e(G1, sig)
+
+	// Verify using pairing check: e(G1, sig) == e(pk, H(msg))
+	// Which is: e(-G1, sig) * e(pk, H(msg)) == 1
+	// Copy the generator bytes then negate
+	var negG1 bls12381.G1
+	_ = negG1.SetBytes(bls12381.G1Generator().BytesCompressed())
+	negG1.Neg()
+
+	// Prepare points for pairing
+	listG1 := []*bls12381.G1{&negG1, &pkPoint}
+	listG2 := []*bls12381.G2{&sigPoint, &hashPoint}
+
+	// ProdPairFrac computes the product of pairings and checks if result equals identity
+	result := bls12381.ProdPairFrac(listG1, listG2, []int{1, 1})
+	return result.IsIdentity()
 }
 
 func SignatureToBytes(sig *Signature) []byte {
