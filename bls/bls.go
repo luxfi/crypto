@@ -11,6 +11,7 @@ import (
 
 	"github.com/cloudflare/circl/ecc/bls12381"
 	blssign "github.com/cloudflare/circl/sign/bls"
+	"github.com/luxfi/crypto/secret"
 )
 
 // Domain separation tags - must match the CGO version (blst) exactly
@@ -37,17 +38,21 @@ type (
 )
 
 func NewSecretKey() (*SecretKey, error) {
-	ikm := make([]byte, 32)
-	if _, err := rand.Read(ikm); err != nil {
-		return nil, err
-	}
-	defer clear(ikm)
+	var result *SecretKey
+	var keyErr error
+	secret.Do(func() {
+		ikm := make([]byte, 32)
+		rand.Read(ikm)
+		defer clear(ikm)
 
-	sk, err := blssign.KeyGen[blssign.KeyG1SigG2](ikm, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &SecretKey{sk: sk}, nil
+		sk, err := blssign.KeyGen[blssign.KeyG1SigG2](ikm, nil, nil)
+		if err != nil {
+			keyErr = err
+			return
+		}
+		result = &SecretKey{sk: sk}
+	})
+	return result, keyErr
 }
 
 func SecretKeyToBytes(sk *SecretKey) []byte {
@@ -76,11 +81,17 @@ func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
 	if len(skBytes) != SecretKeyLen {
 		return nil, ErrFailedSecretKeyDeserialize
 	}
-	sk := new(blssign.PrivateKey[blssign.KeyG1SigG2])
-	if err := sk.UnmarshalBinary(skBytes); err != nil {
-		return nil, ErrFailedSecretKeyDeserialize
-	}
-	return &SecretKey{sk: sk}, nil
+	var result *SecretKey
+	var keyErr error
+	secret.Do(func() {
+		sk := new(blssign.PrivateKey[blssign.KeyG1SigG2])
+		if err := sk.UnmarshalBinary(skBytes); err != nil {
+			keyErr = ErrFailedSecretKeyDeserialize
+			return
+		}
+		result = &SecretKey{sk: sk}
+	})
+	return result, keyErr
 }
 
 func (sk *SecretKey) PublicKey() *PublicKey {
