@@ -1,0 +1,17 @@
+[package]
+name = "luxcrypto-sys"
+version = "0.1.0"
+edition = "2021"
+description = "FFI bindings to libluxcrypto — ML-KEM-768 and ML-DSA-65 via Lux post-quantum cryptography"
+license = "MIT"
+repository = "https://github.com/luxfi/crypto"
+keywords = ["pq", "post-quantum", "mlkem", "mldsa", "fips203", "fips204"]
+categories = ["cryptography", "external-ffi-bindings"]
+
+[dependencies]
+thiserror = "2"
+
+[build-dependencies]
+
+[features]
+default = []
