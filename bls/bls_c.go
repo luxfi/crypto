@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	blst "github.com/supranational/blst/bindings/go"
+	"github.com/luxfi/crypto/secret"
 )
 
 // Domain separation tags
@@ -39,20 +40,14 @@ type (
 // NewSecretKey generates a new secret key from the local source of
 // cryptographically secure randomness.
 func NewSecretKey() (*SecretKey, error) {
-	ikm := make([]byte, 32)
-	_, err := rand.Read(ikm)
-	if err != nil {
-		return nil, err
-	}
-
-	sk := blst.KeyGen(ikm)
-
-	// Clear the ikm
-	for i := range ikm {
-		ikm[i] = 0
-	}
-
-	return &SecretKey{sk: sk}, nil
+	var result *SecretKey
+	secret.Do(func() {
+		ikm := make([]byte, 32)
+		rand.Read(ikm)
+		defer clear(ikm)
+		result = &SecretKey{sk: blst.KeyGen(ikm)}
+	})
+	return result, nil
 }
 
 // SecretKeyToBytes returns the big-endian format of the secret key.
@@ -91,9 +86,13 @@ func SecretKeyFromBytes(skBytes []byte) (*SecretKey, error) {
 	if allZero {
 		return nil, ErrFailedSecretKeyDeserialize
 	}
-	sk := new(blst.SecretKey)
-	sk.Deserialize(skBytes)
-	return &SecretKey{sk: sk}, nil
+	var result *SecretKey
+	secret.Do(func() {
+		sk := new(blst.SecretKey)
+		sk.Deserialize(skBytes)
+		result = &SecretKey{sk: sk}
+	})
+	return result, nil
 }
 
 // PublicKey returns the public key associated with the secret key.
