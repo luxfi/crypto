@@ -1489,7 +1489,7 @@ The `gpu/` package provides GPU-accelerated ZK cryptographic operations with aut
                            ▼
          ┌─────────────────────────────────────┐
          │        github.com/luxfi/gpu         │
-         │   Go bindings to luxcpp/gpu (MLX)   │
+         │   Go bindings to luxfi/accel        │
          │                                     │
          │  zk.go (non-CGO stub)               │
          │  zk_cgo.go (CGO bindings)           │
@@ -1497,16 +1497,16 @@ The `gpu/` package provides GPU-accelerated ZK cryptographic operations with aut
                             │
                             ▼
          ┌─────────────────────────────────────┐
-         │          luxcpp/gpu (MLX)           │
+         │          luxfi/accel                │
          │   Unified Metal/CUDA/CPU backend    │
          │                                     │
-         │  mlx/zk/zk.cpp     - C++ impl       │
-         │  mlx/zk/zk_c_api.h - C API          │
+         │  zk/zk.cpp     - C++ impl           │
+         │  zk/zk_c_api.h - C API              │
          └─────────────────────────────────────┘
 ```
 
 **Key Change (2026-01-03)**: Removed separate platform files (`zk_metal.go`, `zk_cuda.go`)
-in favor of the unified `github.com/luxfi/gpu` package which handles all backends via MLX.
+in favor of the unified `github.com/luxfi/gpu` package which handles all backends via luxfi/accel.
 
 ### Threshold Constants (Tuned for Apple Silicon)
 
@@ -1601,19 +1601,19 @@ CGO_ENABLED=1 go build -tags "gpu" ./...
 
 ### Dependencies
 
-- `github.com/luxfi/gpu` - Unified GPU bindings (wraps luxcpp/gpu)
+- `github.com/luxfi/gpu` - Unified GPU bindings (wraps luxfi/accel)
 - `github.com/consensys/gnark-crypto` - CPU Poseidon2 via BN254/Fr
 
-### GPU Stack (luxcpp/gpu)
+### GPU Stack (luxfi/accel)
 
 | File | Purpose |
 |------|---------|
 | `lux/gpu/zk.go` | Non-CGO stub (returns ErrZKNotAvailable) |
-| `lux/gpu/zk_cgo.go` | CGO bindings to luxcpp/gpu |
-| `luxcpp/gpu/mlx/zk/zk.h` | C++ ZK operations header |
-| `luxcpp/gpu/mlx/zk/zk.cpp` | C++ ZK implementation using MLX |
-| `luxcpp/gpu/mlx/zk/zk_c_api.h` | C API for Go bindings |
-| `luxcpp/gpu/mlx/zk/zk_c_api.cpp` | C API implementation |
+| `lux/gpu/zk_cgo.go` | CGO bindings to luxfi/accel |
+| `luxfi/accel/zk/zk.h` | C++ ZK operations header |
+| `luxfi/accel/zk/zk.cpp` | C++ ZK implementation |
+| `luxfi/accel/zk/zk_c_api.h` | C API for Go bindings |
+| `luxfi/accel/zk/zk_c_api.cpp` | C API implementation |
 
 ### Test Coverage
 
@@ -1631,7 +1631,7 @@ CGO_ENABLED=1 go test ./gpu/...
 
 - `github.com/luxfi/crypto` - Go package with GPU ZK operations
 - `github.com/luxfi/gpu` - Go bindings to unified GPU (Metal/CUDA/CPU)
-- `luxcpp/gpu` - C++ MLX-based GPU library
+- `luxfi/accel` - C++ GPU acceleration library (Metal/CUDA/CPU)
 
 ---
 
