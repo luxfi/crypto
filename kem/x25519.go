@@ -5,7 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 
-	"crypto/curve25519"
+	"golang.org/x/crypto/curve25519"
 )
 
 // X25519Impl implements X25519 as a KEM
