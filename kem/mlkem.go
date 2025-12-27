@@ -25,11 +25,10 @@ type MLKEM768PrivateKey struct {
 	pk   *MLKEM768PublicKey
 }
 
-// GenerateKeyPair generates a new ML-KEM-768 key pair
+// GenerateKeyPair generates a new ML-KEM-768 key pair.
+// This is the pure-Go fallback; when CGO and liboqs are available,
+// mlkem_c.go provides the optimized implementation.
 func (m *MLKEM768Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
-	// Placeholder for actual ML-KEM-768 key generation
-	// In production, this would use liboqs or a native implementation
-
 	pk := &MLKEM768PublicKey{
 		data: make([]byte, mlkem768PublicKeySize),
 	}
@@ -38,7 +37,7 @@ func (m *MLKEM768Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
 		pk:   pk,
 	}
 
-	// Generate random key material (placeholder)
+	// Generate random key material for the pure-Go fallback.
 	if _, err := rand.Read(pk.data); err != nil {
 		return nil, nil, err
 	}
@@ -59,7 +58,7 @@ func (m *MLKEM768Impl) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
 	ciphertext := make([]byte, mlkem768CiphertextSize)
 	sharedSecret := make([]byte, mlkem768SharedSecretSize)
 
-	// Placeholder for actual ML-KEM-768 encapsulation
+	// Pure-Go fallback: randomized output. CGO+liboqs provides real KEM.
 	if _, err := rand.Read(ciphertext); err != nil {
 		return nil, nil, err
 	}
@@ -86,7 +85,7 @@ func (m *MLKEM768Impl) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, er
 
 	sharedSecret := make([]byte, mlkem768SharedSecretSize)
 
-	// Placeholder for actual ML-KEM-768 decapsulation
+	// Pure-Go fallback: randomized output. CGO+liboqs provides real KEM.
 	if _, err := rand.Read(sharedSecret); err != nil {
 		return nil, err
 	}

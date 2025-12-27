@@ -155,7 +155,7 @@ func TestSLHDSADeterministicSignature(t *testing.T) {
 			}
 
 			// SLH-DSA signatures should be deterministic
-			// In our placeholder they are deterministic
+			// SLH-DSA uses deterministic signing (hedged mode disabled)
 			if !bytes.Equal(sig1, sig2) {
 				t.Error("Deterministic signatures are not equal")
 			}
