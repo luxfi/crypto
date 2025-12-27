@@ -10,12 +10,14 @@ A comprehensive cryptographic library providing BLS signatures, post-quantum alg
 ## Features
 
 - **BLS Signatures**: Efficient signature aggregation for consensus
-- **Post-Quantum Cryptography**: Dilithium signatures and Kyber key exchange
-- **Hash Functions**: SHA-256, SHA-3, BLAKE2b
+- **Post-Quantum Cryptography**: ML-DSA (Dilithium) signatures and ML-KEM (Kyber) key exchange
+- **Fully Homomorphic Encryption**: Compute on encrypted data (TFHE, CKKS, BGV)
+- **GPU Acceleration**: Metal (Apple Silicon) and CUDA (NVIDIA) backends
+- **Hash Functions**: SHA-256, SHA-3, BLAKE2b, Keccak
 - **Key Management**: Secure key generation and storage
 - **Signature Aggregation**: Combine multiple signatures into one
-- **Multi-Signature**: Threshold signatures and multi-sig support
-- **Zero-Knowledge Proofs**: Privacy-preserving cryptographic proofs (coming soon)
+- **Threshold Cryptography**: t-of-n signature schemes
+- **C++ Libraries**: High-performance native implementations
 
 ## Quick Start
 
@@ -278,7 +280,8 @@ go test -tags=security ./...
 ## Next Steps
 
 - [BLS Signatures](/docs/bls) - Deep dive into BLS cryptography
-- [Post-Quantum Crypto](/docs/pq) - Quantum-resistant algorithms
-- [Key Management](/docs/keys) - Secure key generation and storage
-- [Signature Aggregation](/docs/aggregation) - Advanced aggregation techniques
-- [Migration Guide](/docs/migration) - Transition to post-quantum crypto
+- [Post-Quantum Crypto](/docs/post-quantum) - Quantum-resistant algorithms
+- [Key Management](/docs/key-management) - Secure key generation and storage
+- [FHE](/docs/fhe) - Fully Homomorphic Encryption
+- [GPU Acceleration](/docs/gpu-acceleration) - Hardware acceleration
+- [C++ Libraries](/docs/cpp-libraries) - Native C++ implementations
