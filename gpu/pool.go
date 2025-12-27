@@ -112,20 +112,8 @@ func PutBuffer4032(buf []byte) {
 	pool4032.Put(buf)
 }
 
-// SHA3_256Into computes SHA3-256 hash into the provided buffer.
-// The buffer must be at least 32 bytes.
-// Use with GetBuffer32/PutBuffer32 to avoid allocations.
-func SHA3_256Into(out, data []byte) {
-	if len(out) < 32 {
-		return
-	}
-	if len(data) == 0 {
-		clear(out[:32])
-		return
-	}
-	hash := SHA3_256(data)
-	copy(out[:32], hash)
-}
+// SHA3_256Into is defined in crypto.go with CGO acceleration.
+// Use it with GetBuffer32/PutBuffer32 to avoid allocations.
 
 // SHA3_512Into computes SHA3-512 hash into the provided buffer.
 func SHA3_512Into(out, data []byte) {
