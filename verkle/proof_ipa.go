@@ -42,8 +42,8 @@ import (
 	"sort"
 	"unsafe"
 
-	ipa "github.com/crate-crypto/go-ipa"
-	"github.com/crate-crypto/go-ipa/common"
+	ipa "github.com/luxfi/crypto/ipa"
+	"github.com/luxfi/crypto/ipa/common"
 )
 
 const IPA_PROOF_DEPTH = 8

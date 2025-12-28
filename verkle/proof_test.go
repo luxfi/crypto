@@ -33,7 +33,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/common"
+	"github.com/luxfi/crypto/ipa/common"
 )
 
 func TestProofEmptyTree(t *testing.T) {
