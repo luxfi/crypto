@@ -12,9 +12,9 @@ const SS_SIZE = 32;
 function sizes(): { pk: number; sk: number; ct: number } {
   if (_pkSize === null) {
     const ffi = getFFI();
-    _pkSize = ffi.lux_mlkem768_pk_size();
-    _skSize = ffi.lux_mlkem768_sk_size();
-    _ctSize = ffi.lux_mlkem768_ct_size();
+    _pkSize = ffi.mlkem768_pk_size();
+    _skSize = ffi.mlkem768_sk_size();
+    _ctSize = ffi.mlkem768_ct_size();
   }
   return { pk: _pkSize!, sk: _skSize!, ct: _ctSize! };
 }
@@ -32,8 +32,8 @@ export function keypair(): [Uint8Array, Uint8Array] {
   const pkLen = Buffer.alloc(4); // int*
   const skLen = Buffer.alloc(4);
 
-  const rc = ffi.lux_mlkem768_keypair(pkBuf, pkLen, skBuf, skLen);
-  if (rc !== 0) throw new Error(`lux_mlkem768_keypair failed: ${rc}`);
+  const rc = ffi.mlkem768_keypair(pkBuf, pkLen, skBuf, skLen);
+  if (rc !== 0) throw new Error(`mlkem768_keypair failed: ${rc}`);
 
   const actualPkLen = pkLen.readInt32LE(0);
   const actualSkLen = skLen.readInt32LE(0);
@@ -58,8 +58,8 @@ export function encapsulate(publicKey: Uint8Array): [Uint8Array, Uint8Array] {
   const ctLen = Buffer.alloc(4);
   const ssLen = Buffer.alloc(4);
 
-  const rc = ffi.lux_mlkem768_encapsulate(pkBuf, pkBuf.length, ctBuf, ctLen, ssBuf, ssLen);
-  if (rc !== 0) throw new Error(`lux_mlkem768_encapsulate failed: ${rc}`);
+  const rc = ffi.mlkem768_encapsulate(pkBuf, pkBuf.length, ctBuf, ctLen, ssBuf, ssLen);
+  if (rc !== 0) throw new Error(`mlkem768_encapsulate failed: ${rc}`);
 
   const actualCtLen = ctLen.readInt32LE(0);
   const actualSsLen = ssLen.readInt32LE(0);
@@ -82,8 +82,8 @@ export function decapsulate(secretKey: Uint8Array, ciphertext: Uint8Array): Uint
   const ssBuf = Buffer.alloc(SS_SIZE);
   const ssLen = Buffer.alloc(4);
 
-  const rc = ffi.lux_mlkem768_decapsulate(skBuf, skBuf.length, ctBuf, ctBuf.length, ssBuf, ssLen);
-  if (rc !== 0) throw new Error(`lux_mlkem768_decapsulate failed: ${rc}`);
+  const rc = ffi.mlkem768_decapsulate(skBuf, skBuf.length, ctBuf, ctBuf.length, ssBuf, ssLen);
+  if (rc !== 0) throw new Error(`mlkem768_decapsulate failed: ${rc}`);
 
   const actualSsLen = ssLen.readInt32LE(0);
   return new Uint8Array(ssBuf.buffer, ssBuf.byteOffset, actualSsLen);
