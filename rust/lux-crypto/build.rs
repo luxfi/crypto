@@ -37,10 +37,16 @@ fn main() {
     } else if let Some(d) = build_dir {
         PathBuf::from(d)
     } else {
+        // Default to build-cto to match the per-algorithm member crates
+        // (lux-crypto-secp256k1, lux-crypto-keccak, etc.) which all default to
+        // build-cto. build-cto contains brand-neutral C-ABI symbols (post the
+        // 2026-04-26 rename) and all required archives. build-canonical is a
+        // partial build dir that may have stale objects from before the rename
+        // and does not contain banderwagon/sha256/ripemd160 archives.
         manifest_dir
             .join("..").join("..").join("..")
             .join("..").join("luxcpp").join("crypto")
-            .join("build-canonical")
+            .join("build-cto")
     };
 
     println!("cargo:rerun-if-changed=src/lib.rs");
