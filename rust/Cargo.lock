@@ -7,23 +7,11 @@ name = "lux-crypto"
 version = "0.1.0"
 
 [[package]]
-name = "lux-crypto-aead"
+name = "lux-crypto-blake3"
 version = "0.1.0"
 
 [[package]]
-name = "lux-crypto-banderwagon"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-blake2b"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-evm256"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-ipa"
+name = "lux-crypto-ed25519"
 version = "0.1.0"
 
 [[package]]
@@ -65,13 +53,5 @@ name = "lux-crypto-secp256k1"
 version = "0.1.0"
 
 [[package]]
-name = "lux-crypto-sha256"
-version = "0.1.0"
-
-[[package]]
 name = "lux-crypto-slhdsa"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-verkle"
 version = "0.1.0"
