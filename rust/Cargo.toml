@@ -21,17 +21,33 @@ members = [
     "lux-crypto-ripemd160",
     "lux-crypto-blake2b",
     "lux-crypto-blake3",
+    "lux-crypto-ed25519",
     "lux-crypto-aead",
+    "lux-crypto-bls",
     "lux-crypto-lamport",
     "lux-crypto-mldsa",
     "lux-crypto-mlkem",
     "lux-crypto-slhdsa",
+    "lux-crypto-banderwagon",
+    "lux-crypto-pedersen",
+    "lux-crypto-ipa",
+    "lux-crypto-verkle",
+    "lux-crypto-evm256",
+    "lux-crypto-kzg",
+    "lux-crypto-poseidon",
+    "lux-crypto-ntt",
+    "lux-crypto-poly_mul",
 ]
 
 [workspace.package]
 edition = "2021"
 license = "BSD-3-Clause"
 rust-version = "1.74"
+authors = ["Lux Industries Inc. <opensource@lux.network>"]
+homepage = "https://lux.network"
+repository = "https://github.com/luxfi/crypto"
+documentation = "https://docs.lux.network/crypto"
+readme = "README.md"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"
