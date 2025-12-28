@@ -1,0 +1,24 @@
+[package]
+name = "lux-crypto-sys"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause"
+description = "Raw FFI bindings to luxcpp/crypto. Used by Hanzo/Lux/Zoo Rust nodes."
+
+# This crate exposes C ABI bindings to luxcpp/crypto.
+#
+# Phase 1 surface:
+#   * secp256k1: lux_secp256k1_ecrecover, lux_secp256k1_ecrecover_batch
+#
+# Build expectations:
+#   - Environment variable `LUX_CRYPTO_DIR` points to the install prefix that
+#     contains `include/lux/crypto/*.h` and `lib/lib<alg>_cpu.a`.
+#   - Or, set `LUX_CRYPTO_BUILD_DIR` to the cmake build directory.
+#
+# This is intentionally a `-sys` crate: no Rust types, just `extern "C"`
+# declarations. Higher-level safe wrappers belong in `lux-crypto`.
+
+[lib]
+name = "lux_crypto_sys"
+
+[build-dependencies]
