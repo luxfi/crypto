@@ -1,7 +1,10 @@
 // Build script for lux-crypto-sha256.
 //
-// Links statically against `libsha256.a` (the C-ABI shim) and `libsha256_cpu.a`
-// (the canonical CPU body) produced by `luxcpp/crypto/sha256`.
+// Discovers `sha256/libsha256.a` produced by `luxcpp/crypto/sha256` and emits
+// the link directives. Resolution order:
+//   1. CRYPTO_DIR        -> $CRYPTO_DIR/lib/sha256/libsha256.a
+//   2. CRYPTO_BUILD_DIR  -> $CRYPTO_BUILD_DIR/sha256/libsha256.a
+//   3. Default to ../../../../luxcpp/crypto/build-cto/sha256/
 
 use std::env;
 use std::path::PathBuf;
@@ -29,6 +32,8 @@ fn main() {
 
     let lib_path = base.join("sha256");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
+    // libsha256.a holds the C-ABI shim; libsha256_cpu.a holds the C++ body it
+    // delegates into (namespaced cevm::crypto::sha256). Both are needed.
     println!("cargo:rustc-link-lib=static=sha256");
     println!("cargo:rustc-link-lib=static=sha256_cpu");
 

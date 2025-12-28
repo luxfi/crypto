@@ -4,9 +4,10 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Canonical Rust binding for Lux EVM 256-bit modular arithmetic. Calls into luxcpp/crypto/evm256 via the C-ABI."
+description = "Canonical Rust binding for Lux EVM 256-bit math primitives (mulmod, addmod, modexp). Calls into luxcpp/crypto/modexp via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-keywords = ["evm", "modular", "uint256", "ffi"]
+readme = "README.md"
+keywords = ["evm", "bigint", "modexp", "mulmod", "ffi"]
 categories = ["cryptography"]
 
 [lib]

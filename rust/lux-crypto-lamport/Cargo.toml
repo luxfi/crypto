@@ -6,7 +6,8 @@ license.workspace = true
 rust-version.workspace = true
 description = "Canonical Rust binding for Lux Lamport one-time signatures. Calls into luxcpp/crypto/lamport via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-keywords = ["lamport", "one-time", "post-quantum", "ffi"]
+readme = "README.md"
+keywords = ["lamport", "ots", "post-quantum", "signature", "ffi"]
 categories = ["cryptography"]
 
 [lib]
