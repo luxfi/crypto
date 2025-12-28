@@ -1,26 +1,25 @@
 # lux-crypto-sha256
 
-Canonical Rust binding for **SHA-256** (FIPS 180-4).
+Canonical Rust binding for Lux SHA-256 (FIPS 180-4).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/sha256`. Verified against FIPS 180-4
-reference vectors.
+Wraps `sha256` from `luxcpp/crypto/sha256`. The C-ABI header is
+`luxcpp/crypto/c-abi/lux_crypto.h`.
 
-## Algorithm
+## Use
 
-- **SHA-256** -- 32-byte digest, FIPS 180-4 standard
+```rust
+use lux_crypto_sha256::hash;
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libsha256_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-sha256
+let digest = hash(b"abc");
 ```
 
-## License
+## Test vectors
 
-See `LICENSE` at the repository root.
+`tests/spec_vectors.rs` covers the FIPS 180-4 §A reference vectors:
+- `abc` (§A.1)
+- `abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq` (§A.2)
+- one million 'a' bytes (§A.3)
+
+## Source
+
+C-ABI body: `luxcpp/crypto/sha256/c-abi/c_sha256.cpp`.
