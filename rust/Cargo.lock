@@ -7,6 +7,10 @@ name = "lux-crypto"
 version = "0.1.0"
 
 [[package]]
+name = "lux-crypto-blake3"
+version = "0.1.0"
+
+[[package]]
 name = "lux-crypto-ed25519"
 version = "0.1.0"
 
@@ -16,4 +20,8 @@ version = "0.1.0"
 
 [[package]]
 name = "lux-crypto-secp256k1"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-slhdsa"
 version = "0.1.0"
