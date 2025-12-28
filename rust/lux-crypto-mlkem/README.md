@@ -1,33 +1,17 @@
 # lux-crypto-mlkem
 
-Canonical Rust binding for **ML-KEM** (FIPS 203), the NIST-standardized
-post-quantum key-encapsulation mechanism (formerly Kyber).
+Canonical Rust binding for Lux ML-KEM (FIPS 203, final standardized form of
+CRYSTALS-Kyber).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/mlkem`. Verified against the NIST
-FIPS 203 reference vectors.
+| Mode        | NIST level | pk     | sk    | ct    | ss |
+|-------------|------------|--------|-------|-------|----|
+| `Mode2`     | L1         | 800    | 1632  | 768   | 32 |
+| `Mode3`     | L3         | 1184   | 2400  | 1088  | 32 |
+| `Mode5`     | L5         | 1568   | 3168  | 1568  | 32 |
 
-## Algorithm
+**Status: stub — `c_mlkem.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#mlkem-c-abi-impl`.
 
-- **ML-KEM** -- FIPS 203
-- Modes: ML-KEM-512 / ML-KEM-768 / ML-KEM-1024 (NIST levels 1/3/5)
-- Key generation, encapsulation, decapsulation
+## Source
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libmlkem_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-mlkem
-```
-
-## Attribution
-
-Underlying implementation derived from PQClean (CC0 / public domain).
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/mlkem/c-abi/c_mlkem.cpp`.

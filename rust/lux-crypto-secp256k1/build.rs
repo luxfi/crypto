@@ -32,6 +32,7 @@ fn main() {
 
     let lib_path = base.join("secp256k1");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
+    println!("cargo:rustc-link-lib=static=secp256k1");
     println!("cargo:rustc-link-lib=static=secp256k1_cpu");
 
     if cfg!(target_os = "macos") {

@@ -4,9 +4,10 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Canonical Rust binding for Lux Pedersen vector commitments. Calls into luxcpp/crypto/pedersen via the C-ABI."
+description = "Canonical Rust binding for Lux Pedersen commitments. Calls into luxcpp/crypto/pedersen via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-keywords = ["pedersen", "commitment", "verkle", "ffi"]
+readme = "README.md"
+keywords = ["pedersen", "commitment", "zk", "ffi"]
 categories = ["cryptography"]
 
 [lib]

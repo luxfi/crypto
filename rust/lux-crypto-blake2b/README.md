@@ -1,26 +1,21 @@
 # lux-crypto-blake2b
 
-Canonical Rust binding for **BLAKE2b** (RFC 7693).
+Canonical Rust binding for Lux BLAKE2b-512 (RFC 7693).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/blake2b`. Verified against the
-RFC 7693 reference vectors.
+Wraps `blake2b` from `luxcpp/crypto/blake2b`.
 
-## Algorithm
+## Use
 
-- **BLAKE2b** -- variable digest length up to 64 bytes, RFC 7693
+```rust
+use lux_crypto_blake2b::hash;
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libblake2b_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-blake2b
+let digest = hash(b"abc");
 ```
 
-## License
+## Test vectors
 
-See `LICENSE` at the repository root.
+`tests/spec_vectors.rs` covers RFC 7693 §F.4 reference vectors.
+
+## Source
+
+C-ABI body: `luxcpp/crypto/blake2b/c-abi/c_blake2b.cpp`.
