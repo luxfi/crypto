@@ -1,183 +1,152 @@
-# Lux Crypto Package
+# Lux Crypto
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/luxfi/crypto.svg)](https://pkg.go.dev/github.com/luxfi/crypto)
-[![Go Report Card](https://goreportcard.com/badge/github.com/luxfi/crypto)](https://goreportcard.com/report/github.com/luxfi/crypto)
+Cryptographic primitives for the Lux Network -- post-quantum signatures, key encapsulation, BLS aggregation, threshold signing, ring signatures, and EVM-compatible secp256k1.
 
-## Overview
-
-The `crypto` package provides cryptographic primitives and utilities for the Lux Network ecosystem. It includes implementations for BLS signatures, key derivation, certificate handling, and secp256k1 operations, all optimized for blockchain applications.
-
-## Features
-
-- **BLS Signatures**: Threshold signature scheme supporting multi-party computation
-- **SLIP-10 HD Wallets**: Hierarchical deterministic key derivation
-- **secp256k1**: Elliptic curve operations for Ethereum compatibility
-- **Certificate Management**: TLS certificate handling for node identity
-- **Key Factories**: Secure key generation and management
-
-## Installation
-
-```bash
+```
 go get github.com/luxfi/crypto
 ```
 
-## Usage
+## Architecture
 
-### BLS Signatures
+`luxfi/crypto` is the cryptographic foundation for all Lux software. It provides both classical and post-quantum primitives, with automatic CGO acceleration where available (blst for BLS, circl for lattice schemes). The pure-Go fallback path requires no C compiler.
 
-BLS (Boneh-Lynn-Shacham) signatures provide efficient threshold signature schemes:
+### Post-Quantum (NIST FIPS 203/204/205)
+
+| Package | Algorithm | Standard | Security | Key Sizes |
+|---------|-----------|----------|----------|-----------|
+| `mldsa/` | ML-DSA (Dilithium) | FIPS 204 | 128/192/256-bit (Levels 2/3/5) | 44: 1312/2560 B, 65: 1952/4032 B, 87: 2592/4896 B |
+| `mlkem/` | ML-KEM (Kyber) | FIPS 203 | 128/192/256-bit | 512: 800/1632 B, 768: 1184/2400 B, 1024: 1568/3168 B |
+| `slhdsa/` | SLH-DSA (SPHINCS+) | FIPS 205 | 128/192/256-bit (12 variants) | SHA2/SHAKE, fast/small tradeoff |
+| `pq/` | Unified PQ interface | -- | Wraps mldsa, mlkem, slhdsa | Mode selection at runtime |
+
+ML-DSA and ML-KEM wrap Cloudflare's circl with ergonomic key serialization. SLH-DSA provides hash-based signatures as a conservative fallback (no lattice assumptions).
+
+### Classical
+
+| Package | Algorithm | Use |
+|---------|-----------|-----|
+| `bls/` | BLS12-381 (G1 keys, G2 signatures) | Consensus signatures, aggregation, proof-of-possession |
+| `secp256k1/` | secp256k1 ECDSA | EVM transaction signing, Ethereum compatibility |
+| `secp256r1/` | P-256 ECDSA | TLS, WebAuthn, FIDO2 |
+| `ecies/` | ECIES (secp256k1) | Asymmetric encryption for Ethereum-compatible keys |
+
+### Threshold and Multi-Party
+
+| Package | Protocol | Use |
+|---------|----------|-----|
+| `threshold/` | Threshold signature framework | Interface + registry for pluggable threshold schemes |
+| `threshold/bls/` | BLS threshold signatures | t-of-n BLS signing for consensus |
+| `cggmp21/` | CGGMP21 (ECDSA threshold) | MPC key generation and signing, Paillier commitments |
+
+### Advanced Constructions
+
+| Package | Construction | Use |
+|---------|-------------|-----|
+| `ring/` | Ring signatures (LSAG + lattice-based) | Unlinkable signer anonymity |
+| `lamport/` | Lamport one-time signatures | Hash-based PQ signatures (stateful) |
+| `hpke/` | Hybrid Public Key Encryption | ML-KEM + X25519 hybrid, KEM factory |
+| `kem/` | KEM abstraction | ML-KEM, X25519, hybrid combiner |
+| `aead/` | AEAD ciphers | AES-256-GCM, ChaCha20-Poly1305 |
+| `kdf/` | Key derivation | HKDF, SLIP-10 HD derivation |
+| `verkle/` | Verkle tree commitments | State proof compression |
+| `kzg4844/` | KZG commitments (EIP-4844) | Blob transaction proofs |
+| `ipa/` | Inner product arguments | Verkle proof backend |
+
+### Infrastructure
+
+| Package | Purpose |
+|---------|---------|
+| `common/` | Address, Hash types (20-byte, 32-byte) |
+| `hash/`, `hashing/` | Keccak256, SHA256, RIPEMD160, Blake2b |
+| `rlp/` | RLP encoding (Ethereum wire format) |
+| `cb58/` | CB58 encoding (Lux address format) |
+| `cert/` | TLS certificate management for node identity |
+| `signer/` | Transaction signing abstraction |
+| `sign/` | Signature scheme registry |
+| `secret/` | Secret-safe memory operations (zeroing, constant-time) |
+| `address/` | Multi-chain address derivation |
+| `gpu/` | GPU-accelerated modular arithmetic bindings |
+| `bindings/` | C/Rust FFI exports |
+
+## BLS Signatures
 
 ```go
-import (
-    "github.com/luxfi/crypto/bls"
-)
+import "github.com/luxfi/crypto/bls"
 
-// Generate a private key
-sk, err := bls.NewSecretKey()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Get the public key
+sk, _ := bls.NewSecretKey()
 pk := bls.PublicFromSecretKey(sk)
 
-// Sign a message
-message := []byte("Hello, Lux!")
-signature := bls.Sign(sk, message)
+sig := bls.Sign(sk, []byte("block hash"))
+valid := bls.Verify(pk, sig, []byte("block hash"))
 
-// Verify the signature
-valid := bls.Verify(pk, signature, message)
+// Aggregation
+aggSig, _ := bls.AggregateSignatures(sig1, sig2, sig3)
+aggPK, _ := bls.AggregatePublicKeys(pk1, pk2, pk3)
+valid = bls.Verify(aggPK, aggSig, msg)
 ```
 
-### Key Derivation (SLIP-10)
-
-Hierarchical deterministic key derivation following SLIP-10 standard:
+## Post-Quantum Signatures (ML-DSA)
 
 ```go
-import (
-    "github.com/luxfi/crypto/keychain"
-)
+import "github.com/luxfi/crypto/mldsa"
 
-// Create a new keychain from seed
-seed := []byte("your-secure-seed-phrase")
-kc, err := keychain.NewFromSeed(seed)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Derive a key at a specific path
-key, err := kc.Derive([]uint32{44, 9000, 0, 0, 0})
-if err != nil {
-    log.Fatal(err)
-}
+sk, pk, _ := mldsa.GenerateKey(mldsa.MLDSA87)  // NIST Level 5
+sig, _ := sk.Sign(rand.Reader, data, nil)
+valid := pk.VerifySignature(data, sig)
 ```
 
-### secp256k1 Operations
-
-Ethereum-compatible elliptic curve operations:
+## Post-Quantum Key Encapsulation (ML-KEM)
 
 ```go
-import (
-    "github.com/luxfi/crypto/secp256k1"
-)
+import "github.com/luxfi/crypto/mlkem"
 
-// Generate a private key
-privKey, err := secp256k1.NewPrivateKey()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Get the public key
-pubKey := privKey.PublicKey()
-
-// Sign a message
-messageHash := crypto.Keccak256([]byte("message"))
-signature, err := privKey.Sign(messageHash)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Verify signature
-valid := pubKey.Verify(messageHash, signature)
+sk, pk, _ := mlkem.GenerateKey(mlkem.MLKEM1024)  // NIST Level 5
+ciphertext, sharedSecret, _ := pk.Encapsulate()
+recovered, _ := sk.Decapsulate(ciphertext)
+// sharedSecret == recovered (32 bytes, use as AES key)
 ```
 
-### Certificate Handling
-
-TLS certificate management for node identity:
+## Hybrid HPKE
 
 ```go
-import (
-    "github.com/luxfi/crypto"
-)
+import "github.com/luxfi/crypto/hpke"
 
-// Create a certificate structure
-cert := &crypto.Certificate{
-    Raw:       tlsCert.Raw,
-    PublicKey: tlsCert.PublicKey,
-}
-
-// Use with node identity generation
-// nodeID := ids.NodeIDFromCert(cert)
+// ML-KEM-1024 + X25519 hybrid
+suite := hpke.NewHybridSuite()
+enc, ct, _ := suite.Seal(recipientPK, plaintext, aad)
+pt, _ := suite.Open(recipientSK, enc, ct, aad)
 ```
-
-## Package Structure
-
-```
-crypto/
-├── bls/           # BLS signature scheme implementation
-├── keychain/      # SLIP-10 HD key derivation
-├── secp256k1/     # secp256k1 elliptic curve operations
-├── certificate.go # TLS certificate structures
-└── README.md      # This file
-```
-
-## Security Considerations
-
-1. **Key Storage**: Never store private keys in plain text. Use secure key management systems.
-2. **Randomness**: This package uses cryptographically secure random number generation.
-3. **Constant Time**: Critical operations are implemented to be constant-time where applicable.
-4. **Threshold Signatures**: BLS signatures support threshold schemes for distributed signing.
-
-## Performance
-
-The crypto package is optimized for blockchain operations:
-- Fast signature verification for consensus
-- Batch verification support in BLS
-- Optimized elliptic curve operations
-- Minimal memory allocations
 
 ## Testing
 
-Run the comprehensive test suite:
-
 ```bash
-go test ./...
+go test ./...          # 382 test functions
+go test -bench=. ./... # benchmarks
 ```
 
-Run benchmarks:
+Compiled test binaries are provided for quick verification:
+- `bls.test` -- BLS signature tests
+- `mldsa.test` -- ML-DSA tests
+- `mlkem.test` -- ML-KEM tests
+- `slhdsa.test` -- SLH-DSA tests
+- `crypto.test` -- Core crypto tests
 
-```bash
-go test -bench=. ./...
-```
+## Papers
 
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](../CONTRIBUTING.md) for details.
-
-### Development Setup
-
-1. Clone the repository
-2. Install dependencies: `go mod download`
-3. Run tests: `go test ./...`
-4. Run linters: `golangci-lint run`
-
-## License
-
-This project is licensed under the BSD 3-Clause License. See the [LICENSE](../LICENSE) file for details.
+- [Lux PQ Crypto Suite](https://github.com/luxfi/papers/blob/main/lux-pq-crypto-suite.pdf) -- parameter selection and security analysis for ML-DSA, ML-KEM, SLH-DSA
+- [Lux Hybrid PQ Architecture](https://github.com/luxfi/papers/blob/main/lux-hybrid-pq-architecture.pdf) -- hybrid classical/PQ transition strategy
+- [Lux Crypto Agility](https://github.com/luxfi/papers/blob/main/lux-crypto-agility.pdf) -- algorithm negotiation and migration framework
+- [Lux Corona PQ](https://github.com/luxfi/papers/blob/main/lux-corona-pq.pdf) -- post-quantum ring signatures
+- [Lux Universal Threshold Signatures](https://github.com/luxfi/papers/blob/main/lux-universal-threshold-signatures.pdf) -- multi-curve threshold framework
 
 ## References
 
-- [BLS Signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf)
-- [SLIP-10: Universal HD Key Derivation](https://github.com/satoshilabs/slips/blob/master/slip-0010.md)
-- [secp256k1](https://www.secg.org/sec2-v2.pdf)
-- [Lux Network Documentation](https://docs.lux.network)
+- NIST FIPS 203: ML-KEM (Module-Lattice-Based Key-Encapsulation Mechanism)
+- NIST FIPS 204: ML-DSA (Module-Lattice-Based Digital Signature Algorithm)
+- NIST FIPS 205: SLH-DSA (Stateless Hash-Based Digital Signature Algorithm)
+- [Cloudflare circl](https://github.com/cloudflare/circl) -- underlying lattice implementations
+- [BLS12-381](https://hackmd.io/@benjaminion/bls12-381) -- pairing-friendly curve specification
+
+## License
+
+Lux Ecosystem License v1.2. See [LICENSE](LICENSE).
