@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"filippo.io/age"
+	"github.com/luxfi/age"
 )
 
 // DecryptPrivateKeyWithPassword decrypts an age-encrypted private key using a password.
