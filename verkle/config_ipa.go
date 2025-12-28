@@ -38,7 +38,7 @@ package verkle
 import (
 	"sync"
 
-	"github.com/crate-crypto/go-ipa/ipa"
+	"github.com/luxfi/crypto/ipa/ipa"
 )
 
 // EmptyCodeHashPoint is a cached point that is used to represent an empty code hash.
