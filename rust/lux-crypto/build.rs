@@ -1,7 +1,7 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// Build script for lux-crypto-sys. Locates the luxcpp/crypto build output
+// Build script for lux-crypto. Locates the luxcpp/crypto build output
 // and emits cargo linker directives.
 
 use std::env;
