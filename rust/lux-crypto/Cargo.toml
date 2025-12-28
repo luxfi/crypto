@@ -8,21 +8,26 @@ description = "Canonical Rust crate for Lux crypto. Calls into luxcpp/crypto via
 # This crate is the canonical Rust entry point for Lux crypto.
 # Mirrors github.com/luxfi/gpu (canonical Rust binding to luxfi/accel).
 #
-# Phase 1 surface:
-#   * secp256k1: secp256k1_ecrecover, secp256k1_ecrecover_batch
+# Surface:
+#   * secp256k1 — ECDSA public-key recovery (single + batch)
+#   * mldsa     — FIPS 204 ML-DSA modes 2/3/5
+#   * mlkem     — FIPS 203 ML-KEM modes 2/3/5
+#   * slhdsa    — FIPS 205 SLH-DSA modes 2/3/5
+#   * ed25519   — keygen / sign / verify
+#   * keccak256 — single-shot 32-byte digest
 #
 # Build expectations:
 #   - Environment variable `CRYPTO_DIR` points to the install prefix that
 #     contains `include/lux/crypto/*.h` and `lib/lib<alg>_cpu.a`.
-#   - Or, set `CRYPTO_BUILD_DIR` to the cmake build directory.
+#   - Or, set `CRYPTO_BUILD_DIR` to the cmake build directory containing
+#     `<alg>/lib<alg>_cpu.a`.
 #   - Deprecated names `LUX_CRYPTO_DIR` / `LUX_CRYPTO_BUILD_DIR` are read for
 #     one release with a deprecation warning.
 #
 # Brand-neutral naming: NO -sys suffix. We author the C/C++ ourselves at
 # luxcpp/crypto; this is not a wrapper around third-party FFI. One crate
-# per first-party FFI surface; safe wrappers (if needed) live as a `pub mod safe`.
+# per first-party FFI surface; safe wrappers live in the per-algorithm
+# `pub mod` blocks in src/lib.rs.
 
 [lib]
 name = "lux_crypto"
-
-[build-dependencies]
