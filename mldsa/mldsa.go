@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"errors"
 	"io"
+	"runtime"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
@@ -140,18 +141,29 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, ErrInvalidMode
 	}
 
-	return &PrivateKey{
+	priv := &PrivateKey{
 		mode:      mode,
 		secretKey: privBytes,
 		PublicKey: &PublicKey{
 			mode:      mode,
 			publicKey: pubBytes,
 		},
-	}, nil
+	}
+	runtime.SetFinalizer(priv, (*PrivateKey).Zeroize)
+	return priv, nil
 }
 
-// Sign signs a message with the private key using circl
+// Sign signs a message with the private key using circl.
+// Uses nil context -- callers requiring domain separation should use SignCtx.
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	return priv.SignCtx(rand, message, nil)
+}
+
+// SignCtx signs a message with domain-separating context.
+// FIPS 204 Section 5.2: ctx is an optional octet string (0-255 bytes) bound
+// into the signature. Callers SHOULD use a non-nil context to prevent
+// cross-protocol signature replay.
+func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, error) {
 	switch priv.mode {
 	case MLDSA44:
 		var sk mldsa44.PrivateKey
@@ -159,7 +171,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 			return nil, err
 		}
 		sig := make([]byte, MLDSA44SignatureSize)
-		if err := mldsa44.SignTo(&sk, message, nil, true, sig); err != nil {
+		if err := mldsa44.SignTo(&sk, message, ctx, true, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil
@@ -170,7 +182,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 			return nil, err
 		}
 		sig := make([]byte, MLDSA65SignatureSize)
-		if err := mldsa65.SignTo(&sk, message, nil, true, sig); err != nil {
+		if err := mldsa65.SignTo(&sk, message, ctx, true, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil
@@ -181,7 +193,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 			return nil, err
 		}
 		sig := make([]byte, MLDSA87SignatureSize)
-		if err := mldsa87.SignTo(&sk, message, nil, true, sig); err != nil {
+		if err := mldsa87.SignTo(&sk, message, ctx, true, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil
@@ -197,29 +209,38 @@ func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) 
 	return pub.VerifySignature(message, signature)
 }
 
-// VerifySignature verifies a signature with the public key (simplified API)
+// VerifySignature verifies a signature with the public key (simplified API).
+// Uses nil context -- callers requiring domain separation should use VerifySignatureCtx.
 func (pub *PublicKey) VerifySignature(message, signature []byte) bool {
+	return pub.VerifySignatureCtx(message, signature, nil)
+}
+
+// VerifySignatureCtx verifies a signature with domain-separating context.
+// FIPS 204 Section 5.3: ctx is an optional octet string (0-255 bytes) bound
+// into the signature. Callers SHOULD use a non-nil context to prevent
+// cross-protocol signature replay.
+func (pub *PublicKey) VerifySignatureCtx(message, signature, ctx []byte) bool {
 	switch pub.mode {
 	case MLDSA44:
 		var pk mldsa44.PublicKey
 		if err := (&pk).UnmarshalBinary(pub.publicKey); err != nil {
 			return false
 		}
-		return mldsa44.Verify(&pk, message, nil, signature)
+		return mldsa44.Verify(&pk, message, ctx, signature)
 
 	case MLDSA65:
 		var pk mldsa65.PublicKey
 		if err := (&pk).UnmarshalBinary(pub.publicKey); err != nil {
 			return false
 		}
-		return mldsa65.Verify(&pk, message, nil, signature)
+		return mldsa65.Verify(&pk, message, ctx, signature)
 
 	case MLDSA87:
 		var pk mldsa87.PublicKey
 		if err := (&pk).UnmarshalBinary(pub.publicKey); err != nil {
 			return false
 		}
-		return mldsa87.Verify(&pk, message, nil, signature)
+		return mldsa87.Verify(&pk, message, ctx, signature)
 
 	default:
 		return false
@@ -234,6 +255,17 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 // Bytes returns the serialized private key
 func (priv *PrivateKey) Bytes() []byte {
 	return priv.secretKey
+}
+
+// Zeroize overwrites the private key material with zeros.
+// Best-effort: the Go runtime may have copied the bytes elsewhere.
+// A GC finalizer calls this automatically when the key becomes unreachable,
+// but callers should call it explicitly when the key is no longer needed
+// for more predictable cleanup.
+func (priv *PrivateKey) Zeroize() {
+	for i := range priv.secretKey {
+		priv.secretKey[i] = 0
+	}
 }
 
 // Bytes returns the serialized public key
@@ -298,14 +330,16 @@ func PrivateKeyFromBytes(mode Mode, data []byte) (*PrivateKey, error) {
 		}
 	}
 
-	return &PrivateKey{
+	priv := &PrivateKey{
 		mode:      mode,
 		secretKey: data,
 		PublicKey: &PublicKey{
 			mode:      mode,
 			publicKey: pubBytes,
 		},
-	}, nil
+	}
+	runtime.SetFinalizer(priv, (*PrivateKey).Zeroize)
+	return priv, nil
 }
 
 // PublicKeyFromBytes deserializes a public key

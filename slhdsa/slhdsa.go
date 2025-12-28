@@ -12,6 +12,7 @@ import (
 	"crypto"
 	"errors"
 	"io"
+	"runtime"
 
 	"github.com/cloudflare/circl/sign/slhdsa"
 )
@@ -171,18 +172,28 @@ func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	return &PrivateKey{
+	pk := &PrivateKey{
 		mode:      mode,
 		secretKey: privBytes,
 		PublicKey: &PublicKey{
 			mode:      mode,
 			publicKey: pubBytes,
 		},
-	}, nil
+	}
+	runtime.SetFinalizer(pk, (*PrivateKey).Zeroize)
+	return pk, nil
 }
 
-// Sign signs a message with the private key using circl
+// Sign signs a message with the private key using circl.
+// Uses nil context -- callers requiring domain separation should use SignCtx.
 func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	return priv.SignCtx(rand, message, nil)
+}
+
+// SignCtx signs a message with domain-separating context.
+// FIPS 205: ctx is an optional octet string bound into the signature.
+// Callers SHOULD use a non-nil context to prevent cross-protocol signature replay.
+func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, error) {
 	id := modeToID(priv.mode)
 	if !id.IsValid() {
 		return nil, ErrInvalidMode
@@ -194,9 +205,8 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 		return nil, err
 	}
 
-	// Use deterministic signing (context = nil)
 	msg := slhdsa.NewMessage(message)
-	signature, err := slhdsa.SignDeterministic(&sk, msg, nil)
+	signature, err := slhdsa.SignDeterministic(&sk, msg, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +220,16 @@ func (pub *PublicKey) Verify(message, signature []byte, opts crypto.SignerOpts) 
 	return pub.VerifySignature(message, signature)
 }
 
-// VerifySignature verifies a signature with the public key (simplified API)
+// VerifySignature verifies a signature with the public key (simplified API).
+// Uses nil context -- callers requiring domain separation should use VerifySignatureCtx.
 func (pub *PublicKey) VerifySignature(message, signature []byte) bool {
+	return pub.VerifySignatureCtx(message, signature, nil)
+}
+
+// VerifySignatureCtx verifies a signature with domain-separating context.
+// FIPS 205: ctx is an optional octet string bound into the signature.
+// Callers SHOULD use a non-nil context to prevent cross-protocol signature replay.
+func (pub *PublicKey) VerifySignatureCtx(message, signature, ctx []byte) bool {
 	id := modeToID(pub.mode)
 	if !id.IsValid() {
 		return false
@@ -224,7 +242,7 @@ func (pub *PublicKey) VerifySignature(message, signature []byte) bool {
 	}
 
 	msg := slhdsa.NewMessage(message)
-	return slhdsa.Verify(&pk, msg, signature, nil)
+	return slhdsa.Verify(&pk, msg, signature, ctx)
 }
 
 // Public returns the public key
@@ -235,6 +253,17 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 // Bytes returns the serialized private key
 func (priv *PrivateKey) Bytes() []byte {
 	return priv.secretKey
+}
+
+// Zeroize overwrites the private key material with zeros.
+// Best-effort: the Go runtime may have copied the bytes elsewhere.
+// A GC finalizer calls this automatically when the key becomes unreachable,
+// but callers should call it explicitly when the key is no longer needed
+// for more predictable cleanup.
+func (priv *PrivateKey) Zeroize() {
+	for i := range priv.secretKey {
+		priv.secretKey[i] = 0
+	}
 }
 
 // Bytes returns the serialized public key
@@ -263,14 +292,16 @@ func PrivateKeyFromBytes(mode Mode, data []byte) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	return &PrivateKey{
+	priv := &PrivateKey{
 		mode:      mode,
 		secretKey: data,
 		PublicKey: &PublicKey{
 			mode:      mode,
 			publicKey: pubBytes,
 		},
-	}, nil
+	}
+	runtime.SetFinalizer(priv, (*PrivateKey).Zeroize)
+	return priv, nil
 }
 
 // PublicKeyFromBytes deserializes a public key
