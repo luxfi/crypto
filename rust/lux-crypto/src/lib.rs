@@ -11,7 +11,7 @@
 //   - keccak256: single-shot keccak256 (32-byte digest)
 //
 // All multi-byte buffers are big-endian unless noted. The C ABI is documented
-// in `luxcpp/crypto/c-abi/lux_crypto.h` and the per-algorithm headers under
+// in `luxcpp/crypto/c-abi/crypto.h` and the per-algorithm headers under
 // `luxcpp/crypto/include/lux/crypto/*.h`.
 //
 // Symbols are brand-neutral. The new code path links the bare names that the
@@ -98,7 +98,11 @@ pub enum NistMode {
     Mode5 = 5,
 }
 
-/// Generic status returned by the unified C ABI (lux_crypto.h).
+/// Generic status returned by the unified C ABI (crypto.h).
+///
+/// 0      => CRYPTO_OK
+/// 1      => verify success (boolean ops); 0 is invalid signature
+/// <0     => failure (negated errno-ish)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CryptoStatus {
     Ok,
