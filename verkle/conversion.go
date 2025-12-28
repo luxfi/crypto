@@ -17,7 +17,7 @@ import (
 	"runtime"
 	"sort"
 
-	"github.com/crate-crypto/go-ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 	"golang.org/x/sync/errgroup"
 )
 
