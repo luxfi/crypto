@@ -1,213 +1,131 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-bls: canonical Rust binding for the Lux BLS12-381 IRTF
-// signature C-ABI (draft-irtf-cfrg-bls-signature-05).
-//
-// Ciphersuite: BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_ — Ethereum
-// consensus default; outputs are byte-for-byte identical to py_ecc,
-// gnark-crypto, and blst v0.3.15.
-//
-// Pubkeys live on G1 (48-byte Zcash-compressed). Signatures live on G2
-// (96-byte Zcash-compressed). The C-ABI is in
-// luxcpp/crypto/bls/c-abi/c_bls_signature.{cpp,h}; bodies are in
-// cpp/bls_signature.cpp which PRIVATE-links blst.
+// lux-crypto-bls: canonical Rust binding for Lux BLS12-381 signature C-ABI.
+// Links the canonical CPU body in `luxcpp/crypto/bls`. Mirrors the consensus
+// signing surface (sk_to_pk / sign / verify / aggregate / batch_verify).
 
+#![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use core::ffi::c_int;
 
 extern "C" {
-    fn bls12_381_keygen(seed: *const u8, sk: *mut u8) -> c_int;
-    fn bls12_381_sk_to_pk(sk: *const u8, pk: *mut u8) -> c_int;
-    fn bls12_381_sign(
-        sk: *const u8,
-        msg: *const u8,
-        msg_len: usize,
-        sig: *mut u8,
-    ) -> c_int;
-    fn bls12_381_verify(
-        pk: *const u8,
-        msg: *const u8,
-        msg_len: usize,
-        sig: *const u8,
-    ) -> c_int;
-    fn bls12_381_aggregate_pubkeys(
+    fn bls_keygen(seed: *const u8, sk: *mut u8) -> c_int;
+    fn bls_sk_to_pk(sk: *const u8, pk: *mut u8) -> c_int;
+    fn bls_sign(sk: *const u8, msg: *const u8, msg_len: usize, sig: *mut u8) -> c_int;
+    fn bls_verify(pk: *const u8, msg: *const u8, msg_len: usize, sig: *const u8) -> c_int;
+    fn bls_aggregate_pubkeys(pks: *const u8, n: usize, agg_pk: *mut u8) -> c_int;
+    fn bls_aggregate_sigs(sigs: *const u8, n: usize, agg_sig: *mut u8) -> c_int;
+    fn bls_batch_verify(
         pks: *const u8,
-        n: usize,
-        agg_pk: *mut u8,
-    ) -> c_int;
-    fn bls12_381_aggregate_sigs(
+        msgs: *const u8,
+        msg_len: usize,
         sigs: *const u8,
         n: usize,
-        agg_sig: *mut u8,
-    ) -> c_int;
-    fn bls12_381_fast_aggregate_verify(
-        pks: *const u8,
-        n: usize,
-        msg: *const u8,
-        msg_len: usize,
-        agg_sig: *const u8,
-    ) -> c_int;
-    fn bls12_381_aggregate_verify_distinct(
-        pks: *const u8,
-        n: usize,
-        msgs_flat: *const u8,
-        msg_lens: *const usize,
-        agg_sig: *const u8,
     ) -> c_int;
 }
 
-/// Length of a BLS12-381 secret key (32 bytes, big-endian scalar in [1, r)).
+/// Length of a BLS12-381 secret key (Fr scalar, big-endian) in bytes.
 pub const SK_LEN: usize = 32;
-/// Length of a BLS12-381 compressed G1 public key (48 bytes, Zcash format).
+/// Length of a compressed BLS12-381 G1 public key in bytes.
 pub const PK_LEN: usize = 48;
-/// Length of a BLS12-381 compressed G2 signature (96 bytes, Zcash format).
+/// Length of a compressed BLS12-381 G2 signature in bytes.
 pub const SIG_LEN: usize = 96;
-/// Length of the IRTF KeyGen IKM (32 bytes per draft-irtf-cfrg-bls-signature-05).
-pub const IKM_LEN: usize = 32;
+/// Length of the keygen seed in bytes.
+pub const SEED_LEN: usize = 32;
 
-/// Errors returned by the BLS12-381 signature primitives.
+/// Errors returned by BLS operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// Input buffer length mismatch, null pointer, or malformed compression.
-    BadInput,
-    /// Verification rejected the signature.
-    VerifyFail,
-    /// The C-ABI returned an unexpected status.
+    /// C-ABI returned an error status.
     Internal(c_int),
+    /// `verify` rejected the (msg, sig, pk) triple.
+    InvalidSignature,
 }
 
-fn rc_to_result(rc: c_int) -> Result<(), Error> {
+#[inline]
+fn check(rc: c_int) -> Result<(), Error> {
     match rc {
         0 => Ok(()),
-        1 => Err(Error::VerifyFail),
-        -1 | -2 => Err(Error::BadInput),
-        x => Err(Error::Internal(x)),
+        -3 => Err(Error::InvalidSignature),
+        other => Err(Error::Internal(other)),
     }
 }
 
-/// IRTF KeyGen (§2.3): derive a 32-byte secret key from a 32-byte IKM.
-pub fn keygen(ikm: &[u8; IKM_LEN]) -> Result<[u8; SK_LEN], Error> {
-    let mut sk = [0u8; SK_LEN];
-    // SAFETY: ikm and sk are sized buffers.
-    let rc = unsafe { bls12_381_keygen(ikm.as_ptr(), sk.as_mut_ptr()) };
-    rc_to_result(rc).map(|()| sk)
+/// Derive a secret key from a 32-byte seed.
+#[inline]
+pub fn keygen(seed: &[u8; SEED_LEN], sk: &mut [u8; SK_LEN]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
+    let rc = unsafe { bls_keygen(seed.as_ptr(), sk.as_mut_ptr()) };
+    check(rc)
 }
 
-/// Derive the 48-byte compressed G1 public key from the 32-byte secret key.
-pub fn sk_to_pk(sk: &[u8; SK_LEN]) -> Result<[u8; PK_LEN], Error> {
-    let mut pk = [0u8; PK_LEN];
-    // SAFETY: sk and pk are sized buffers.
-    let rc = unsafe { bls12_381_sk_to_pk(sk.as_ptr(), pk.as_mut_ptr()) };
-    rc_to_result(rc).map(|()| pk)
+/// Compute the compressed public key for a secret key.
+#[inline]
+pub fn sk_to_pk(sk: &[u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
+    let rc = unsafe { bls_sk_to_pk(sk.as_ptr(), pk.as_mut_ptr()) };
+    check(rc)
 }
 
-/// Sign `msg` with the 32-byte secret key. Output is the 96-byte compressed
-/// G2 signature.
-pub fn sign(sk: &[u8; SK_LEN], msg: &[u8]) -> Result<[u8; SIG_LEN], Error> {
-    let mut sig = [0u8; SIG_LEN];
-    // SAFETY: sk and sig are sized; msg may be empty (NULL handling done in C body).
-    let rc = unsafe {
-        bls12_381_sign(
-            sk.as_ptr(),
-            msg.as_ptr(),
-            msg.len(),
-            sig.as_mut_ptr(),
-        )
-    };
-    rc_to_result(rc).map(|()| sig)
+/// Sign a message under `sk`.
+#[inline]
+pub fn sign(sk: &[u8; SK_LEN], msg: &[u8], sig: &mut [u8; SIG_LEN]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
+    let rc = unsafe { bls_sign(sk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_mut_ptr()) };
+    check(rc)
 }
 
-/// Verify the 96-byte compressed signature against the 48-byte compressed
-/// pubkey and msg. Performs subgroup checks on both points.
+/// Verify a single BLS signature.
+#[inline]
 pub fn verify(pk: &[u8; PK_LEN], msg: &[u8], sig: &[u8; SIG_LEN]) -> Result<(), Error> {
-    // SAFETY: pk and sig are sized; msg may be empty.
-    let rc = unsafe {
-        bls12_381_verify(pk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_ptr())
-    };
-    rc_to_result(rc)
+    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
+    let rc = unsafe { bls_verify(pk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_ptr()) };
+    check(rc)
 }
 
-/// Aggregate `n = pks.len() / PK_LEN` compressed pubkeys into one. Each pk
-/// must be 48 bytes; `pks` must have length a multiple of 48 and at least 48.
-pub fn aggregate_pubkeys(pks: &[u8]) -> Result<[u8; PK_LEN], Error> {
-    if pks.is_empty() || pks.len() % PK_LEN != 0 {
-        return Err(Error::BadInput);
+/// Aggregate `n` compressed public keys into a single public key.
+///
+/// `pks` must be exactly `n * PK_LEN` bytes.
+#[inline]
+pub fn aggregate_pubkeys(pks: &[u8], n: usize, agg_pk: &mut [u8; PK_LEN]) -> Result<(), Error> {
+    if pks.len() != n * PK_LEN {
+        return Err(Error::Internal(-1));
     }
-    let n = pks.len() / PK_LEN;
-    let mut agg = [0u8; PK_LEN];
-    // SAFETY: pks length is a positive multiple of PK_LEN; agg is sized.
-    let rc = unsafe { bls12_381_aggregate_pubkeys(pks.as_ptr(), n, agg.as_mut_ptr()) };
-    rc_to_result(rc).map(|()| agg)
+    // SAFETY: buffer length checked; pointers valid for the call's duration.
+    let rc = unsafe { bls_aggregate_pubkeys(pks.as_ptr(), n, agg_pk.as_mut_ptr()) };
+    check(rc)
 }
 
-/// Aggregate `n = sigs.len() / SIG_LEN` compressed signatures into one.
-pub fn aggregate_sigs(sigs: &[u8]) -> Result<[u8; SIG_LEN], Error> {
-    if sigs.is_empty() || sigs.len() % SIG_LEN != 0 {
-        return Err(Error::BadInput);
+/// Aggregate `n` compressed signatures into a single signature.
+///
+/// `sigs` must be exactly `n * SIG_LEN` bytes.
+#[inline]
+pub fn aggregate_sigs(sigs: &[u8], n: usize, agg_sig: &mut [u8; SIG_LEN]) -> Result<(), Error> {
+    if sigs.len() != n * SIG_LEN {
+        return Err(Error::Internal(-1));
     }
-    let n = sigs.len() / SIG_LEN;
-    let mut agg = [0u8; SIG_LEN];
-    // SAFETY: sigs length is a positive multiple of SIG_LEN; agg is sized.
-    let rc = unsafe { bls12_381_aggregate_sigs(sigs.as_ptr(), n, agg.as_mut_ptr()) };
-    rc_to_result(rc).map(|()| agg)
+    // SAFETY: buffer length checked; pointers valid for the call's duration.
+    let rc = unsafe { bls_aggregate_sigs(sigs.as_ptr(), n, agg_sig.as_mut_ptr()) };
+    check(rc)
 }
 
-/// FastAggregateVerify: `n` pubkeys all signed the same `msg`. `pks` must
-/// be a concatenation of `n * PK_LEN` bytes.
-pub fn fast_aggregate_verify(
+/// Batch verify `n` (pk, msg, sig) triples sharing a common message length.
+#[inline]
+pub fn batch_verify(
     pks: &[u8],
-    msg: &[u8],
-    agg_sig: &[u8; SIG_LEN],
+    msgs: &[u8],
+    msg_len: usize,
+    sigs: &[u8],
+    n: usize,
 ) -> Result<(), Error> {
-    if pks.is_empty() || pks.len() % PK_LEN != 0 {
-        return Err(Error::BadInput);
+    if pks.len() != n * PK_LEN || sigs.len() != n * SIG_LEN || msgs.len() != n * msg_len {
+        return Err(Error::Internal(-1));
     }
-    let n = pks.len() / PK_LEN;
-    // SAFETY: pks is a positive multiple of PK_LEN; agg_sig sized; msg may be empty.
+    // SAFETY: buffer lengths checked; pointers valid for the call's duration.
     let rc = unsafe {
-        bls12_381_fast_aggregate_verify(
-            pks.as_ptr(),
-            n,
-            msg.as_ptr(),
-            msg.len(),
-            agg_sig.as_ptr(),
-        )
+        bls_batch_verify(pks.as_ptr(), msgs.as_ptr(), msg_len, sigs.as_ptr(), n)
     };
-    rc_to_result(rc)
-}
-
-/// AggregateVerify with distinct messages per pubkey. `pks` is `n * PK_LEN`.
-/// `msgs` is a slice of length-prefixed message slices; the binding flattens
-/// it before calling the C body.
-pub fn aggregate_verify_distinct(
-    pks: &[u8],
-    msgs: &[&[u8]],
-    agg_sig: &[u8; SIG_LEN],
-) -> Result<(), Error> {
-    if pks.is_empty() || pks.len() % PK_LEN != 0 {
-        return Err(Error::BadInput);
-    }
-    let n = pks.len() / PK_LEN;
-    if n != msgs.len() {
-        return Err(Error::BadInput);
-    }
-    let mut flat = Vec::with_capacity(msgs.iter().map(|m| m.len()).sum());
-    let mut lens = Vec::with_capacity(n);
-    for m in msgs {
-        flat.extend_from_slice(m);
-        lens.push(m.len());
-    }
-    // SAFETY: pks/agg_sig sized; flat/lens length-matches n; allow empty msgs.
-    let rc = unsafe {
-        bls12_381_aggregate_verify_distinct(
-            pks.as_ptr(),
-            n,
-            flat.as_ptr(),
-            lens.as_ptr(),
-            agg_sig.as_ptr(),
-        )
-    };
-    rc_to_result(rc)
+    check(rc)
 }

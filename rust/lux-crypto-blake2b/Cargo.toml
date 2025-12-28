@@ -4,9 +4,8 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Canonical Rust binding for Lux BLAKE2b (RFC 7693). Calls into luxcpp/crypto/blake2b via the C-ABI."
+description = "Canonical Rust binding for Lux BLAKE2b. Calls into luxcpp/crypto/blake2b via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-readme = "README.md"
 keywords = ["blake2b", "rfc7693", "hash", "ffi"]
 categories = ["cryptography"]
 
