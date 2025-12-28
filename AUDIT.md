@@ -15,9 +15,10 @@ plus a runtime backend selector (`backend.Default()`).
 | `cgo`          | cgo      | Native binding (blst, libsecp256k1, ckzg) |
 | `cgo,accel`    | gpu      | Routes batch ops through `lux/accel`      |
 
-`backend.Default()` reads `LUX_CRYPTO_BACKEND` (`auto|vanilla|cgo|gpu`)
+`backend.Default()` reads `CRYPTO_BACKEND` (`auto|vanilla|cgo|gpu`)
 and falls back to `auto`. `auto` picks the highest-priority backend the
-binary was compiled with.
+binary was compiled with. The deprecated `LUX_CRYPTO_BACKEND` is read for
+one release with a deprecation warning; remove in v2.
 
 ## Per-algorithm state
 
@@ -122,7 +123,8 @@ backend.SetDefault(b)   // override programmatically
 backend.Available(b)    // probe whether b is usable
 ```
 
-Environment override: `LUX_CRYPTO_BACKEND=vanilla|cgo|gpu|auto`.
+Environment override: `CRYPTO_BACKEND=vanilla|cgo|gpu|auto`. Deprecated
+alias `LUX_CRYPTO_BACKEND` is honored for one release.
 
 ## Honest gaps (Phase 3 / 4)
 
