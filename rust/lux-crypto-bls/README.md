@@ -1,29 +1,19 @@
 # lux-crypto-bls
 
-Canonical Rust binding for **BLS12-381 IRTF signatures**
-(`draft-irtf-cfrg-bls-signature-05`).
+Canonical Rust binding for Lux BLS12-381 signatures and aggregation.
 
-Wraps the C-ABI exposed by `luxcpp/crypto/bls`. Verified against the IRTF
-reference vectors.
+Conforms to draft-irtf-cfrg-bls-signature-05 ("min_pk" variant: 48-byte public
+key, 96-byte signature).
 
-## Algorithm
+**Status: stub — `c_bls.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#bls-c-abi-impl`.
 
-- **BLS** -- BLS12-381 pairing-based signatures
-- IETF draft `draft-irtf-cfrg-bls-signature-05`
-- Used by Ethereum 2.0 / consensus and as the classical layer of Quasar
+## Use
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libbls_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-bls
+```rust
+use lux_crypto_bls::{keygen, sign, sk_to_pk, verify, aggregate_sigs};
 ```
 
-## License
+## Source
 
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/bls/c-abi/c_bls.cpp`.

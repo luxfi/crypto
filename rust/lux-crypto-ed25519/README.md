@@ -1,31 +1,23 @@
 # lux-crypto-ed25519
 
-Canonical Rust binding for **Ed25519** (RFC 8032).
+Canonical Rust binding for Lux Ed25519 (RFC 8032 §5.1, PureEdDSA over
+Curve25519).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/ed25519` (vendored ed25519-donna,
-public domain). Verified against the RFC 8032 reference vectors.
+**Status: stub — luxcpp/crypto/ed25519/c-abi/c_ed25519.cpp returns
+`CRYPTO_ERR_NOTIMPL`.** The Rust binding is shipped against the canonical
+C-ABI surface; RFC 8032 §7.1 spec-vector tests are gated `#[ignore]` and
+will be re-enabled when the C-ABI body lands. Tracked at `#ed25519-c-abi-impl`.
 
-## Algorithm
+## Use
 
-- **Ed25519** -- EdDSA over edwards25519, RFC 8032
-- Keygen / sign / verify
+```rust
+use lux_crypto_ed25519::{keygen, sign, verify};
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libed25519_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-ed25519
+let (sk, pk) = keygen(&seed)?;
+let sig = sign(&sk, msg)?;
+verify(&pk, msg, &sig)?;
 ```
 
-## Attribution
+## Source
 
-Vendored `ed25519-donna` (Andrew Moon, public domain).
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/ed25519/c-abi/c_ed25519.cpp`.

@@ -1,9 +1,12 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-aead: canonical Rust binding for Lux ChaCha20-Poly1305 AEAD
-// (RFC 8439). Single-shot seal/open with 32-byte key, 12-byte nonce, and
-// 16-byte authentication tag.
+// lux-crypto-aead: canonical Rust binding for the Lux ChaCha20-Poly1305 AEAD
+// C-ABI. Conforms to RFC 8439 (Bernstein "ChaCha20 and Poly1305 for IETF
+// Protocols").
+//
+// Status: luxcpp/crypto/aead/c-abi/c_aead.cpp returns CRYPTO_ERR_NOTIMPL for
+// seal and open. Tests gated #[ignore] until the C-ABI body lands.
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -33,29 +36,25 @@ extern "C" {
     ) -> c_int;
 }
 
-/// Length of a ChaCha20-Poly1305 key in bytes.
+/// Length of the AEAD key in bytes (256 bits).
 pub const KEY_LEN: usize = 32;
-/// Length of a ChaCha20-Poly1305 nonce in bytes (RFC 8439 IETF construction).
+/// Length of the AEAD nonce in bytes (96 bits).
 pub const NONCE_LEN: usize = 12;
-/// Length of a Poly1305 authentication tag in bytes.
+/// Length of the Poly1305 authentication tag in bytes (128 bits).
 pub const TAG_LEN: usize = 16;
 
-/// Errors returned by AEAD operations.
+/// Errors returned by the AEAD binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// C-ABI returned an error status.
-    Internal(c_int),
-    /// `open` rejected the ciphertext/tag.
-    InvalidTag,
-    /// Input lengths disagreed.
-    LengthMismatch,
+    InternalError(c_int),
+    /// Open() returned a tag-mismatch.
+    Forged,
 }
 
-/// Encrypt-and-authenticate `pt` under `key` with `nonce` and associated data.
-///
-/// Writes ciphertext to `ct` (must be the same length as `pt`) and the 16-byte
-/// authentication tag to `tag`.
+/// Encrypt `pt` under `(key, nonce, aad)`. `ct` must be sized exactly to
+/// `pt.len()`. Writes the 16-byte tag into `tag`.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn seal(
     key: &[u8; KEY_LEN],
     nonce: &[u8; NONCE_LEN],
@@ -65,9 +64,9 @@ pub fn seal(
     tag: &mut [u8; TAG_LEN],
 ) -> Result<(), Error> {
     if ct.len() != pt.len() {
-        return Err(Error::LengthMismatch);
+        return Err(Error::InternalError(-2));
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         aead_chacha20poly1305_seal(
             key.as_ptr(),
@@ -80,16 +79,13 @@ pub fn seal(
             tag.as_mut_ptr(),
         )
     };
-    match rc {
-        0 => Ok(()),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }
 
-/// Authenticate-and-decrypt `ct` under `key` with `nonce`, `aad`, and `tag`.
-///
-/// Writes plaintext to `pt` (must be the same length as `ct`).
+/// Decrypt `ct` under `(key, nonce, aad, tag)`. `pt` must be sized exactly to
+/// `ct.len()`.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn open(
     key: &[u8; KEY_LEN],
     nonce: &[u8; NONCE_LEN],
@@ -99,9 +95,9 @@ pub fn open(
     pt: &mut [u8],
 ) -> Result<(), Error> {
     if pt.len() != ct.len() {
-        return Err(Error::LengthMismatch);
+        return Err(Error::InternalError(-2));
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         aead_chacha20poly1305_open(
             key.as_ptr(),
@@ -116,7 +112,7 @@ pub fn open(
     };
     match rc {
         0 => Ok(()),
-        -3 => Err(Error::InvalidTag),
-        other => Err(Error::Internal(other)),
+        -3 => Err(Error::Forged),
+        other => Err(Error::InternalError(other)),
     }
 }
