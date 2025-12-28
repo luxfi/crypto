@@ -38,7 +38,7 @@ package verkle
 import (
 	"errors"
 
-	"github.com/crate-crypto/go-ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 )
 
 type (
