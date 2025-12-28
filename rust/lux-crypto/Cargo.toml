@@ -3,7 +3,8 @@ name = "lux-crypto"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-3-Clause"
-description = "Canonical Rust crate for Lux crypto. Calls into luxcpp/crypto via the lux_crypto C-ABI."
+rust-version = "1.74"
+description = "Umbrella crate for Lux crypto. Re-exports per-algorithm crates that bind to luxcpp/crypto via the C-ABI."
 
 # This crate is the canonical Rust entry point for Lux crypto.
 # Mirrors github.com/luxfi/gpu (canonical Rust binding to luxfi/accel).
@@ -31,3 +32,12 @@ description = "Canonical Rust crate for Lux crypto. Calls into luxcpp/crypto via
 
 [lib]
 name = "lux_crypto"
+
+# The umbrella crate retains the original raw-FFI surface
+# (mldsa, mlkem, slhdsa, ed25519, keccak256, secp256k1 modules) for
+# backward compatibility with existing consumers. The canonical entry
+# points for new code are the per-algorithm crates in this workspace:
+#   * lux-crypto-keccak    -> keccak256 (verified against published vectors)
+#   * lux-crypto-secp256k1 -> secp256k1 ecrecover (verified)
+# Per-algorithm crates for the remaining algorithms will land as their
+# C-ABI bodies are wired in luxcpp/crypto. See COVERAGE.md.
