@@ -1,3 +1,18 @@
+// Copyright (C) 2026 Lux Industries Inc. All rights reserved.
+// Copyright (C) Crate Crypto contributors.
+// Licensed under Apache-2.0 OR MIT (see LICENSE-GO-IPA-APACHE2, LICENSE-GO-IPA-MIT).
+//
+// Provenance: ported from github.com/crate-crypto/go-ipa/banderwagon
+// (commit 5d33700 family, Apache-2.0 / MIT dual licensed). This file is the
+// canonical Lux home for the Banderwagon prime-order group used by Verkle
+// trees and the IPA argument. Other lux/crypto packages MUST import from here
+// rather than redefining Element / Identity / Generator.
+//
+// Banderwagon is the prime-order subgroup of the Bandersnatch curve, defined
+// by quotienting Bandersnatch by its order-2 torsion. The encoding takes the
+// affine x-coordinate, multiplied by the sign of y so that {(x, y), (-x, -y)}
+// share a single 32-byte representation.
+
 package banderwagon
 
 import (
