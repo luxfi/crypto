@@ -1,0 +1,28 @@
+# Workspace for the per-algorithm Rust binding crates over luxcpp/crypto.
+#
+# Each member crate is a real binding to a real C-ABI archive. We do not ship
+# Rust crates whose underlying C-ABI is a stub returning CRYPTO_ERR_NOTIMPL.
+# As sibling agents land real implementations in luxcpp/crypto/<alg>/c-abi/
+# we add the corresponding member crate here and gate its admission on a
+# spec-vector integration test that asserts byte-equality against published
+# reference vectors (FIPS, RFC, NIST CAVS, SEC1, BIP, eth2-spec).
+#
+# Build expectations are documented in each member's build.rs:
+#   * CRYPTO_DIR        => install prefix (lib/<alg>/lib<alg>_cpu.a)
+#   * CRYPTO_BUILD_DIR  => cmake build dir (<alg>/lib<alg>_cpu.a)
+
+[workspace]
+resolver = "2"
+members = [
+    "lux-crypto",
+    "lux-crypto-keccak",
+    "lux-crypto-secp256k1",
+]
+
+[workspace.package]
+edition = "2021"
+license = "BSD-3-Clause"
+rust-version = "1.74"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
