@@ -1,10 +1,7 @@
 // Build script for lux-crypto-sha256.
 //
-// The C-ABI extern "C" symbol `sha256` lives in `libsha256.a` (the shim
-// archive that contains only `c_sha256.cpp.o`). The CPU implementation body
-// lives in `libsha256_cpu.a`. We link both static archives in the order
-// shim-then-body so the linker picks up `_sha256` and resolves
-// `cevm::crypto::sha256` from the body.
+// Links statically against `libsha256.a` (the C-ABI shim) and `libsha256_cpu.a`
+// (the canonical CPU body) produced by `luxcpp/crypto/sha256`.
 
 use std::env;
 use std::path::PathBuf;
@@ -32,7 +29,6 @@ fn main() {
 
     let lib_path = base.join("sha256");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-    // Order matters: shim first (has _sha256 extern "C"), body second.
     println!("cargo:rustc-link-lib=static=sha256");
     println!("cargo:rustc-link-lib=static=sha256_cpu");
 

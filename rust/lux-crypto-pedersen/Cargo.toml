@@ -4,17 +4,13 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Canonical Rust binding for Lux Banderwagon Pedersen vector commitments. Calls into luxcpp/crypto/pedersen via the C-ABI."
+description = "Canonical Rust binding for Lux Pedersen vector commitments. Calls into luxcpp/crypto/pedersen via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-readme = "README.md"
-keywords = ["pedersen", "banderwagon", "commitment", "verkle", "ffi"]
+keywords = ["pedersen", "commitment", "verkle", "ffi"]
 categories = ["cryptography"]
 
 [lib]
 name = "lux_crypto_pedersen"
-
-[dev-dependencies]
-lux-crypto-banderwagon = { path = "../lux-crypto-banderwagon" }
 
 [lints]
 workspace = true
