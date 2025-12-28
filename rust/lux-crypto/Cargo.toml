@@ -1,10 +1,17 @@
 [package]
 name = "lux-crypto"
 version = "0.1.0"
-edition = "2021"
-license = "BSD-3-Clause"
-rust-version = "1.74"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+readme = "README.md"
 description = "Umbrella crate for Lux crypto. Re-exports per-algorithm crates that bind to luxcpp/crypto via the C-ABI."
+keywords = ["luxfi", "crypto", "blockchain", "post-quantum", "ffi"]
+categories = ["cryptography"]
 
 # This crate is the canonical Rust entry point for Lux crypto.
 # Mirrors github.com/luxfi/gpu (canonical Rust binding to luxfi/accel).
