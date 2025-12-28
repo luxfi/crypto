@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-ed25519"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux Ed25519 (RFC 8032). Calls into luxcpp/crypto/ed25519 via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["ed25519", "eddsa", "rfc8032", "signature", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_ed25519"
+
+[lints]
+workspace = true
