@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-slhdsa"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux SLH-DSA (FIPS 205). Calls into luxcpp/crypto/slhdsa (vendored PQClean reference, CC0/public domain) via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["slh-dsa", "sphincs", "fips205", "post-quantum", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_slhdsa"
+
+[lints]
+workspace = true
