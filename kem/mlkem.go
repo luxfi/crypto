@@ -7,6 +7,7 @@ import (
 	"crypto/mlkem"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 )
 
 // MLKEM768Impl implements ML-KEM-768 using Go's crypto/mlkem (FIPS 203)
@@ -84,6 +85,20 @@ func (m *MLKEM768Impl) CiphertextSize() int { return mlkem.CiphertextSize768 }
 
 // SharedSecretSize returns the size of ML-KEM-768 shared secrets.
 func (m *MLKEM768Impl) SharedSecretSize() int { return mlkem.SharedKeySize }
+
+// ParseMLKEM768PublicKey reconstructs an MLKEM768PublicKey from raw encapsulation key bytes.
+func ParseMLKEM768PublicKey(data []byte) (*MLKEM768PublicKey, error) {
+	if len(data) != mlkem.EncapsulationKeySize768 {
+		return nil, fmt.Errorf("invalid ML-KEM-768 public key size: got %d, expected %d", len(data), mlkem.EncapsulationKeySize768)
+	}
+	// Validate by attempting to construct the Go stdlib encapsulation key
+	if _, err := mlkem.NewEncapsulationKey768(data); err != nil {
+		return nil, fmt.Errorf("invalid ML-KEM-768 public key: %w", err)
+	}
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	return &MLKEM768PublicKey{data: cp}, nil
+}
 
 // Bytes returns the raw bytes of the public key.
 func (pk *MLKEM768PublicKey) Bytes() []byte { return pk.data }
