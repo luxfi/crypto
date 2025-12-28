@@ -1,3 +1,7 @@
+// Build script for lux-crypto-evm256. The C-ABI symbols are exported from the
+// modexp translation unit and packed into `libevm256.a`; `libevm256_cpu.a`
+// provides the CPU body.
+
 use std::env;
 use std::path::PathBuf;
 
@@ -9,13 +13,8 @@ fn main() {
         PathBuf::from(d)
     } else {
         manifest_dir
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("luxcpp")
-            .join("crypto")
-            .join("build-cto")
+            .join("..").join("..").join("..").join("..")
+            .join("luxcpp").join("crypto").join("build-cto")
     };
 
     println!("cargo:rerun-if-changed=src/lib.rs");
