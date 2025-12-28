@@ -1,3 +1,9 @@
+// Copyright (C) 2026 Lux Industries Inc. All rights reserved.
+// Copyright (C) Crate Crypto contributors.
+// Licensed under Apache-2.0 OR MIT (see LICENSE-GO-IPA-APACHE2, LICENSE-GO-IPA-MIT).
+//
+// Provenance: ported from github.com/crate-crypto/go-ipa/banderwagon.
+
 package banderwagon
 
 import (
