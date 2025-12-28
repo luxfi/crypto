@@ -4,8 +4,12 @@
 // Build script for lux-crypto. Locates the luxcpp/crypto build outputs and
 // emits cargo linker directives for every algorithm exposed by the crate.
 //
-// One compiled artifact per algorithm; we accept the `<alg>/lib<alg>_cpu.a`
-// layout that `luxcpp/crypto/build-canonical/` produces by default.
+// Each algorithm produces two static archives in the cmake build dir:
+//   * <alg>/lib<alg>.a       -- C-ABI shim (extern "C" entry points)
+//   * <alg>/lib<alg>_cpu.a   -- algorithm body (C++ implementation)
+//
+// Some bodies inline the c-abi shim into `lib<alg>_cpu.a`; others keep it
+// separate. We link both per algorithm and let the linker resolve.
 
 use std::env;
 use std::path::PathBuf;
@@ -21,16 +25,14 @@ fn read_env_with_legacy(new_name: &str, legacy_name: &str) -> Option<String> {
     None
 }
 
-/// Each first-party algorithm corresponds to:
-///   - a build subdirectory `build-canonical/<dir>/`
-///   - a static archive named `lib<lib>_cpu.a`
-const ALGS: &[(&str, &str)] = &[
-    ("secp256k1", "secp256k1"),
-    ("mldsa",     "mldsa"),
-    ("mlkem",     "mlkem"),
-    ("slhdsa",    "slhdsa"),
-    ("ed25519",   "ed25519"),
-    ("keccak",    "keccak"),
+/// Algorithms the umbrella crate links. Each entry contributes both the
+/// `<alg>` umbrella archive (c-abi shim) and `<alg>_cpu` body archive.
+const ALGS: &[&str] = &[
+    "secp256k1",
+    "mldsa",
+    "mlkem",
+    "slhdsa",
+    "keccak",
 ];
 
 fn main() {
@@ -44,7 +46,6 @@ fn main() {
     } else if let Some(d) = build_dir {
         PathBuf::from(d)
     } else {
-        // Default: assume luxcpp/crypto is a sibling at ../../../../luxcpp/crypto.
         manifest_dir
             .join("..").join("..").join("..")
             .join("..").join("luxcpp").join("crypto")
@@ -57,13 +58,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LUX_CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=LUX_CRYPTO_BUILD_DIR");
 
-    for (subdir, lib) in ALGS {
-        let lib_path = base.join(subdir);
+    for alg in ALGS {
+        let lib_path = base.join(alg);
         println!("cargo:rustc-link-search=native={}", lib_path.display());
-        println!("cargo:rustc-link-lib=static={}_cpu", lib);
+        println!("cargo:rustc-link-lib=static={}", alg);
+        println!("cargo:rustc-link-lib=static={}_cpu", alg);
     }
 
-    // C++ runtime
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=c++");
     } else {
