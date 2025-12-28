@@ -23,6 +23,10 @@ name = "lux-crypto-blake3"
 version = "0.1.0"
 
 [[package]]
+name = "lux-crypto-bls"
+version = "0.1.0"
+
+[[package]]
 name = "lux-crypto-ed25519"
 version = "0.1.0"
 
@@ -58,11 +62,19 @@ name = "lux-crypto-mlkem"
 version = "0.1.0"
 
 [[package]]
+name = "lux-crypto-ntt"
+version = "0.1.0"
+
+[[package]]
 name = "lux-crypto-pedersen"
 version = "0.1.0"
 dependencies = [
  "lux-crypto-banderwagon",
 ]
+
+[[package]]
+name = "lux-crypto-poly_mul"
+version = "0.1.0"
 
 [[package]]
 name = "lux-crypto-poseidon"
