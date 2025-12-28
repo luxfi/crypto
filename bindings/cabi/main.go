@@ -7,6 +7,9 @@
 //
 // This produces libluxcrypto.{so,dylib,dll} + libluxcrypto.h
 // which Python (ctypes/cffi), TypeScript (N-API/WASM), and Rust (FFI) can bind to.
+//
+// Symbols are brand-neutral (algorithm-namespaced); the brand is in the
+// library file name only.
 package main
 
 /*
@@ -26,8 +29,8 @@ import (
 // ML-KEM-768 (FIPS 203)
 // ═══════════════════════════════════════════════════════════════════════
 
-//export lux_mlkem768_keypair
-func lux_mlkem768_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.int {
+//export mlkem768_keypair
+func mlkem768_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.int {
 	pub, priv, err := mlkem.GenerateKey(mlkem.MLKEM768)
 	if err != nil {
 		return -1
@@ -44,8 +47,8 @@ func lux_mlkem768_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.
 	return 0
 }
 
-//export lux_mlkem768_encapsulate
-func lux_mlkem768_encapsulate(
+//export mlkem768_encapsulate
+func mlkem768_encapsulate(
 	pkData *C.char, pkLen C.int,
 	ct *C.char, ctLen *C.int,
 	ss *C.char, ssLen *C.int,
@@ -69,8 +72,8 @@ func lux_mlkem768_encapsulate(
 	return 0
 }
 
-//export lux_mlkem768_decapsulate
-func lux_mlkem768_decapsulate(
+//export mlkem768_decapsulate
+func mlkem768_decapsulate(
 	skData *C.char, skLen C.int,
 	ctData *C.char, ctLen C.int,
 	ss *C.char, ssLen *C.int,
@@ -94,18 +97,18 @@ func lux_mlkem768_decapsulate(
 	return 0
 }
 
-//export lux_mlkem768_pk_size
-func lux_mlkem768_pk_size() C.int {
+//export mlkem768_pk_size
+func mlkem768_pk_size() C.int {
 	return C.int(mlkem.MLKEM768PublicKeySize)
 }
 
-//export lux_mlkem768_sk_size
-func lux_mlkem768_sk_size() C.int {
+//export mlkem768_sk_size
+func mlkem768_sk_size() C.int {
 	return C.int(mlkem.MLKEM768PrivateKeySize)
 }
 
-//export lux_mlkem768_ct_size
-func lux_mlkem768_ct_size() C.int {
+//export mlkem768_ct_size
+func mlkem768_ct_size() C.int {
 	return C.int(mlkem.MLKEM768CiphertextSize)
 }
 
@@ -113,8 +116,8 @@ func lux_mlkem768_ct_size() C.int {
 // ML-DSA-65 (FIPS 204)
 // ═══════════════════════════════════════════════════════════════════════
 
-//export lux_mldsa65_keypair
-func lux_mldsa65_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.int {
+//export mldsa65_keypair
+func mldsa65_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.int {
 	priv, err := mldsa.GenerateKey(rand.Reader, mldsa.MLDSA65)
 	if err != nil {
 		return -1
@@ -131,8 +134,8 @@ func lux_mldsa65_keypair(pk *C.char, pkLen *C.int, sk *C.char, skLen *C.int) C.i
 	return 0
 }
 
-//export lux_mldsa65_sign
-func lux_mldsa65_sign(
+//export mldsa65_sign
+func mldsa65_sign(
 	skData *C.char, skLen C.int,
 	msgData *C.char, msgLen C.int,
 	sig *C.char, sigLen *C.int,
@@ -156,8 +159,8 @@ func lux_mldsa65_sign(
 	return 0
 }
 
-//export lux_mldsa65_verify
-func lux_mldsa65_verify(
+//export mldsa65_verify
+func mldsa65_verify(
 	pkData *C.char, pkLen C.int,
 	msgData *C.char, msgLen C.int,
 	sigData *C.char, sigLen C.int,
@@ -177,18 +180,18 @@ func lux_mldsa65_verify(
 	return -2
 }
 
-//export lux_mldsa65_pk_size
-func lux_mldsa65_pk_size() C.int {
+//export mldsa65_pk_size
+func mldsa65_pk_size() C.int {
 	return C.int(mldsa.MLDSA65PublicKeySize)
 }
 
-//export lux_mldsa65_sk_size
-func lux_mldsa65_sk_size() C.int {
+//export mldsa65_sk_size
+func mldsa65_sk_size() C.int {
 	return C.int(mldsa.MLDSA65PrivateKeySize)
 }
 
-//export lux_mldsa65_sig_size
-func lux_mldsa65_sig_size() C.int {
+//export mldsa65_sig_size
+func mldsa65_sig_size() C.int {
 	return C.int(mldsa.MLDSA65SignatureSize)
 }
 
