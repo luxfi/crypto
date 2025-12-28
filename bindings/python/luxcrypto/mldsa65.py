@@ -15,9 +15,9 @@ def _sizes() -> tuple[int, int, int]:
     global _PK_SIZE, _SK_SIZE, _SIG_SIZE
     if _PK_SIZE is None:
         lib = get_lib()
-        _PK_SIZE = lib.lux_mldsa65_pk_size()
-        _SK_SIZE = lib.lux_mldsa65_sk_size()
-        _SIG_SIZE = lib.lux_mldsa65_sig_size()
+        _PK_SIZE = lib.mldsa65_pk_size()
+        _SK_SIZE = lib.mldsa65_sk_size()
+        _SIG_SIZE = lib.mldsa65_sig_size()
     return _PK_SIZE, _SK_SIZE, _SIG_SIZE
 
 
@@ -34,9 +34,9 @@ def keypair() -> tuple[bytes, bytes]:
     pk_len = ctypes.c_int(0)
     sk_len = ctypes.c_int(0)
 
-    rc = lib.lux_mldsa65_keypair(pk_buf, ctypes.byref(pk_len), sk_buf, ctypes.byref(sk_len))
+    rc = lib.mldsa65_keypair(pk_buf, ctypes.byref(pk_len), sk_buf, ctypes.byref(sk_len))
     if rc != 0:
-        raise RuntimeError(f"lux_mldsa65_keypair failed: {rc}")
+        raise RuntimeError(f"mldsa65_keypair failed: {rc}")
 
     return pk_buf.raw[: pk_len.value], sk_buf.raw[: sk_len.value]
 
@@ -52,13 +52,13 @@ def sign(secret_key: bytes, message: bytes) -> bytes:
     sig_buf = ctypes.create_string_buffer(sig_size)
     sig_len = ctypes.c_int(0)
 
-    rc = lib.lux_mldsa65_sign(
+    rc = lib.mldsa65_sign(
         secret_key, len(secret_key),
         message, len(message),
         sig_buf, ctypes.byref(sig_len),
     )
     if rc != 0:
-        raise RuntimeError(f"lux_mldsa65_sign failed: {rc}")
+        raise RuntimeError(f"mldsa65_sign failed: {rc}")
 
     return sig_buf.raw[: sig_len.value]
 
@@ -70,7 +70,7 @@ def verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
     """
     lib = get_lib()
 
-    rc = lib.lux_mldsa65_verify(
+    rc = lib.mldsa65_verify(
         public_key, len(public_key),
         message, len(message),
         signature, len(signature),
