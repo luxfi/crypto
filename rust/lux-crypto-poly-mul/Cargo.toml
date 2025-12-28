@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-poly-mul"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux negacyclic polynomial multiplication over the Cyclone-FFT prime. Calls into luxcpp/crypto/poly_mul via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["poly-mul", "ntt", "negacyclic", "fhe", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_poly_mul"
+
+[lints]
+workspace = true

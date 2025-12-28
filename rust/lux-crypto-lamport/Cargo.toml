@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-lamport"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux Lamport one-time signatures. Calls into luxcpp/crypto/lamport via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["lamport", "ots", "post-quantum", "signature", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_lamport"
+
+[lints]
+workspace = true
