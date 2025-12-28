@@ -1,14 +1,13 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-mldsa: canonical Rust binding for Lux ML-DSA (FIPS 204) C-ABI.
+// lux-crypto-mldsa: canonical Rust binding for Lux ML-DSA (FIPS 204, the
+// final standardized form of CRYSTALS-Dilithium).
 //
-// Mode encoding matches `luxcpp/crypto/mldsa/c-abi/c_mldsa.cpp`:
-//   2 -> ML-DSA-44 (NIST L2)
-//   3 -> ML-DSA-65 (NIST L3)
-//   5 -> ML-DSA-87 (NIST L5)
-//
-// Buffer sizes are FIPS 204 fixed.
+// Status: luxcpp/crypto/mldsa/c-abi/c_mldsa.cpp returns CRYPTO_ERR_NOTIMPL
+// for keygen/sign/verify. Tests are gated #[ignore] until the C-ABI body
+// lands. Mode integers map to FIPS 204 §4 parameter sets (2 = ML-DSA-44,
+// 3 = ML-DSA-65, 5 = ML-DSA-87).
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -39,79 +38,63 @@ extern "C" {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Mode {
-    /// ML-DSA-44 (NIST Level 2).
-    M44 = 2,
-    /// ML-DSA-65 (NIST Level 3).
-    M65 = 3,
-    /// ML-DSA-87 (NIST Level 5).
-    M87 = 5,
+    /// ML-DSA-44 (NIST L2): pk=1312, sk=2560, sig=2420.
+    Mode2 = 2,
+    /// ML-DSA-65 (NIST L3): pk=1952, sk=4032, sig=3309.
+    Mode3 = 3,
+    /// ML-DSA-87 (NIST L5): pk=2592, sk=4896, sig=4627.
+    Mode5 = 5,
 }
 
 impl Mode {
-    /// Public key length for this parameter set (FIPS 204).
-    #[inline]
+    /// FIPS 204 public key length in bytes.
     pub const fn pk_len(self) -> usize {
-        match self {
-            Mode::M44 => 1312,
-            Mode::M65 => 1952,
-            Mode::M87 => 2592,
-        }
+        match self { Mode::Mode2 => 1312, Mode::Mode3 => 1952, Mode::Mode5 => 2592 }
     }
-    /// Secret key length for this parameter set (FIPS 204).
-    #[inline]
+    /// FIPS 204 secret key length in bytes.
     pub const fn sk_len(self) -> usize {
-        match self {
-            Mode::M44 => 2560,
-            Mode::M65 => 4032,
-            Mode::M87 => 4896,
-        }
+        match self { Mode::Mode2 => 2560, Mode::Mode3 => 4032, Mode::Mode5 => 4896 }
     }
-    /// Maximum signature length for this parameter set (FIPS 204).
-    #[inline]
+    /// FIPS 204 signature length in bytes.
     pub const fn sig_len(self) -> usize {
-        match self {
-            Mode::M44 => 2420,
-            Mode::M65 => 3309,
-            Mode::M87 => 4627,
-        }
+        match self { Mode::Mode2 => 2420, Mode::Mode3 => 3309, Mode::Mode5 => 4627 }
     }
 }
 
-/// Errors returned by ML-DSA operations.
+/// Errors returned by the ML-DSA binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// C-ABI returned an error status.
-    Internal(c_int),
+    /// Underlying C-ABI call returned a non-zero status.
+    InternalError(c_int),
     /// `verify` rejected the (msg, sig, pk) triple.
     InvalidSignature,
     /// Buffer slice was the wrong size for the requested parameter set.
     InvalidLength,
 }
 
-/// Generate a fresh ML-DSA keypair from `seed`.
+/// Generate an ML-DSA keypair. `pk` and `sk` must be sized exactly to the
+/// requested parameter set's `Mode::pk_len()` and `Mode::sk_len()`.
 #[inline]
 pub fn keygen(mode: Mode, seed: &[u8; 32], pk: &mut [u8], sk: &mut [u8]) -> Result<(), Error> {
     if pk.len() != mode.pk_len() || sk.len() != mode.sk_len() {
         return Err(Error::InvalidLength);
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         mldsa_keygen(mode as c_int, seed.as_ptr(), pk.as_mut_ptr(), sk.as_mut_ptr())
     };
-    match rc {
-        0 => Ok(()),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }
 
-/// Sign `msg` under `sk`. Returns the produced signature length.
+/// Sign `msg` under `sk` using the given parameter set. Returns the signature
+/// length actually written.
 #[inline]
 pub fn sign(mode: Mode, sk: &[u8], msg: &[u8], sig: &mut [u8]) -> Result<usize, Error> {
     if sk.len() != mode.sk_len() || sig.len() < mode.sig_len() {
         return Err(Error::InvalidLength);
     }
-    let mut sig_len: usize = sig.len();
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    let mut out_len: usize = sig.len();
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         mldsa_sign(
             mode as c_int,
@@ -119,22 +102,19 @@ pub fn sign(mode: Mode, sk: &[u8], msg: &[u8], sig: &mut [u8]) -> Result<usize, 
             msg.as_ptr(),
             msg.len(),
             sig.as_mut_ptr(),
-            &mut sig_len as *mut usize,
+            &mut out_len as *mut usize,
         )
     };
-    match rc {
-        0 => Ok(sig_len),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(out_len), other => Err(Error::InternalError(other)) }
 }
 
-/// Verify an ML-DSA signature.
+/// Verify a single ML-DSA signature.
 #[inline]
 pub fn verify(mode: Mode, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
     if pk.len() != mode.pk_len() {
         return Err(Error::InvalidLength);
     }
-    // SAFETY: pk length checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; pk length checked.
     let rc = unsafe {
         mldsa_verify(
             mode as c_int,
@@ -146,8 +126,8 @@ pub fn verify(mode: Mode, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error
         )
     };
     match rc {
-        0 => Ok(()),
+        0 | 1 => Ok(()),
         -3 => Err(Error::InvalidSignature),
-        other => Err(Error::Internal(other)),
+        other => Err(Error::InternalError(other)),
     }
 }

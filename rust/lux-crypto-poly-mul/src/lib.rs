@@ -1,9 +1,16 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-poly-mul: canonical Rust binding for Lux polynomial multiplication
-// in the negacyclic ring R_q = Z_q[x] / (x^n + 1). Currently restricted to the
-// Cyclone NTT prime; see lux-crypto-ntt for the generic transform path.
+// lux-crypto-poly-mul: canonical Rust binding for the Lux negacyclic
+// polynomial-multiplication C-ABI. Multiplies polynomials in
+// `Z_Q[X] / (X^n + 1)` via Schoolbook (n < 64) or NTT (n a power of two).
+//
+// Q is the Cyclone-FFT prime (998244353) with primitive root 3, fixed by the
+// underlying C-ABI. Other (modulus, root) pairs return CRYPTO_ERR_INPUT.
+//
+// The ntt/poly_mul body is shipped (luxcpp/crypto/poly_mul/c-abi/c_poly_mul.cpp
+// is a real implementation). This binding is byte-equal to the Go reference
+// at github.com/luxfi/crypto/poly_mul.
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -21,40 +28,43 @@ extern "C" {
     ) -> c_int;
 }
 
-/// Errors returned by `multiply`.
+/// The Cyclone-FFT prime modulus (= 998244353). Fixed by the underlying C-ABI.
+pub const CYCLONE_PRIME: u64 = 998244353;
+/// Primitive root for the Cyclone-FFT prime.
+pub const CYCLONE_PRIMITIVE_ROOT: u64 = 3;
+
+/// Errors returned by the poly_mul binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// C-ABI returned an error status (e.g. unsupported (modulus, root)).
-    Internal(c_int),
-    /// Input lengths disagreed.
-    LengthMismatch,
+    InternalError(c_int),
+    InvalidLength,
 }
 
-/// Cyclone NTT prime modulus (Q = 119 * 2^23 + 1 = 998244353), matching
-/// `luxcpp/crypto/ntt::Q`.
-pub const CYCLONE_Q: u64 = 998_244_353;
-/// Cyclone NTT primitive 2^MAX_LOG_N-th root of unity, matching
-/// `luxcpp/crypto/ntt::PRIMITIVE_ROOT`.
-pub const CYCLONE_ROOT: u64 = 629_671_588;
-
-/// Multiply two polynomials in R_q = Z_q[x] / (x^n + 1).
-///
-/// `a`, `b`, and `out` must all have the same length `n`, which must be a
-/// power of two.
+/// Multiply two polynomials of length `n` over `Z_Q[X] / (X^n + 1)` for the
+/// Cyclone-FFT prime. `out` must be sized to `n`. `modulus` and `root` must be
+/// `CYCLONE_PRIME` and `CYCLONE_PRIMITIVE_ROOT` (other pairs are rejected by
+/// the C-ABI).
 #[inline]
 pub fn multiply(
     a: &[u64],
     b: &[u64],
-    out: &mut [u64],
     modulus: u64,
     root: u64,
+    out: &mut [u64],
 ) -> Result<(), Error> {
-    if a.len() != b.len() || a.len() != out.len() {
-        return Err(Error::LengthMismatch);
+    if a.len() != b.len() || out.len() != a.len() {
+        return Err(Error::InvalidLength);
     }
-    // SAFETY: pointers valid for the call's duration; lengths checked above.
+    // SAFETY: lengths checked above.
     let rc = unsafe {
-        poly_mul(a.as_ptr(), b.as_ptr(), a.len(), modulus, root, out.as_mut_ptr())
+        poly_mul(
+            a.as_ptr(),
+            b.as_ptr(),
+            a.len(),
+            modulus,
+            root,
+            out.as_mut_ptr(),
+        )
     };
-    if rc == 0 { Ok(()) } else { Err(Error::Internal(rc)) }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }

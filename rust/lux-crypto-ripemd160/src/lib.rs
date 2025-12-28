@@ -1,8 +1,16 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-ripemd160: canonical Rust binding for Lux RIPEMD-160 C-ABI.
-// Used by the EVM `0x03` precompile and Bitcoin HASH160 (RIPEMD-160(SHA-256)).
+// lux-crypto-ripemd160: canonical Rust binding for the Lux RIPEMD-160 C-ABI.
+//
+// Links statically against `libripemd160.a` produced by `luxcpp/crypto/ripemd160`,
+// whose CPU body is the first-party RIPEMD-160 reference (Dobbertin, Bosselaers,
+// Preneel, "RIPEMD-160: A Strengthened Version of RIPEMD", 1996).
+//
+// Used by Bitcoin/Ethereum addresses (`RIPEMD160(SHA256(pk))`) and the EVM
+// `RIPEMD160` precompile at address 0x03.
+//
+// Reference test vector for the empty input is `9c1185a5c5e9fc54612808977ee8f548b2258d31`.
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]

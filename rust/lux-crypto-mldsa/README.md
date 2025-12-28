@@ -1,33 +1,17 @@
 # lux-crypto-mldsa
 
-Canonical Rust binding for **ML-DSA** (FIPS 204), the NIST-standardized
-post-quantum signature scheme (formerly Dilithium).
+Canonical Rust binding for Lux ML-DSA (FIPS 204, final standardized form of
+CRYSTALS-Dilithium).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/mldsa`. Verified against the NIST
-FIPS 204 reference vectors.
+| Mode        | NIST level | pk     | sk    | sig    |
+|-------------|------------|--------|-------|--------|
+| `Mode2`     | L2         | 1312   | 2560  | 2420   |
+| `Mode3`     | L3         | 1952   | 4032  | 3309   |
+| `Mode5`     | L5         | 2592   | 4896  | 4627   |
 
-## Algorithm
+**Status: stub — `c_mldsa.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#mldsa-c-abi-impl`.
 
-- **ML-DSA** -- FIPS 204
-- Modes: ML-DSA-44 / ML-DSA-65 / ML-DSA-87 (NIST levels 2/3/5)
-- Key generation, signing, verification
+## Source
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libmldsa_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-mldsa
-```
-
-## Attribution
-
-Underlying implementation derived from PQClean (CC0 / public domain).
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/mldsa/c-abi/c_mldsa.cpp`.
