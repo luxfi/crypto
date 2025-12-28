@@ -20,7 +20,7 @@ func NewHybridKEM() KEM {
 	// In production, this should handle errors properly
 	return &HybridKEMImpl{
 		x25519: &X25519Impl{},
-		mlkem:  &MLKEM768Impl{k: 3},
+		mlkem:  &MLKEM768Impl{},
 	}
 }
 
