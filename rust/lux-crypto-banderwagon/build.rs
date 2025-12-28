@@ -1,14 +1,3 @@
-// Build script for lux-crypto-keccak.
-//
-// Discovers `keccak/libkeccak_cpu.a` produced by `luxcpp/crypto` and emits the
-// link directives. Resolution order (first hit wins):
-//   1. CRYPTO_DIR        - install prefix; archive at $CRYPTO_DIR/lib/keccak/libkeccak_cpu.a
-//   2. CRYPTO_BUILD_DIR  - cmake build directory; archive at $CRYPTO_BUILD_DIR/keccak/libkeccak_cpu.a
-//   3. Default fallback to ../../../../luxcpp/crypto/build-canonical
-//
-// We link the C++ runtime (libc++ on macOS, libstdc++ elsewhere) because the
-// archive contains C++ object code from the canonical implementation.
-
 use std::env;
 use std::path::PathBuf;
 
@@ -33,11 +22,21 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
 
-    let lib_path = base.join("keccak");
+    let lib_path = base.join("banderwagon");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-    println!("cargo:rustc-link-lib=static=keccak_cpu");
-
+    println!("cargo:rustc-link-lib=static=banderwagon");
+    println!("cargo:rustc-link-lib=static=banderwagon_cpu");
+    // The c-abi shim was compiled with LUX_CRYPTO_HAS_METAL on this machine
+    // so it references the Metal driver symbols. The driver returns NOTIMPL
+    // and we transparently fall back to CPU. Link the metal stub regardless
+    // so the symbols resolve.
     if cfg!(target_os = "macos") {
+        let metal_lib = lib_path.join("libbanderwagon_metal.a");
+        if metal_lib.exists() {
+            println!("cargo:rustc-link-lib=static=banderwagon_metal");
+            println!("cargo:rustc-link-lib=framework=Metal");
+            println!("cargo:rustc-link-lib=framework=Foundation");
+        }
         println!("cargo:rustc-link-lib=c++");
     } else {
         println!("cargo:rustc-link-lib=stdc++");
