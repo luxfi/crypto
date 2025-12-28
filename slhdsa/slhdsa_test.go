@@ -366,6 +366,60 @@ func TestSLHDSA_DeterministicSigning(t *testing.T) {
 	}
 }
 
+func TestSLHDSA_Zeroize(t *testing.T) {
+	sk, err := GenerateKey(rand.Reader, SHA2_128s)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	// Copy key bytes before zeroize
+	original := make([]byte, len(sk.Bytes()))
+	copy(original, sk.Bytes())
+
+	// Verify key material is non-zero
+	allZero := true
+	for _, b := range original {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		t.Fatal("Key material should not be all zeros before Zeroize")
+	}
+
+	sk.Zeroize()
+
+	// After zeroize, all bytes must be zero
+	for i, b := range sk.Bytes() {
+		if b != 0 {
+			t.Fatalf("Byte %d not zeroed: 0x%02x", i, b)
+		}
+	}
+}
+
+func TestSLHDSA_Zeroize_FromBytes(t *testing.T) {
+	sk1, err := GenerateKey(rand.Reader, SHA2_128s)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	skBytes := make([]byte, len(sk1.Bytes()))
+	copy(skBytes, sk1.Bytes())
+
+	sk2, err := PrivateKeyFromBytes(SHA2_128s, skBytes)
+	if err != nil {
+		t.Fatalf("Failed to deserialize: %v", err)
+	}
+
+	sk2.Zeroize()
+
+	for i, b := range sk2.Bytes() {
+		if b != 0 {
+			t.Fatalf("Byte %d not zeroed: 0x%02x", i, b)
+		}
+	}
+}
+
 // Benchmark tests
 func BenchmarkSLHDSA_Sign_SHA2_128s(b *testing.B) {
 	sk, _ := GenerateKey(rand.Reader, SHA2_128s)
