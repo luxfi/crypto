@@ -1,3 +1,11 @@
+// Copyright (C) 2026 Lux Industries Inc. All rights reserved.
+// Copyright (C) Crate Crypto contributors.
+// Licensed under Apache-2.0 OR MIT (see LICENSE-GO-IPA-APACHE2, LICENSE-GO-IPA-MIT).
+//
+// Provenance: ported from github.com/crate-crypto/go-ipa/banderwagon.
+// KAT vectors (TestEncodingFixedVectors and TestPointAtInfinityComponent)
+// are upstream from the go-ipa Verkle reference suite.
+
 package banderwagon
 
 import (
@@ -320,6 +328,7 @@ func TestBatchNormalize(t *testing.T) {
 		if err := expectedB.Set(&B).Normalize(); err == nil {
 			t.Fatal("points at infinity can't be normalized")
 		}
+		_ = expectedB
 
 		if err := BatchNormalize([]*Element{&A, &B}); err == nil {
 			t.Fatal("points at infinity can't be normalized")
