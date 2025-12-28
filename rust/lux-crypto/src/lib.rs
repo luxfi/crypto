@@ -544,4 +544,34 @@ mod tests {
     fn sizes_slh_dsa() {
         assert_eq!(slhdsa::sizes(NistMode::Mode3), (48, 96, 16224));
     }
+
+    // Pure-Rust discriminator coverage. No C linkage involved.
+    #[test]
+    fn secp256k1_status_all_arms() {
+        for c in 0..=6_i32 {
+            assert!(Secp256k1Status::from_int(c).is_some());
+        }
+        assert!(Secp256k1Status::from_int(7).is_some());
+        assert!(Secp256k1Status::from_int(-1).is_none());
+    }
+
+    #[test]
+    fn crypto_status_all_arms() {
+        // 0..=1 ok, negative arms map distinct variants, others Unknown.
+        assert!(CryptoStatus::from_int(0).is_ok());
+        for c in [-2_i32, -3, -4, -5, -6] {
+            assert!(!CryptoStatus::from_int(c).is_ok());
+        }
+        assert!(matches!(CryptoStatus::from_int(-99), CryptoStatus::Unknown(_)));
+    }
+
+    #[test]
+    fn sizes_all_modes() {
+        assert_eq!(mldsa::sizes(NistMode::Mode2), (1312, 2560, 2420));
+        assert_eq!(mldsa::sizes(NistMode::Mode5), (2592, 4896, 4627));
+        assert_eq!(mlkem::sizes(NistMode::Mode2), (800, 1632, 768));
+        assert_eq!(mlkem::sizes(NistMode::Mode5), (1568, 3168, 1568));
+        assert_eq!(slhdsa::sizes(NistMode::Mode2), (32, 64, 7856));
+        assert_eq!(slhdsa::sizes(NistMode::Mode5), (64, 128, 29792));
+    }
 }
