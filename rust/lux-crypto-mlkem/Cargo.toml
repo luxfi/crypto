@@ -6,8 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 description = "Canonical Rust binding for Lux ML-KEM (FIPS 203). Calls into luxcpp/crypto/mlkem via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-readme = "README.md"
-keywords = ["mlkem", "fips203", "post-quantum", "kyber", "ffi"]
+keywords = ["mlkem", "fips203", "kem", "post-quantum", "ffi"]
 categories = ["cryptography"]
 
 [lib]

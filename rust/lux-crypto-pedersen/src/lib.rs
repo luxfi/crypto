@@ -1,16 +1,11 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-pedersen: canonical Rust binding for the Lux Banderwagon
-// Pedersen vector-commitment C-ABI.
-//
-//   commit = sum_{i=0..n-1} G_i * values[i] + H * blinding   (32-byte
-//                                                              compressed)
-//
-// G_i is the i-th vendored Verkle DeterministicGenerator (seed
-// "eth_verkle_oct_2021"); H is the (256)-th generator from the same
-// construction (one past the 256-element Verkle SRS).
+// lux-crypto-pedersen: canonical Rust binding for Lux Pedersen vector
+// commitments C-ABI. Commitments are 33-byte compressed group elements
+// (Banderwagon).
 
+#![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use core::ffi::c_int;
@@ -22,7 +17,6 @@ extern "C" {
         blinding: *const u8,
         commit: *mut u8,
     ) -> c_int;
-
     fn pedersen_verify(
         commit: *const u8,
         values: *const u8,
@@ -31,65 +25,61 @@ extern "C" {
     ) -> c_int;
 }
 
-/// Length of the Banderwagon-compressed commitment.
-pub const COMMIT_LEN: usize = 32;
-/// Length of a single value (Fr scalar) in bytes.
-pub const VALUE_LEN: usize = 32;
-/// Length of the blinding (Fr scalar) in bytes.
+/// Length of a Pedersen blinding factor in bytes.
 pub const BLINDING_LEN: usize = 32;
-/// Maximum number of values supported (matches the 256-element SRS).
-pub const MAX_VALUES: usize = 256;
+/// Length of a Pedersen commitment in bytes (compressed group element).
+pub const COMMIT_LEN: usize = 33;
 
+/// Errors returned by Pedersen operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    BadInput,
-    LengthExceeded,
-    VerifyFail,
+    /// C-ABI returned an error status.
     Internal(c_int),
+    /// `verify` rejected the (commit, values, blinding) triple.
+    InvalidCommitment,
 }
 
-/// Compute a Pedersen commitment over `values` (each 32 bytes) with the
-/// given blinding (32 bytes). Returns the canonical 32-byte compressed
-/// commitment.
-pub fn commit(values: &[u8], blinding: &[u8; BLINDING_LEN]) -> Result<[u8; COMMIT_LEN], Error> {
-    if values.len() % VALUE_LEN != 0 {
-        return Err(Error::BadInput);
-    }
-    let n = values.len() / VALUE_LEN;
-    if n > MAX_VALUES {
-        return Err(Error::LengthExceeded);
-    }
-    let mut out = [0u8; COMMIT_LEN];
-    // SAFETY: lengths checked; pointers valid.
-    let rc = unsafe {
-        pedersen_commit(values.as_ptr(), n, blinding.as_ptr(), out.as_mut_ptr())
-    };
-    match rc {
-        0 => Ok(out),
-        -1 => Err(Error::BadInput),
-        -2 => Err(Error::LengthExceeded),
-        x => Err(Error::Internal(x)),
-    }
-}
-
-/// Verify a Pedersen commitment.
-pub fn verify(
-    commit: &[u8; COMMIT_LEN],
+/// Compute a Pedersen commitment to `values` with `blinding`.
+#[inline]
+pub fn commit(
     values: &[u8],
     blinding: &[u8; BLINDING_LEN],
+    commit_out: &mut [u8; COMMIT_LEN],
 ) -> Result<(), Error> {
-    if values.len() % VALUE_LEN != 0 {
-        return Err(Error::BadInput);
-    }
-    let n = values.len() / VALUE_LEN;
-    // SAFETY: lengths checked.
+    // SAFETY: pointers valid for the call's duration; output sized exactly.
     let rc = unsafe {
-        pedersen_verify(commit.as_ptr(), values.as_ptr(), n, blinding.as_ptr())
+        pedersen_commit(
+            values.as_ptr(),
+            values.len(),
+            blinding.as_ptr(),
+            commit_out.as_mut_ptr(),
+        )
     };
     match rc {
         0 => Ok(()),
-        -1 => Err(Error::BadInput),
-        -3 => Err(Error::VerifyFail),
-        x => Err(Error::Internal(x)),
+        other => Err(Error::Internal(other)),
+    }
+}
+
+/// Verify that `commit_in` is a Pedersen commitment to `values` with `blinding`.
+#[inline]
+pub fn verify(
+    commit_in: &[u8; COMMIT_LEN],
+    values: &[u8],
+    blinding: &[u8; BLINDING_LEN],
+) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration; sizes are exact.
+    let rc = unsafe {
+        pedersen_verify(
+            commit_in.as_ptr(),
+            values.as_ptr(),
+            values.len(),
+            blinding.as_ptr(),
+        )
+    };
+    match rc {
+        0 => Ok(()),
+        -3 => Err(Error::InvalidCommitment),
+        other => Err(Error::Internal(other)),
     }
 }
