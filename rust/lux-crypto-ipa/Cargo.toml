@@ -1,0 +1,16 @@
+[package]
+name = "lux-crypto-ipa"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux IPA (inner product arguments). Calls into luxcpp/crypto/ipa via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+keywords = ["ipa", "verkle", "inner-product", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_ipa"
+
+[lints]
+workspace = true
