@@ -1,0 +1,16 @@
+[package]
+name = "lux-crypto-mldsa"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux ML-DSA (FIPS 204). Calls into luxcpp/crypto/mldsa via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+keywords = ["mldsa", "fips204", "post-quantum", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_mldsa"
+
+[lints]
+workspace = true
