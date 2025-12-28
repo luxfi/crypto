@@ -26,7 +26,7 @@ fn main() {
             .join("..")
             .join("luxcpp")
             .join("crypto")
-            .join("build-canonical")
+            .join("build-cto")
     };
 
     println!("cargo:rerun-if-changed=src/lib.rs");
