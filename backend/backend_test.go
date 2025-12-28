@@ -92,13 +92,60 @@ func TestEnvOverride(t *testing.T) {
 
 	// We cannot re-trigger init() without process restart; emulate by
 	// re-parsing here just like init does.
-	t.Setenv("LUX_CRYPTO_BACKEND", "vanilla")
-	if v, ok := os.LookupEnv("LUX_CRYPTO_BACKEND"); ok {
+	t.Setenv("CRYPTO_BACKEND", "vanilla")
+	if v, ok := os.LookupEnv("CRYPTO_BACKEND"); ok {
 		if b, parsed := Parse(v); parsed {
 			SetDefault(b)
 		}
 	}
 	if got := Default(); got != Vanilla {
 		t.Errorf("env override: Default() = %v; want Vanilla", got)
+	}
+}
+
+func TestEnvOverrideDeprecatedFallback(t *testing.T) {
+	// Saved current state.
+	prev := Default()
+	t.Cleanup(func() { SetDefault(prev) })
+
+	// Ensure neither env is set in the parent shell when this case starts.
+	prevNew, hasNew := os.LookupEnv("CRYPTO_BACKEND")
+	prevOld, hasOld := os.LookupEnv("LUX_CRYPTO_BACKEND")
+	os.Unsetenv("CRYPTO_BACKEND")
+	os.Unsetenv("LUX_CRYPTO_BACKEND")
+	t.Cleanup(func() {
+		if hasNew {
+			os.Setenv("CRYPTO_BACKEND", prevNew)
+		} else {
+			os.Unsetenv("CRYPTO_BACKEND")
+		}
+		if hasOld {
+			os.Setenv("LUX_CRYPTO_BACKEND", prevOld)
+		} else {
+			os.Unsetenv("LUX_CRYPTO_BACKEND")
+		}
+	})
+
+	// Deprecated LUX_CRYPTO_BACKEND must still be honored for one transition
+	// release.
+	t.Setenv("LUX_CRYPTO_BACKEND", "vanilla")
+	if v, ok := envBackend(); ok {
+		if b, parsed := Parse(v); parsed {
+			SetDefault(b)
+		}
+	}
+	if got := Default(); got != Vanilla {
+		t.Errorf("deprecated env: Default() = %v; want Vanilla", got)
+	}
+
+	// New name wins when both are set.
+	t.Setenv("CRYPTO_BACKEND", "cgo")
+	if v, ok := envBackend(); ok {
+		if b, parsed := Parse(v); parsed {
+			SetDefault(b)
+		}
+	}
+	if got := Default(); got != CGo {
+		t.Errorf("new name wins: Default() = %v; want CGo", got)
 	}
 }

@@ -1,9 +1,9 @@
 package backend_test
 
-// Determinism contract: when a caller flips LUX_CRYPTO_BACKEND between
-// vanilla and gpu, the output of every public function in luxfi/crypto MUST
-// be byte-identical. This test exercises the contract on the algorithms we
-// have batch GPU paths for.
+// Determinism contract: when a caller flips CRYPTO_BACKEND between vanilla
+// and gpu, the output of every public function in luxfi/crypto MUST be
+// byte-identical. This test exercises the contract on the algorithms we have
+// batch GPU paths for.
 
 import (
 	"bytes"

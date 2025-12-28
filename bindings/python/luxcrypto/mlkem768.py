@@ -17,9 +17,9 @@ def _sizes() -> tuple[int, int, int]:
     global _PK_SIZE, _SK_SIZE, _CT_SIZE
     if _PK_SIZE is None:
         lib = get_lib()
-        _PK_SIZE = lib.lux_mlkem768_pk_size()
-        _SK_SIZE = lib.lux_mlkem768_sk_size()
-        _CT_SIZE = lib.lux_mlkem768_ct_size()
+        _PK_SIZE = lib.mlkem768_pk_size()
+        _SK_SIZE = lib.mlkem768_sk_size()
+        _CT_SIZE = lib.mlkem768_ct_size()
     return _PK_SIZE, _SK_SIZE, _CT_SIZE
 
 
@@ -36,9 +36,9 @@ def keypair() -> tuple[bytes, bytes]:
     pk_len = ctypes.c_int(0)
     sk_len = ctypes.c_int(0)
 
-    rc = lib.lux_mlkem768_keypair(pk_buf, ctypes.byref(pk_len), sk_buf, ctypes.byref(sk_len))
+    rc = lib.mlkem768_keypair(pk_buf, ctypes.byref(pk_len), sk_buf, ctypes.byref(sk_len))
     if rc != 0:
-        raise RuntimeError(f"lux_mlkem768_keypair failed: {rc}")
+        raise RuntimeError(f"mlkem768_keypair failed: {rc}")
 
     return pk_buf.raw[: pk_len.value], sk_buf.raw[: sk_len.value]
 
@@ -56,13 +56,13 @@ def encapsulate(public_key: bytes) -> tuple[bytes, bytes]:
     ct_len = ctypes.c_int(0)
     ss_len = ctypes.c_int(0)
 
-    rc = lib.lux_mlkem768_encapsulate(
+    rc = lib.mlkem768_encapsulate(
         public_key, len(public_key),
         ct_buf, ctypes.byref(ct_len),
         ss_buf, ctypes.byref(ss_len),
     )
     if rc != 0:
-        raise RuntimeError(f"lux_mlkem768_encapsulate failed: {rc}")
+        raise RuntimeError(f"mlkem768_encapsulate failed: {rc}")
 
     return ct_buf.raw[: ct_len.value], ss_buf.raw[: ss_len.value]
 
@@ -77,12 +77,12 @@ def decapsulate(secret_key: bytes, ciphertext: bytes) -> bytes:
     ss_buf = ctypes.create_string_buffer(_SS_SIZE)
     ss_len = ctypes.c_int(0)
 
-    rc = lib.lux_mlkem768_decapsulate(
+    rc = lib.mlkem768_decapsulate(
         secret_key, len(secret_key),
         ciphertext, len(ciphertext),
         ss_buf, ctypes.byref(ss_len),
     )
     if rc != 0:
-        raise RuntimeError(f"lux_mlkem768_decapsulate failed: {rc}")
+        raise RuntimeError(f"mlkem768_decapsulate failed: {rc}")
 
     return ss_buf.raw[: ss_len.value]
