@@ -3,19 +3,22 @@
 //
 // Raw FFI bindings to luxcpp/crypto.
 //
-// Surface (Phase 1 + brand-neutral rename):
+// Surface (canonical brand-neutral C-ABI):
 //   - secp256k1: ECDSA public-key recovery (single + batch)
 //   - mldsa:     FIPS 204 ML-DSA (Dilithium) modes 2/3/5
 //   - mlkem:     FIPS 203 ML-KEM (Kyber)     modes 2/3/5
-//   - slhdsa:    FIPS 205 SLH-DSA (SPHINCS+) modes 2/3/5
-//   - ed25519:   Ed25519 keygen / sign / verify
+//   - slhdsa:    FIPS 205 SLH-DSA (SPHINCS+) modes 2/3/5/12/13/15
 //   - keccak256: single-shot keccak256 (32-byte digest)
 //
 // All multi-byte buffers are big-endian unless noted. The C ABI is documented
 // in `luxcpp/crypto/c-abi/lux_crypto.h` and the per-algorithm headers under
 // `luxcpp/crypto/include/lux/crypto/*.h`.
 //
-// Symbols are brand-neutral. Rust constants do not carry the LUX_ prefix.
+// Symbols are brand-neutral. The new code path links the bare names that the
+// canonical lux_crypto.h declares (`secp256k1_ecrecover`, `mldsa_sign`, etc.).
+// Per-algorithm crates (`lux-crypto-<alg>`) are the canonical entry points for
+// new code; this umbrella retains the historical raw-FFI surface for legacy
+// callers and preserves discriminator/size helpers.
 
 #![allow(non_camel_case_types)]
 
@@ -40,8 +43,6 @@ pub enum Secp256k1Status {
 }
 
 impl Secp256k1Status {
-    /// Convert a raw C `c_int` from a libcrypto secp256k1 call to the typed enum.
-    /// Returns `None` for unknown values; callers can treat that as a bug.
     pub fn from_int(v: c_int) -> Option<Self> {
         match v {
             0 => Some(Self::Ok),
@@ -57,15 +58,9 @@ impl Secp256k1Status {
     }
 }
 
-// The canonical luxcpp/crypto C header declares brand-neutral symbols
-// (`secp256k1_ecrecover`, `mldsa_*`, etc.). The current static archives at
-// `build-canonical/<alg>/lib<alg>_cpu.a` still export those symbols with a
-// `lux_` prefix until the next rebuild. We map both via `#[link_name]` so the
-// Rust call surface stays brand-neutral and consumers see one canonical name.
 extern "C" {
     /// Recover the 64-byte uncompressed public key from (hash, r, s, v).
     /// Returns one of the `Secp256k1Status` codes as `c_int`.
-    #[link_name = "lux_secp256k1_ecrecover"]
     pub fn secp256k1_ecrecover(
         hash: *const u8,
         r: *const u8,
@@ -76,7 +71,6 @@ extern "C" {
 
     /// Batch ecrecover. inputs is n * 97 bytes (hash || r || s || v).
     /// pubkey_out is n * 64 bytes; status_out is n bytes.
-    #[link_name = "lux_secp256k1_ecrecover_batch"]
     pub fn secp256k1_ecrecover_batch(
         inputs: *const u8,
         n: usize,
@@ -89,9 +83,9 @@ extern "C" {
 // PQC mode (NIST level)
 // ---------------------------------------------------------------------------
 
-/// NIST security level: 2 = ML-KEM-512 / Dilithium2 / SLH-128s,
-/// 3 = ML-KEM-768 / Dilithium3 / SLH-192s,
-/// 5 = ML-KEM-1024 / Dilithium5 / SLH-256s.
+/// NIST security level: 2 = ML-KEM-512 / Dilithium2 / SLH-128f,
+/// 3 = ML-KEM-768 / Dilithium3 / SLH-192f,
+/// 5 = ML-KEM-1024 / Dilithium5 / SLH-256f.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NistMode {
@@ -101,10 +95,6 @@ pub enum NistMode {
 }
 
 /// Generic status returned by the unified C ABI (lux_crypto.h).
-///
-/// 0      => CRYPTO_OK
-/// 1      => verify success (boolean ops); 0 is invalid signature
-/// <0     => failure (negated errno-ish)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CryptoStatus {
     Ok,
@@ -146,14 +136,12 @@ pub mod mldsa {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_mldsa_keygen"]
         fn mldsa_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mldsa_sign"]
         fn mldsa_sign(
             mode: c_int,
             sk: *const u8,
@@ -162,7 +150,6 @@ pub mod mldsa {
             sig: *mut u8,
             sig_len: *mut usize,
         ) -> c_int;
-        #[link_name = "lux_mldsa_verify"]
         fn mldsa_verify(
             mode: c_int,
             pk: *const u8,
@@ -182,7 +169,6 @@ pub mod mldsa {
         }
     }
 
-    /// Generate a key pair from a 32-byte seed. Returns `(pk, sk)`.
     pub fn keygen(mode: NistMode, seed: &[u8; 32]) -> Result<(Vec<u8>, Vec<u8>), CryptoStatus> {
         let (pk_len, sk_len, _) = sizes(mode);
         let mut pk = vec![0u8; pk_len];
@@ -194,7 +180,6 @@ pub mod mldsa {
         if st.is_ok() { Ok((pk, sk)) } else { Err(st) }
     }
 
-    /// Sign a message with the given secret key. Returns the signature.
     pub fn sign(mode: NistMode, sk: &[u8], msg: &[u8]) -> Result<Vec<u8>, CryptoStatus> {
         let (_, sk_expect, sig_max) = sizes(mode);
         if sk.len() != sk_expect {
@@ -220,9 +205,6 @@ pub mod mldsa {
         Ok(sig)
     }
 
-    /// Verify a signature. Returns true on valid, false otherwise.
-    /// I/O errors (bad length, etc.) are mapped to `false` to match the
-    /// existing Rust crypto convention.
     pub fn verify(mode: NistMode, pk: &[u8], msg: &[u8], sig: &[u8]) -> bool {
         let (pk_expect, _, _) = sizes(mode);
         if pk.len() != pk_expect {
@@ -238,8 +220,7 @@ pub mod mldsa {
                 sig.len(),
             )
         };
-        // C ABI: 1 = valid, 0 = invalid, <0 = error. Map invalid + error to false.
-        rc == 1
+        rc == 0
     }
 }
 
@@ -251,21 +232,18 @@ pub mod mlkem {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_mlkem_keygen"]
         fn mlkem_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mlkem_encap"]
         fn mlkem_encap(
             mode: c_int,
             pk: *const u8,
             ct: *mut u8,
             ss: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mlkem_decap"]
         fn mlkem_decap(
             mode: c_int,
             sk: *const u8,
@@ -274,8 +252,6 @@ pub mod mlkem {
         ) -> c_int;
     }
 
-    /// FIPS 203 sizes per NIST level (public key, secret key, ciphertext).
-    /// Shared secret is always 32 bytes.
     pub fn sizes(mode: NistMode) -> (usize, usize, usize) {
         match mode {
             NistMode::Mode2 => (800, 1632, 768),
@@ -284,7 +260,6 @@ pub mod mlkem {
         }
     }
 
-    /// Generate a key pair from a 32-byte seed.
     pub fn keygen(mode: NistMode, seed: &[u8; 32]) -> Result<(Vec<u8>, Vec<u8>), CryptoStatus> {
         let (pk_len, sk_len, _) = sizes(mode);
         let mut pk = vec![0u8; pk_len];
@@ -296,7 +271,6 @@ pub mod mlkem {
         if st.is_ok() { Ok((pk, sk)) } else { Err(st) }
     }
 
-    /// Encapsulate against a public key. Returns `(ciphertext, shared_secret)`.
     pub fn encap(mode: NistMode, pk: &[u8]) -> Result<(Vec<u8>, [u8; 32]), CryptoStatus> {
         let (pk_expect, _, ct_len) = sizes(mode);
         if pk.len() != pk_expect {
@@ -311,7 +285,6 @@ pub mod mlkem {
         if st.is_ok() { Ok((ct, ss)) } else { Err(st) }
     }
 
-    /// Decapsulate a ciphertext with the secret key.
     pub fn decap(mode: NistMode, sk: &[u8], ct: &[u8]) -> Result<[u8; 32], CryptoStatus> {
         let (_, sk_expect, ct_expect) = sizes(mode);
         if sk.len() != sk_expect || ct.len() != ct_expect {
@@ -334,14 +307,12 @@ pub mod slhdsa {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_slhdsa_keygen"]
         fn slhdsa_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_slhdsa_sign"]
         fn slhdsa_sign(
             mode: c_int,
             sk: *const u8,
@@ -350,7 +321,6 @@ pub mod slhdsa {
             sig: *mut u8,
             sig_len: *mut usize,
         ) -> c_int;
-        #[link_name = "lux_slhdsa_verify"]
         fn slhdsa_verify(
             mode: c_int,
             pk: *const u8,
@@ -361,12 +331,14 @@ pub mod slhdsa {
         ) -> c_int;
     }
 
-    /// FIPS 205 sizes for the small variants (pk, sk, max_signature).
+    /// FIPS 205 sizes for the 'f' (fast) parameter sets.
+    /// Layout: (pk, sk, max_signature). Fast variants:
+    ///  Mode2 -> SLH-DSA-SHA2-128f, Mode3 -> -192f, Mode5 -> -256f.
     pub fn sizes(mode: NistMode) -> (usize, usize, usize) {
         match mode {
-            NistMode::Mode2 => (32, 64, 7856),
-            NistMode::Mode3 => (48, 96, 16224),
-            NistMode::Mode5 => (64, 128, 29792),
+            NistMode::Mode2 => (32, 64, 17088),
+            NistMode::Mode3 => (48, 96, 35664),
+            NistMode::Mode5 => (64, 128, 49856),
         }
     }
 
@@ -421,61 +393,7 @@ pub mod slhdsa {
                 sig.len(),
             )
         };
-        rc == 1
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Ed25519
-// ---------------------------------------------------------------------------
-
-pub mod ed25519 {
-    use super::{c_int, CryptoStatus};
-
-    extern "C" {
-        #[link_name = "lux_ed25519_keygen"]
-        fn ed25519_keygen(seed: *const u8, sk: *mut u8, pk: *mut u8) -> c_int;
-        #[link_name = "lux_ed25519_sign"]
-        fn ed25519_sign(
-            sk: *const u8,
-            msg: *const u8,
-            msg_len: usize,
-            sig: *mut u8,
-        ) -> c_int;
-        #[link_name = "lux_ed25519_verify"]
-        fn ed25519_verify(
-            pk: *const u8,
-            msg: *const u8,
-            msg_len: usize,
-            sig: *const u8,
-        ) -> c_int;
-    }
-
-    /// Generate an Ed25519 key pair from a 32-byte seed. Returns `(sk, pk)`.
-    pub fn keygen(seed: &[u8; 32]) -> Result<([u8; 32], [u8; 32]), CryptoStatus> {
-        let mut sk = [0u8; 32];
-        let mut pk = [0u8; 32];
-        let rc = unsafe { ed25519_keygen(seed.as_ptr(), sk.as_mut_ptr(), pk.as_mut_ptr()) };
-        let st = CryptoStatus::from_int(rc);
-        if st.is_ok() { Ok((sk, pk)) } else { Err(st) }
-    }
-
-    /// Sign a message. Returns a 64-byte signature.
-    pub fn sign(sk: &[u8; 32], msg: &[u8]) -> Result<[u8; 64], CryptoStatus> {
-        let mut sig = [0u8; 64];
-        let rc = unsafe {
-            ed25519_sign(sk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_mut_ptr())
-        };
-        let st = CryptoStatus::from_int(rc);
-        if st.is_ok() { Ok(sig) } else { Err(st) }
-    }
-
-    /// Verify a 64-byte signature. Returns true on valid.
-    pub fn verify(pk: &[u8; 32], msg: &[u8], sig: &[u8; 64]) -> bool {
-        let rc = unsafe {
-            ed25519_verify(pk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_ptr())
-        };
-        rc == 1
+        rc == 0
     }
 }
 
@@ -486,7 +404,6 @@ pub mod ed25519 {
 pub mod keccak256 {
     extern "C" {
         // The C ABI declares this as `void` in lux/crypto/keccak.h.
-        #[link_name = "lux_keccak256"]
         fn keccak256(input: *const u8, input_len: usize, output: *mut u8);
     }
 
@@ -508,8 +425,7 @@ pub mod keccak256 {
 mod tests {
     use super::*;
 
-    // Compile-time symbol check. The actual smoke test is in luxfi/accel
-    // (Go side) and the C++ test harness; here we just confirm linkage.
+    // Compile-time symbol check.
     #[test]
     fn link_secp256k1() {
         let _f: unsafe extern "C" fn(*const u8, *const u8, *const u8, u8, *mut u8) -> i32 =
@@ -541,11 +457,11 @@ mod tests {
     }
 
     #[test]
-    fn sizes_slh_dsa() {
-        assert_eq!(slhdsa::sizes(NistMode::Mode3), (48, 96, 16224));
+    fn sizes_slh_dsa_f() {
+        // SLH-DSA-SHA2-192f: pk=48, sk=96, sig=35664.
+        assert_eq!(slhdsa::sizes(NistMode::Mode3), (48, 96, 35664));
     }
 
-    // Pure-Rust discriminator coverage. No C linkage involved.
     #[test]
     fn secp256k1_status_all_arms() {
         for c in 0..=6_i32 {
@@ -557,7 +473,6 @@ mod tests {
 
     #[test]
     fn crypto_status_all_arms() {
-        // 0..=1 ok, negative arms map distinct variants, others Unknown.
         assert!(CryptoStatus::from_int(0).is_ok());
         for c in [-2_i32, -3, -4, -5, -6] {
             assert!(!CryptoStatus::from_int(c).is_ok());
@@ -571,7 +486,7 @@ mod tests {
         assert_eq!(mldsa::sizes(NistMode::Mode5), (2592, 4896, 4627));
         assert_eq!(mlkem::sizes(NistMode::Mode2), (800, 1632, 768));
         assert_eq!(mlkem::sizes(NistMode::Mode5), (1568, 3168, 1568));
-        assert_eq!(slhdsa::sizes(NistMode::Mode2), (32, 64, 7856));
-        assert_eq!(slhdsa::sizes(NistMode::Mode5), (64, 128, 29792));
+        assert_eq!(slhdsa::sizes(NistMode::Mode2), (32, 64, 17088));
+        assert_eq!(slhdsa::sizes(NistMode::Mode5), (64, 128, 49856));
     }
 }
