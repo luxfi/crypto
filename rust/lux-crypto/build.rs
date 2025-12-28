@@ -14,30 +14,21 @@
 use std::env;
 use std::path::PathBuf;
 
-fn read_env_with_legacy(new_name: &str, legacy_name: &str) -> Option<String> {
-    if let Ok(v) = env::var(new_name) {
-        return Some(v);
-    }
-    if let Ok(v) = env::var(legacy_name) {
-        println!("cargo:warning={legacy_name} is deprecated; use {new_name}");
-        return Some(v);
-    }
-    None
-}
-
-/// Algorithms the umbrella crate links. Each entry contributes both the
-/// `<alg>` umbrella archive (c-abi shim) and `<alg>_cpu` body archive.
-const ALGS: &[&str] = &[
-    "secp256k1",
-    "mldsa",
-    "mlkem",
-    "slhdsa",
-    "keccak",
+/// Each first-party algorithm corresponds to:
+///   - a build subdirectory `build-canonical/<dir>/`
+///   - a static archive named `lib<lib>_cpu.a`
+const ALGS: &[(&str, &str)] = &[
+    ("secp256k1", "secp256k1"),
+    ("mldsa",     "mldsa"),
+    ("mlkem",     "mlkem"),
+    ("slhdsa",    "slhdsa"),
+    ("ed25519",   "ed25519"),
+    ("keccak",    "keccak"),
 ];
 
 fn main() {
-    let crypto_dir = read_env_with_legacy("CRYPTO_DIR", "LUX_CRYPTO_DIR");
-    let build_dir = read_env_with_legacy("CRYPTO_BUILD_DIR", "LUX_CRYPTO_BUILD_DIR");
+    let crypto_dir = env::var("CRYPTO_DIR").ok();
+    let build_dir = env::var("CRYPTO_BUILD_DIR").ok();
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
@@ -55,8 +46,6 @@ fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
-    println!("cargo:rerun-if-env-changed=LUX_CRYPTO_DIR");
-    println!("cargo:rerun-if-env-changed=LUX_CRYPTO_BUILD_DIR");
 
     for alg in ALGS {
         let lib_path = base.join(alg);

@@ -58,6 +58,10 @@ impl Secp256k1Status {
     }
 }
 
+// The canonical luxcpp/crypto C header declares brand-neutral symbols
+// (`secp256k1_ecrecover`, `mldsa_*`, etc.). The static archives at
+// `build-canonical/<alg>/lib<alg>_cpu.a` export the same names. The Rust
+// call surface mirrors them one-for-one.
 extern "C" {
     /// Recover the 64-byte uncompressed public key from (hash, r, s, v).
     /// Returns one of the `Secp256k1Status` codes as `c_int`.
@@ -393,7 +397,58 @@ pub mod slhdsa {
                 sig.len(),
             )
         };
-        rc == 0
+        rc == 1
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ed25519
+// ---------------------------------------------------------------------------
+
+pub mod ed25519 {
+    use super::{c_int, CryptoStatus};
+
+    extern "C" {
+        fn ed25519_keygen(seed: *const u8, sk: *mut u8, pk: *mut u8) -> c_int;
+        fn ed25519_sign(
+            sk: *const u8,
+            msg: *const u8,
+            msg_len: usize,
+            sig: *mut u8,
+        ) -> c_int;
+        fn ed25519_verify(
+            pk: *const u8,
+            msg: *const u8,
+            msg_len: usize,
+            sig: *const u8,
+        ) -> c_int;
+    }
+
+    /// Generate an Ed25519 key pair from a 32-byte seed. Returns `(sk, pk)`.
+    pub fn keygen(seed: &[u8; 32]) -> Result<([u8; 32], [u8; 32]), CryptoStatus> {
+        let mut sk = [0u8; 32];
+        let mut pk = [0u8; 32];
+        let rc = unsafe { ed25519_keygen(seed.as_ptr(), sk.as_mut_ptr(), pk.as_mut_ptr()) };
+        let st = CryptoStatus::from_int(rc);
+        if st.is_ok() { Ok((sk, pk)) } else { Err(st) }
+    }
+
+    /// Sign a message. Returns a 64-byte signature.
+    pub fn sign(sk: &[u8; 32], msg: &[u8]) -> Result<[u8; 64], CryptoStatus> {
+        let mut sig = [0u8; 64];
+        let rc = unsafe {
+            ed25519_sign(sk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_mut_ptr())
+        };
+        let st = CryptoStatus::from_int(rc);
+        if st.is_ok() { Ok(sig) } else { Err(st) }
+    }
+
+    /// Verify a 64-byte signature. Returns true on valid.
+    pub fn verify(pk: &[u8; 32], msg: &[u8], sig: &[u8; 64]) -> bool {
+        let rc = unsafe {
+            ed25519_verify(pk.as_ptr(), msg.as_ptr(), msg.len(), sig.as_ptr())
+        };
+        rc == 1
     }
 }
 
