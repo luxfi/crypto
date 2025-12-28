@@ -39,7 +39,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/crate-crypto/go-ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 )
 
 var (

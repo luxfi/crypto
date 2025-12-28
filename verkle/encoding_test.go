@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 )
 
 func TestParseNodeEmptyPayload(t *testing.T) {
