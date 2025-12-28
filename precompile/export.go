@@ -16,7 +16,9 @@ func GetAllPostQuantumPrecompiles() map[Address]PrecompiledContract {
 	// Register all precompile types
 	RegisterSHAKE(registry)
 	RegisterLamport(registry)
-	// ML-DSA, ML-KEM, SLH-DSA would be registered here when moved to this package
+	RegisterMLDSA(registry)
+	RegisterMLKEM(registry)
+	RegisterSLHDSA(registry)
 
 	return registry.Contracts()
 }

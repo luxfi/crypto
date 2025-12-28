@@ -1,128 +1,94 @@
 package kem
 
-// NOTE: This file contains pure Go implementations that are used when CGO is not available.
-// When CGO is enabled and liboqs is installed, the optimized versions in mlkem_cgo.go will be used instead.
+// Pure Go implementation of ML-KEM using crypto/mlkem from the Go standard library (FIPS 203).
+// When CGO is enabled and liboqs is installed, the optimized versions in mlkem_c.go are used instead.
 
 import (
-	"crypto/rand"
+	"crypto/mlkem"
 	"crypto/subtle"
 	"errors"
 )
 
-// MLKEM768 implements ML-KEM-768 (Kyber768)
-type MLKEM768Impl struct {
-	k int // k parameter (3 for ML-KEM-768)
-}
+// MLKEM768Impl implements ML-KEM-768 using Go's crypto/mlkem (FIPS 203)
+type MLKEM768Impl struct{}
 
-// MLKEM768PublicKey represents an ML-KEM-768 public key
+// MLKEM768PublicKey represents an ML-KEM-768 encapsulation key
 type MLKEM768PublicKey struct {
 	data []byte
 }
 
-// MLKEM768PrivateKey represents an ML-KEM-768 private key
+// MLKEM768PrivateKey represents an ML-KEM-768 decapsulation key (seed form)
 type MLKEM768PrivateKey struct {
 	data []byte
 	pk   *MLKEM768PublicKey
 }
 
-// GenerateKeyPair generates a new ML-KEM-768 key pair.
-// This is the pure-Go fallback; when CGO and liboqs are available,
-// mlkem_c.go provides the optimized implementation.
+// GenerateKeyPair generates a new ML-KEM-768 key pair using crypto/mlkem.
 func (m *MLKEM768Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
-	pk := &MLKEM768PublicKey{
-		data: make([]byte, mlkem768PublicKeySize),
-	}
-	sk := &MLKEM768PrivateKey{
-		data: make([]byte, mlkem768PrivateKeySize),
-		pk:   pk,
-	}
-
-	// Generate random key material for the pure-Go fallback.
-	if _, err := rand.Read(pk.data); err != nil {
-		return nil, nil, err
-	}
-	if _, err := rand.Read(sk.data); err != nil {
+	dk, err := mlkem.GenerateKey768()
+	if err != nil {
 		return nil, nil, err
 	}
 
+	ekBytes := dk.EncapsulationKey().Bytes()
+	dkBytes := dk.Bytes()
+
+	pk := &MLKEM768PublicKey{data: ekBytes}
+	sk := &MLKEM768PrivateKey{data: dkBytes, pk: pk}
 	return pk, sk, nil
 }
 
-// Encapsulate generates a shared secret and ciphertext
+// Encapsulate generates a shared secret and ciphertext from an encapsulation key.
 func (m *MLKEM768Impl) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
 	mlkemPK, ok := pk.(*MLKEM768PublicKey)
 	if !ok {
 		return nil, nil, errors.New("invalid public key type")
 	}
 
-	ciphertext := make([]byte, mlkem768CiphertextSize)
-	sharedSecret := make([]byte, mlkem768SharedSecretSize)
-
-	// Pure-Go fallback: randomized output. CGO+liboqs provides real KEM.
-	if _, err := rand.Read(ciphertext); err != nil {
-		return nil, nil, err
-	}
-	if _, err := rand.Read(sharedSecret); err != nil {
+	ek, err := mlkem.NewEncapsulationKey768(mlkemPK.data)
+	if err != nil {
 		return nil, nil, err
 	}
 
-	// In production, this would perform actual ML-KEM encapsulation
-	_ = mlkemPK.data
-
+	sharedSecret, ciphertext := ek.Encapsulate()
 	return ciphertext, sharedSecret, nil
 }
 
-// Decapsulate recovers the shared secret from ciphertext
+// Decapsulate recovers the shared secret from ciphertext using the decapsulation key.
 func (m *MLKEM768Impl) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, error) {
 	mlkemSK, ok := sk.(*MLKEM768PrivateKey)
 	if !ok {
 		return nil, errors.New("invalid private key type")
 	}
 
-	if len(ciphertext) != mlkem768CiphertextSize {
+	if len(ciphertext) != mlkem.CiphertextSize768 {
 		return nil, errors.New("invalid ciphertext size")
 	}
 
-	sharedSecret := make([]byte, mlkem768SharedSecretSize)
-
-	// Pure-Go fallback: randomized output. CGO+liboqs provides real KEM.
-	if _, err := rand.Read(sharedSecret); err != nil {
+	dk, err := mlkem.NewDecapsulationKey768(mlkemSK.data)
+	if err != nil {
 		return nil, err
 	}
 
-	// In production, this would perform actual ML-KEM decapsulation
-	_ = mlkemSK.data
-	_ = ciphertext
-
-	return sharedSecret, nil
+	return dk.Decapsulate(ciphertext)
 }
 
-// PublicKeySize returns the size of public keys
-func (m *MLKEM768Impl) PublicKeySize() int {
-	return mlkem768PublicKeySize
-}
+// PublicKeySize returns the size of ML-KEM-768 encapsulation keys.
+func (m *MLKEM768Impl) PublicKeySize() int { return mlkem.EncapsulationKeySize768 }
 
-// PrivateKeySize returns the size of private keys
-func (m *MLKEM768Impl) PrivateKeySize() int {
-	return mlkem768PrivateKeySize
-}
+// PrivateKeySize returns the size of ML-KEM-768 decapsulation key seeds.
+func (m *MLKEM768Impl) PrivateKeySize() int { return mlkem.SeedSize }
 
-// CiphertextSize returns the size of ciphertexts
-func (m *MLKEM768Impl) CiphertextSize() int {
-	return mlkem768CiphertextSize
-}
+// CiphertextSize returns the size of ML-KEM-768 ciphertexts.
+func (m *MLKEM768Impl) CiphertextSize() int { return mlkem.CiphertextSize768 }
 
-// SharedSecretSize returns the size of shared secrets
-func (m *MLKEM768Impl) SharedSecretSize() int {
-	return mlkem768SharedSecretSize
-}
+// SharedSecretSize returns the size of ML-KEM-768 shared secrets.
+func (m *MLKEM768Impl) SharedSecretSize() int { return mlkem.SharedKeySize }
 
-// Bytes returns the raw bytes of the public key
-func (pk *MLKEM768PublicKey) Bytes() []byte {
-	return pk.data
-}
+// Bytes returns the raw bytes of the public key.
+func (pk *MLKEM768PublicKey) Bytes() []byte { return pk.data }
 
-// Equal checks if two public keys are equal
+// Equal checks if two public keys are equal in constant time.
 func (pk *MLKEM768PublicKey) Equal(other PublicKey) bool {
 	otherPK, ok := other.(*MLKEM768PublicKey)
 	if !ok {
@@ -131,17 +97,13 @@ func (pk *MLKEM768PublicKey) Equal(other PublicKey) bool {
 	return subtle.ConstantTimeCompare(pk.data, otherPK.data) == 1
 }
 
-// Bytes returns the raw bytes of the private key
-func (sk *MLKEM768PrivateKey) Bytes() []byte {
-	return sk.data
-}
+// Bytes returns the raw bytes of the private key seed.
+func (sk *MLKEM768PrivateKey) Bytes() []byte { return sk.data }
 
-// Public returns the public key corresponding to the private key
-func (sk *MLKEM768PrivateKey) Public() PublicKey {
-	return sk.pk
-}
+// Public returns the public key corresponding to the private key.
+func (sk *MLKEM768PrivateKey) Public() PublicKey { return sk.pk }
 
-// Equal checks if two private keys are equal
+// Equal checks if two private keys are equal in constant time.
 func (sk *MLKEM768PrivateKey) Equal(other PrivateKey) bool {
 	otherSK, ok := other.(*MLKEM768PrivateKey)
 	if !ok {
@@ -150,84 +112,86 @@ func (sk *MLKEM768PrivateKey) Equal(other PrivateKey) bool {
 	return subtle.ConstantTimeCompare(sk.data, otherSK.data) == 1
 }
 
-// MLKEM1024 implementation (similar structure, different parameters)
-type MLKEM1024Impl struct {
-	k int // k parameter (4 for ML-KEM-1024)
-}
+// MLKEM1024Impl implements ML-KEM-1024 using Go's crypto/mlkem (FIPS 203)
+type MLKEM1024Impl struct{}
 
-// MLKEM1024PublicKey represents an ML-KEM-1024 public key
+// MLKEM1024PublicKey represents an ML-KEM-1024 encapsulation key
 type MLKEM1024PublicKey struct {
 	data []byte
 }
 
-// MLKEM1024PrivateKey represents an ML-KEM-1024 private key
+// MLKEM1024PrivateKey represents an ML-KEM-1024 decapsulation key (seed form)
 type MLKEM1024PrivateKey struct {
 	data []byte
 	pk   *MLKEM1024PublicKey
 }
 
-// GenerateKeyPair generates a new ML-KEM-1024 key pair
+// GenerateKeyPair generates a new ML-KEM-1024 key pair using crypto/mlkem.
 func (m *MLKEM1024Impl) GenerateKeyPair() (PublicKey, PrivateKey, error) {
-	// Similar to ML-KEM-768 but with different sizes
-	pk := &MLKEM1024PublicKey{
-		data: make([]byte, mlkem1024PublicKeySize),
-	}
-	sk := &MLKEM1024PrivateKey{
-		data: make([]byte, mlkem1024PrivateKeySize),
-		pk:   pk,
-	}
-
-	if _, err := rand.Read(pk.data); err != nil {
-		return nil, nil, err
-	}
-	if _, err := rand.Read(sk.data); err != nil {
+	dk, err := mlkem.GenerateKey1024()
+	if err != nil {
 		return nil, nil, err
 	}
 
+	ekBytes := dk.EncapsulationKey().Bytes()
+	dkBytes := dk.Bytes()
+
+	pk := &MLKEM1024PublicKey{data: ekBytes}
+	sk := &MLKEM1024PrivateKey{data: dkBytes, pk: pk}
 	return pk, sk, nil
 }
 
-// Encapsulate for ML-KEM-1024
+// Encapsulate generates a shared secret and ciphertext from an encapsulation key.
 func (m *MLKEM1024Impl) Encapsulate(pk PublicKey) ([]byte, []byte, error) {
-	ciphertext := make([]byte, mlkem1024CiphertextSize)
-	sharedSecret := make([]byte, mlkem1024SharedSecretSize)
-
-	if _, err := rand.Read(ciphertext); err != nil {
-		return nil, nil, err
-	}
-	if _, err := rand.Read(sharedSecret); err != nil {
-		return nil, nil, err
+	mlkemPK, ok := pk.(*MLKEM1024PublicKey)
+	if !ok {
+		return nil, nil, errors.New("invalid public key type")
 	}
 
+	ek, err := mlkem.NewEncapsulationKey1024(mlkemPK.data)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sharedSecret, ciphertext := ek.Encapsulate()
 	return ciphertext, sharedSecret, nil
 }
 
-// Decapsulate for ML-KEM-1024
+// Decapsulate recovers the shared secret from ciphertext using the decapsulation key.
 func (m *MLKEM1024Impl) Decapsulate(sk PrivateKey, ciphertext []byte) ([]byte, error) {
-	if len(ciphertext) != mlkem1024CiphertextSize {
+	mlkemSK, ok := sk.(*MLKEM1024PrivateKey)
+	if !ok {
+		return nil, errors.New("invalid private key type")
+	}
+
+	if len(ciphertext) != mlkem.CiphertextSize1024 {
 		return nil, errors.New("invalid ciphertext size")
 	}
 
-	sharedSecret := make([]byte, mlkem1024SharedSecretSize)
-	if _, err := rand.Read(sharedSecret); err != nil {
+	dk, err := mlkem.NewDecapsulationKey1024(mlkemSK.data)
+	if err != nil {
 		return nil, err
 	}
 
-	return sharedSecret, nil
+	return dk.Decapsulate(ciphertext)
 }
 
-// Size methods for ML-KEM-1024
-func (m *MLKEM1024Impl) PublicKeySize() int    { return mlkem1024PublicKeySize }
-func (m *MLKEM1024Impl) PrivateKeySize() int   { return mlkem1024PrivateKeySize }
-func (m *MLKEM1024Impl) CiphertextSize() int   { return mlkem1024CiphertextSize }
-func (m *MLKEM1024Impl) SharedSecretSize() int { return mlkem1024SharedSecretSize }
+// PublicKeySize returns the size of ML-KEM-1024 encapsulation keys.
+func (m *MLKEM1024Impl) PublicKeySize() int { return mlkem.EncapsulationKeySize1024 }
 
-// Bytes returns the raw bytes of the public key
-func (pk *MLKEM1024PublicKey) Bytes() []byte {
-	return pk.data
-}
+// PrivateKeySize returns the size of ML-KEM-1024 decapsulation key seeds.
+func (m *MLKEM1024Impl) PrivateKeySize() int { return mlkem.SeedSize }
 
-// Equal checks if two public keys are equal
+// CiphertextSize returns the size of ML-KEM-1024 ciphertexts.
+func (m *MLKEM1024Impl) CiphertextSize() int { return mlkem.CiphertextSize1024 }
+
+// SharedSecretSize returns the size of ML-KEM-1024 shared secrets.
+func (m *MLKEM1024Impl) SharedSecretSize() int { return mlkem.SharedKeySize }
+
+// Bytes returns the raw bytes of the public key.
+func (pk *MLKEM1024PublicKey) Bytes() []byte { return pk.data }
+
+// Equal checks if two public keys are equal in constant time.
 func (pk *MLKEM1024PublicKey) Equal(other PublicKey) bool {
 	otherPK, ok := other.(*MLKEM1024PublicKey)
 	if !ok {
@@ -236,17 +200,13 @@ func (pk *MLKEM1024PublicKey) Equal(other PublicKey) bool {
 	return subtle.ConstantTimeCompare(pk.data, otherPK.data) == 1
 }
 
-// Bytes returns the raw bytes of the private key
-func (sk *MLKEM1024PrivateKey) Bytes() []byte {
-	return sk.data
-}
+// Bytes returns the raw bytes of the private key seed.
+func (sk *MLKEM1024PrivateKey) Bytes() []byte { return sk.data }
 
-// Public returns the public key corresponding to the private key
-func (sk *MLKEM1024PrivateKey) Public() PublicKey {
-	return sk.pk
-}
+// Public returns the public key corresponding to the private key.
+func (sk *MLKEM1024PrivateKey) Public() PublicKey { return sk.pk }
 
-// Equal checks if two private keys are equal
+// Equal checks if two private keys are equal in constant time.
 func (sk *MLKEM1024PrivateKey) Equal(other PrivateKey) bool {
 	otherSK, ok := other.(*MLKEM1024PrivateKey)
 	if !ok {
