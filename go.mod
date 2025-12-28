@@ -5,7 +5,6 @@ go 1.26.1
 exclude github.com/luxfi/geth v1.16.1
 
 require (
-	filippo.io/age v1.3.1
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260215031811-a0ab0b218a81
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cloudflare/circl v1.6.3
@@ -19,6 +18,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
 	github.com/leanovate/gopter v0.2.11
+	github.com/luxfi/age v1.4.0
 	github.com/luxfi/cache v1.1.0
 	github.com/luxfi/ids v1.2.9
 	github.com/luxfi/log v1.4.1
