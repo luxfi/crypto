@@ -1,57 +1,76 @@
 # lux-crypto
 
-Umbrella Rust binding to the Lux cryptography library (`luxcpp/crypto`). This
-crate re-exports the per-algorithm member crates and retains the original raw
-FFI surface for historical callers.
+Umbrella crate over the per-algorithm Lux crypto bindings.
 
-For new code, prefer the per-algorithm crates:
+Re-exports each `lux-crypto-<alg>` crate behind a Cargo feature so a single
+dependency line can pull in exactly the surface a consumer needs.
 
-| Crate | Algorithm | Spec |
-|-------|-----------|------|
-| `lux-crypto-secp256k1` | secp256k1 ECDSA public-key recovery | SEC1, EIP-2 |
-| `lux-crypto-keccak` | Keccak-256 | Ethereum Yellow Paper |
-| `lux-crypto-sha256` | SHA-256 | FIPS 180-4 |
-| `lux-crypto-ripemd160` | RIPEMD-160 | ISO/IEC 10118-3 |
-| `lux-crypto-blake2b` | BLAKE2b | RFC 7693 |
-| `lux-crypto-blake3` | BLAKE3 | BLAKE3 reference v1.5.0 |
-| `lux-crypto-ed25519` | Ed25519 | RFC 8032 |
-| `lux-crypto-aead` | ChaCha20-Poly1305 | RFC 8439 |
-| `lux-crypto-bls` | BLS12-381 IRTF signatures | draft-irtf-cfrg-bls-signature-05 |
-| `lux-crypto-mldsa` | ML-DSA | FIPS 204 |
-| `lux-crypto-mlkem` | ML-KEM | FIPS 203 |
-| `lux-crypto-slhdsa` | SLH-DSA | FIPS 205 |
-| `lux-crypto-lamport` | Lamport OTS | Lamport 1979 |
-| `lux-crypto-banderwagon` | Banderwagon group | EIP-7805 |
-| `lux-crypto-pedersen` | Pedersen commitments | Verkle |
-| `lux-crypto-ipa` | Inner Product Argument | Verkle |
-| `lux-crypto-verkle` | Verkle commit + multiproof | Verkle |
-| `lux-crypto-evm256` | EVM 256-bit modular arithmetic | EIP-7212 helpers |
-| `lux-crypto-kzg` | KZG point-evaluation precompile | EIP-4844 |
-| `lux-crypto-poseidon` | Poseidon2 t=2 BN254 | gnark-crypto v0.20.1 |
-| `lux-crypto-ntt` | Number-Theoretic Transform | Q = 998244353 |
-| `lux-crypto-poly_mul` | Polynomial multiplication in `Z_Q[X]/(X^n+1)` | Q = 998244353 |
+## Use
 
-## Build
+```toml
+[dependencies]
+# Default set: keccak, secp256k1, sha256, ripemd160
+lux-crypto = "0.1"
 
-The crate links static archives produced by `luxcpp/crypto`. Set one of:
+# Or pick specific algorithms:
+lux-crypto = { version = "0.1", default-features = false, features = ["keccak", "secp256k1"] }
 
-- `CRYPTO_DIR` -- install prefix; archives at `$CRYPTO_DIR/lib/<alg>/lib<alg>_cpu.a`
-- `CRYPTO_BUILD_DIR` -- cmake build directory; archives at `$CRYPTO_BUILD_DIR/<alg>/lib<alg>_cpu.a`
+# Or include every working algorithm (default + blake2b):
+lux-crypto = { version = "0.1", default-features = false, features = ["working"] }
 
-If neither is set the build script falls back to a sibling checkout of
-`luxcpp/crypto` at `../../../../luxcpp/crypto/build-cto`.
+# Or pull in every per-algorithm crate (including NOTIMPL stubs):
+lux-crypto = { version = "0.1", default-features = false, features = ["all"] }
+```
+
+```rust
+use lux_crypto::keccak;
+
+let digest = keccak::hash(b"abc");
+```
+
+## Algorithm status
+
+| Crate                 | Feature      | Status                                |
+|-----------------------|--------------|---------------------------------------|
+| `lux-crypto-keccak`   | `keccak`     | wired, vectors verified               |
+| `lux-crypto-secp256k1`| `secp256k1`  | wired, vectors verified               |
+| `lux-crypto-sha256`   | `sha256`     | wired, vectors verified               |
+| `lux-crypto-ripemd160`| `ripemd160`  | wired, vectors verified               |
+| `lux-crypto-blake2b`  | `blake2b`    | wired, vectors verified               |
+| `lux-crypto-blake3`   | `blake3`     | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-ed25519`  | `ed25519`    | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-slhdsa`   | `slhdsa`     | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-mldsa`    | `mldsa`      | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-mlkem`    | `mlkem`      | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-bls`      | `bls`        | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-kzg`      | `kzg`        | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-bn254`    | `bn254`      | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-aead`     | `aead`       | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-ipa`      | `ipa`        | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-pedersen` | `pedersen`   | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-lamport`  | `lamport`    | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-ntt`      | `ntt`        | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-poly-mul` | `poly-mul`   | binding shipped, C-ABI NOTIMPL        |
+| `lux-crypto-evm256`   | `evm256`     | binding shipped, C-ABI NOTIMPL        |
+
+## Build environment
+
+Each per-algorithm crate links statically against `libcrypto/<alg>.a` (and
+the corresponding `<alg>_cpu.a` body). The build script discovers the static
+archives in this order:
+
+1. `CRYPTO_DIR` — install prefix; archives at `$CRYPTO_DIR/lib/<alg>/`.
+2. `CRYPTO_BUILD_DIR` — cmake build dir; archives at `$CRYPTO_BUILD_DIR/<alg>/`.
+3. Default fallback to `../../../../luxcpp/crypto/build-cto/`.
 
 ```bash
-# Build the C archives once
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-
-# Build this crate against them
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto
+CRYPTO_BUILD_DIR=/path/to/luxcpp/crypto/build-cto cargo build --release
 ```
 
 ## License
 
-See `LICENSE` at the repository root. Source files declare `SPDX-License-Identifier`
-per file; the umbrella project license is the Lux Ecosystem License.
+Apache-2.0 OR MIT (workspace inherits BSD-3-Clause; see workspace Cargo.toml).
+
+## Source
+
+C-ABI canonical: `luxcpp/crypto/c-abi/lux_crypto.h`.

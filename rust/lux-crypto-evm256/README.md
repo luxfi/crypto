@@ -1,31 +1,17 @@
 # lux-crypto-evm256
 
-Canonical Rust binding for EVM **256-bit modular arithmetic primitives**
-(`addmod`, `mulmod`, `expmod` helpers).
+Canonical Rust binding for Lux EVM 256-bit big-int math primitives:
+- `modexp` (EIP-198 / 0x05 precompile)
+- `evm256_mulmod` (EVM `MULMOD` opcode)
+- `evm256_addmod` (EVM `ADDMOD` opcode)
 
-Wraps the C-ABI exposed by `luxcpp/crypto/evm256`.
+**Status: stub — `c_modexp.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#modexp-c-abi-impl`.
 
-## Algorithm
+The implementations live in `luxcpp/crypto/modexp/`; the empty
+`luxcpp/crypto/evm256/` directory is a placeholder for future kernel-side
+dispatch.
 
-- **EVM 256-bit big integer arithmetic** -- modular add, mul, exp
-- Constant-time where required by the EVM spec
+## Source
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libevm256_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-evm256
-```
-
-## Attribution
-
-Underlying big-integer routines derived from `intx` and `evmmax` (Apache 2.0).
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/modexp/c-abi/c_modexp.cpp`.

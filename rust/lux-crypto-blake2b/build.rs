@@ -1,5 +1,4 @@
-// Build script for lux-crypto-blake2b. Links `libblake2b.a` and
-// `libblake2b_cpu.a` produced by `luxcpp/crypto/blake2b`.
+// Build script for lux-crypto-blake2b. See lux-crypto-sha256/build.rs.
 
 use std::env;
 use std::path::PathBuf;
@@ -12,8 +11,13 @@ fn main() {
         PathBuf::from(d)
     } else {
         manifest_dir
-            .join("..").join("..").join("..").join("..")
-            .join("luxcpp").join("crypto").join("build-cto")
+            .join("..")
+            .join("..")
+            .join("..")
+            .join("..")
+            .join("luxcpp")
+            .join("crypto")
+            .join("build-cto")
     };
 
     println!("cargo:rerun-if-changed=src/lib.rs");

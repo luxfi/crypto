@@ -6,7 +6,8 @@ license.workspace = true
 rust-version.workspace = true
 description = "Canonical Rust binding for Lux IPA (inner product arguments). Calls into luxcpp/crypto/ipa via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-keywords = ["ipa", "verkle", "inner-product", "ffi"]
+readme = "README.md"
+keywords = ["ipa", "inner-product", "verkle", "zk", "ffi"]
 categories = ["cryptography"]
 
 [lib]

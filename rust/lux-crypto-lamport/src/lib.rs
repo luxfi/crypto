@@ -1,9 +1,14 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-lamport: canonical Rust binding for Lux Lamport one-time
-// signatures C-ABI (LP-2506). Each Lamport keypair signs at most one 32-byte
-// message under SHA-256.
+// lux-crypto-lamport: canonical Rust binding for the Lux Lamport one-time
+// signature C-ABI. Lamport, "Constructing Digital Signatures from a One Way
+// Function" (1979), the original hash-based OTS scheme. Used in Lux for
+// quantum-resistant validator messages (LP-2506).
+//
+// Status: luxcpp/crypto/lamport/c-abi/c_lamport.cpp returns CRYPTO_ERR_NOTIMPL
+// for keygen / sign / verify. The Rust binding ships against the canonical
+// surface; tests are gated #[ignore] until the C-ABI body lands.
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -16,54 +21,49 @@ extern "C" {
     fn lamport_verify(pk: *const u8, msg32: *const u8, sig: *const u8) -> c_int;
 }
 
-/// Length of the seed used to derive a Lamport keypair (bytes).
-pub const SEED_LEN: usize = 32;
-/// Length of a Lamport public key (bytes): 256 pairs of 32-byte SHA-256 outputs.
-pub const PK_LEN: usize = 256 * 2 * 32;
-/// Length of a Lamport secret key (bytes): 256 pairs of 32-byte preimages.
-pub const SK_LEN: usize = 256 * 2 * 32;
-/// Length of a Lamport signature (bytes): 256 selected 32-byte preimages.
-pub const SIG_LEN: usize = 256 * 32;
-/// Length of a SHA-256 message digest (bytes).
-pub const MSG_LEN: usize = 32;
-
-/// Errors returned by Lamport operations.
+/// Errors returned by the Lamport binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// C-ABI returned an error status.
-    Internal(c_int),
+    /// Underlying C-ABI call returned a non-zero status.
+    InternalError(c_int),
     /// `verify` rejected the (msg, sig, pk) triple.
     InvalidSignature,
 }
 
-/// Generate a Lamport keypair from `seed`.
+/// Generate a Lamport keypair from a 32-byte seed. `pk` and `sk` must be
+/// sized to the implementation-defined Lamport parameter set (Hanzo's choice
+/// is 32-byte-message Lamport: pk=`32 * 256 * 2 / 8 = 2048` bytes, similarly
+/// for sk). The exact lengths are documented in the C-ABI body once it lands.
 #[inline]
-pub fn keygen(
-    seed: &[u8; SEED_LEN],
-    pk: &mut [u8; PK_LEN],
-    sk: &mut [u8; SK_LEN],
-) -> Result<(), Error> {
-    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
+pub fn keygen(seed: &[u8; 32], pk: &mut [u8], sk: &mut [u8]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration.
     let rc = unsafe { lamport_keygen(seed.as_ptr(), pk.as_mut_ptr(), sk.as_mut_ptr()) };
-    if rc == 0 { Ok(()) } else { Err(Error::Internal(rc)) }
+    match rc {
+        0 => Ok(()),
+        other => Err(Error::InternalError(other)),
+    }
 }
 
-/// Sign a 32-byte message digest using `sk`.
+/// Sign a 32-byte message digest under `sk`. `sig` must be sized to the
+/// implementation-defined Lamport signature length.
 #[inline]
-pub fn sign(sk: &[u8; SK_LEN], msg: &[u8; MSG_LEN], sig: &mut [u8; SIG_LEN]) -> Result<(), Error> {
-    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
-    let rc = unsafe { lamport_sign(sk.as_ptr(), msg.as_ptr(), sig.as_mut_ptr()) };
-    if rc == 0 { Ok(()) } else { Err(Error::Internal(rc)) }
+pub fn sign(sk: &[u8], msg32: &[u8; 32], sig: &mut [u8]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration.
+    let rc = unsafe { lamport_sign(sk.as_ptr(), msg32.as_ptr(), sig.as_mut_ptr()) };
+    match rc {
+        0 => Ok(()),
+        other => Err(Error::InternalError(other)),
+    }
 }
 
 /// Verify a Lamport signature.
 #[inline]
-pub fn verify(pk: &[u8; PK_LEN], msg: &[u8; MSG_LEN], sig: &[u8; SIG_LEN]) -> Result<(), Error> {
-    // SAFETY: pointers valid for the call's duration; buffers sized exactly.
-    let rc = unsafe { lamport_verify(pk.as_ptr(), msg.as_ptr(), sig.as_ptr()) };
+pub fn verify(pk: &[u8], msg32: &[u8; 32], sig: &[u8]) -> Result<(), Error> {
+    // SAFETY: pointers valid for the call's duration.
+    let rc = unsafe { lamport_verify(pk.as_ptr(), msg32.as_ptr(), sig.as_ptr()) };
     match rc {
         0 => Ok(()),
         -3 => Err(Error::InvalidSignature),
-        other => Err(Error::Internal(other)),
+        other => Err(Error::InternalError(other)),
     }
 }
