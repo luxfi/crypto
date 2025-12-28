@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"hash"
 
+	"github.com/luxfi/crypto/banderwagon"
 	"github.com/luxfi/crypto/ipa/bandersnatch/fr"
-	"github.com/luxfi/crypto/ipa/banderwagon"
 )
 
 // The transcript is used to create challenge scalars.
