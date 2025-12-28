@@ -8,17 +8,18 @@ import (
 // "github.com/luxfi/crypto" // removed to avoid import cycle
 )
 
-// GetAllPostQuantumPrecompiles returns all post-quantum precompiles
-// This includes SHAKE, Lamport, and the three NIST standards
+// GetAllPostQuantumPrecompiles returns all post-quantum and BLS precompiles.
+// This includes SHAKE, Lamport, the three NIST standards (verify/encapsulate
+// only), and BLS12-381 operations.
 func GetAllPostQuantumPrecompiles() map[Address]PrecompiledContract {
 	registry := NewRegistry()
 
-	// Register all precompile types
 	RegisterSHAKE(registry)
 	RegisterLamport(registry)
 	RegisterMLDSA(registry)
 	RegisterMLKEM(registry)
 	RegisterSLHDSA(registry)
+	RegisterBLS(registry)
 
 	return registry.Contracts()
 }
@@ -54,17 +55,19 @@ func Info() map[string]interface{} {
 		"cgo_enabled":       EnableCGO(),
 		"standards": []string{
 			"FIPS 202 (SHAKE)",
-			"FIPS 203 (ML-KEM)",
-			"FIPS 204 (ML-DSA)",
-			"FIPS 205 (SLH-DSA)",
+			"FIPS 203 (ML-KEM, encapsulate only)",
+			"FIPS 204 (ML-DSA, verify only)",
+			"FIPS 205 (SLH-DSA, verify only)",
 			"Lamport OTS",
+			"BLS12-381",
 		},
 		"address_ranges": map[string]string{
-			"ml_dsa":  "0x0110-0x0119",
-			"ml_kem":  "0x0120-0x0129",
-			"slh_dsa": "0x0130-0x0139",
+			"ml_dsa":  "0x0110-0x0112",
+			"ml_kem":  "0x0120-0x0122",
+			"slh_dsa": "0x0130-0x0135",
 			"shake":   "0x0140-0x0149",
 			"lamport": "0x0150-0x0159",
+			"bls":     "0x0160-0x0167",
 		},
 		"shake_precompiles": []string{
 			"SHAKE128 (variable)",
