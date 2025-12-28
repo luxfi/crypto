@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-keccak"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux keccak256. Calls into luxcpp/crypto/keccak via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["keccak", "keccak256", "ethereum", "hash", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_keccak"
+
+[lints]
+workspace = true
