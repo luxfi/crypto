@@ -10,7 +10,7 @@ import (
 // SeededGenDST is the domain separation tag used by NewGeneratorsFromSeed.
 // It is exported so cross-language KAT generators (C++, Rust) can replicate
 // the derivation byte-for-byte.
-const SeededGenDST = "LUX_PEDERSEN_SEEDED_GEN_V1"
+const SeededGenDST = "PEDERSEN_SEEDED_GEN_V1"
 
 // NewGeneratorsFromSeed deterministically derives the Pedersen generators
 // (G, H) from a 32-byte seed using RFC 9380 hash-to-curve (SVDW map) on
