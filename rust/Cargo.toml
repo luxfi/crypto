@@ -20,6 +20,20 @@ members = [
     "lux-crypto-ed25519",
     "lux-crypto-blake3",
     "lux-crypto-slhdsa",
+    "lux-crypto-sha256",
+    "lux-crypto-ripemd160",
+    "lux-crypto-blake2b",
+    "lux-crypto-lamport",
+    "lux-crypto-bls",
+    "lux-crypto-kzg",
+    "lux-crypto-mldsa",
+    "lux-crypto-mlkem",
+    "lux-crypto-evm256",
+    "lux-crypto-ipa",
+    "lux-crypto-ntt",
+    "lux-crypto-poly-mul",
+    "lux-crypto-pedersen",
+    "lux-crypto-aead",
 ]
 
 [workspace.package]
