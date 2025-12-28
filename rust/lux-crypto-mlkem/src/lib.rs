@@ -1,12 +1,13 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-mlkem: canonical Rust binding for Lux ML-KEM (FIPS 203) C-ABI.
+// lux-crypto-mlkem: canonical Rust binding for Lux ML-KEM (FIPS 203, the
+// final standardized form of CRYSTALS-Kyber).
 //
-// Mode encoding matches `luxcpp/crypto/mlkem/c-abi/c_mlkem.cpp`:
-//   2 -> ML-KEM-512  (NIST L1)
-//   3 -> ML-KEM-768  (NIST L3)
-//   5 -> ML-KEM-1024 (NIST L5)
+// Status: luxcpp/crypto/mlkem/c-abi/c_mlkem.cpp returns CRYPTO_ERR_NOTIMPL
+// for keygen/encap/decap. Tests are gated #[ignore] until the C-ABI body
+// lands. Mode integers map to FIPS 203 §4 parameter sets (2 = ML-KEM-512,
+// 3 = ML-KEM-768, 5 = ML-KEM-1024).
 
 #![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -23,100 +24,76 @@ extern "C" {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Mode {
-    /// ML-KEM-512 (NIST Level 1).
-    K512 = 2,
-    /// ML-KEM-768 (NIST Level 3).
-    K768 = 3,
-    /// ML-KEM-1024 (NIST Level 5).
-    K1024 = 5,
+    /// ML-KEM-512 (NIST L1): pk=800, sk=1632, ct=768.
+    Mode2 = 2,
+    /// ML-KEM-768 (NIST L3): pk=1184, sk=2400, ct=1088.
+    Mode3 = 3,
+    /// ML-KEM-1024 (NIST L5): pk=1568, sk=3168, ct=1568.
+    Mode5 = 5,
 }
 
 impl Mode {
-    /// Public key length for this parameter set (FIPS 203).
-    #[inline]
+    /// FIPS 203 public key length in bytes.
     pub const fn pk_len(self) -> usize {
-        match self {
-            Mode::K512 => 800,
-            Mode::K768 => 1184,
-            Mode::K1024 => 1568,
-        }
+        match self { Mode::Mode2 => 800, Mode::Mode3 => 1184, Mode::Mode5 => 1568 }
     }
-    /// Secret key length for this parameter set (FIPS 203).
-    #[inline]
+    /// FIPS 203 secret key length in bytes.
     pub const fn sk_len(self) -> usize {
-        match self {
-            Mode::K512 => 1632,
-            Mode::K768 => 2400,
-            Mode::K1024 => 3168,
-        }
+        match self { Mode::Mode2 => 1632, Mode::Mode3 => 2400, Mode::Mode5 => 3168 }
     }
-    /// Ciphertext length for this parameter set (FIPS 203).
-    #[inline]
+    /// FIPS 203 ciphertext length in bytes.
     pub const fn ct_len(self) -> usize {
-        match self {
-            Mode::K512 => 768,
-            Mode::K768 => 1088,
-            Mode::K1024 => 1568,
-        }
+        match self { Mode::Mode2 => 768, Mode::Mode3 => 1088, Mode::Mode5 => 1568 }
     }
 }
 
-/// Length of the shared secret produced by encap/decap (bytes).
+/// Length of the shared secret (32 bytes, FIPS 203 §6).
 pub const SS_LEN: usize = 32;
 
-/// Errors returned by ML-KEM operations.
+/// Errors returned by the ML-KEM binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// C-ABI returned an error status.
-    Internal(c_int),
-    /// Buffer slice was the wrong size for the requested parameter set.
+    InternalError(c_int),
     InvalidLength,
 }
 
-/// Generate an ML-KEM keypair from `seed`.
+/// Generate an ML-KEM keypair from a 32-byte seed.
 #[inline]
 pub fn keygen(mode: Mode, seed: &[u8; 32], pk: &mut [u8], sk: &mut [u8]) -> Result<(), Error> {
     if pk.len() != mode.pk_len() || sk.len() != mode.sk_len() {
         return Err(Error::InvalidLength);
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         mlkem_keygen(mode as c_int, seed.as_ptr(), pk.as_mut_ptr(), sk.as_mut_ptr())
     };
-    match rc {
-        0 => Ok(()),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }
 
-/// Encapsulate a fresh shared secret to a public key.
+/// Encapsulate against a public key. Writes the ciphertext into `ct` and the
+/// 32-byte shared secret into `ss`.
 #[inline]
 pub fn encap(mode: Mode, pk: &[u8], ct: &mut [u8], ss: &mut [u8; SS_LEN]) -> Result<(), Error> {
     if pk.len() != mode.pk_len() || ct.len() != mode.ct_len() {
         return Err(Error::InvalidLength);
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         mlkem_encap(mode as c_int, pk.as_ptr(), ct.as_mut_ptr(), ss.as_mut_ptr())
     };
-    match rc {
-        0 => Ok(()),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }
 
-/// Decapsulate a ciphertext under `sk` to recover the shared secret.
+/// Decapsulate a ciphertext with the secret key. Writes the 32-byte shared
+/// secret into `ss`.
 #[inline]
 pub fn decap(mode: Mode, sk: &[u8], ct: &[u8], ss: &mut [u8; SS_LEN]) -> Result<(), Error> {
     if sk.len() != mode.sk_len() || ct.len() != mode.ct_len() {
         return Err(Error::InvalidLength);
     }
-    // SAFETY: lengths checked; pointers valid for the call's duration.
+    // SAFETY: pointers valid for the call's duration; lengths checked above.
     let rc = unsafe {
         mlkem_decap(mode as c_int, sk.as_ptr(), ct.as_ptr(), ss.as_mut_ptr())
     };
-    match rc {
-        0 => Ok(()),
-        other => Err(Error::Internal(other)),
-    }
+    match rc { 0 => Ok(()), other => Err(Error::InternalError(other)) }
 }

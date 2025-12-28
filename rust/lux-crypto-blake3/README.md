@@ -1,31 +1,21 @@
 # lux-crypto-blake3
 
-Canonical Rust binding for **BLAKE3** (vendored BLAKE3 reference v1.5.0).
+Canonical Rust binding for Lux BLAKE3.
 
-Wraps the C-ABI exposed by `luxcpp/crypto/blake3`. Verified against the
-official BLAKE3 KAT vector set (140 vectors) in `tests/`.
+**Status: stub — luxcpp/crypto/blake3/c-abi/c_blake3.cpp returns
+`CRYPTO_ERR_NOTIMPL`.** The Rust binding is shipped against the canonical
+C-ABI surface so downstream consumers can wire against a stable signature.
+Spec-vector tests are gated `#[ignore]` until the C-ABI body lands; they are
+tracked at `#blake3-c-abi-impl`.
 
-## Algorithm
+## Use
 
-- **BLAKE3** -- extendable-output hash (XOF) and 32-byte digest mode
-- Vendored reference implementation v1.5.0
+```rust
+use lux_crypto_blake3::hash;
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libblake3_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-blake3
+let digest = hash(b"abc")?;
 ```
 
-## Attribution
+## Source
 
-BLAKE3 reference code is licensed under CC0 1.0 / Apache 2.0 (dual-licensed).
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/blake3/c-abi/c_blake3.cpp`.
