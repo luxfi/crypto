@@ -1,27 +1,11 @@
 # lux-crypto-ipa
 
-Canonical Rust binding for the **Inner Product Argument (IPA)** over
-Banderwagon, as specified for Verkle trees (EIP-7805).
+Canonical Rust binding for Lux IPA (Inner Product Argument) commitments and
+proofs. Used by Verkle trees (Bowe-Grigg-Hopwood IPA over Bandersnatch).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/ipa`.
+**Status: stub — `c_ipa.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#ipa-c-abi-impl`.
 
-## Algorithm
+## Source
 
-- **IPA** -- inner product argument, Banderwagon group
-- Used to prove Verkle multiproofs
-
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libipa_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-ipa
-```
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/ipa/c-abi/c_ipa.cpp`.

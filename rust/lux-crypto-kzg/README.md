@@ -1,31 +1,13 @@
 # lux-crypto-kzg
 
-Canonical Rust binding for the **KZG point-evaluation precompile** (EIP-4844).
+Canonical Rust binding for Lux KZG polynomial commitments (EIP-4844).
 
-Wraps the C-ABI exposed by `luxcpp/crypto/kzg`.
+128 KiB blob shape (4096 × 32 bytes), 48-byte BLS12-381 G1 commitments and
+proofs.
 
-## Algorithm
+**Status: stub — `c_kzg.cpp` returns `CRYPTO_ERR_NOTIMPL`.** Tests gated
+`#[ignore]`. Tracked at `#kzg-c-abi-impl`.
 
-- **KZG polynomial commitment** -- as standardized in EIP-4844
-- Uses the Ethereum trusted setup (KZG ceremony)
+## Source
 
-## Build
-
-Set `CRYPTO_DIR` (install prefix) or `CRYPTO_BUILD_DIR` (cmake build dir) so
-the build script can find `libkzg_cpu.a`.
-
-```bash
-git clone https://github.com/luxfi/crypto
-cd crypto && cmake -S . -B build-cto && cmake --build build-cto
-export CRYPTO_BUILD_DIR=$(pwd)/build-cto
-cargo build -p lux-crypto-kzg
-```
-
-## Attribution
-
-Underlying implementation derived from `c-kzg-4844` (Apache 2.0). Trusted
-setup from the Ethereum KZG ceremony.
-
-## License
-
-See `LICENSE` at the repository root.
+C-ABI body: `luxcpp/crypto/kzg/c-abi/c_kzg.cpp`.

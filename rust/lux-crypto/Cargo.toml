@@ -4,45 +4,79 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
-documentation.workspace = true
+description = "Umbrella crate for Lux crypto. Re-exports the per-algorithm crates that bind to luxcpp/crypto via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
 readme = "README.md"
-description = "Umbrella crate for Lux crypto. Re-exports per-algorithm crates that bind to luxcpp/crypto via the C-ABI."
-keywords = ["luxfi", "crypto", "blockchain", "post-quantum", "ffi"]
+keywords = ["crypto", "ffi", "post-quantum", "ethereum", "umbrella"]
 categories = ["cryptography"]
-
-# This crate is the canonical Rust entry point for Lux crypto.
-# Mirrors github.com/luxfi/gpu (canonical Rust binding to luxfi/accel).
-#
-# Surface:
-#   * secp256k1 — ECDSA public-key recovery (single + batch)
-#   * mldsa     — FIPS 204 ML-DSA modes 2/3/5
-#   * mlkem     — FIPS 203 ML-KEM modes 2/3/5
-#   * slhdsa    — FIPS 205 SLH-DSA modes 2/3/5
-#   * ed25519   — keygen / sign / verify
-#   * keccak256 — single-shot 32-byte digest
-#
-# Build expectations:
-#   - Environment variable `CRYPTO_DIR` points to the install prefix that
-#     contains `include/lux/crypto/*.h` and `lib/lib<alg>_cpu.a`.
-#   - Or, set `CRYPTO_BUILD_DIR` to the cmake build directory containing
-#     `<alg>/lib<alg>_cpu.a`.
-#
-# Brand-neutral naming: NO -sys suffix. We author the C/C++ ourselves at
-# luxcpp/crypto; this is not a wrapper around third-party FFI. One crate
-# per first-party FFI surface; safe wrappers live in the per-algorithm
-# `pub mod` blocks in src/lib.rs.
 
 [lib]
 name = "lux_crypto"
 
-# The umbrella crate retains the original raw-FFI surface
-# (mldsa, mlkem, slhdsa, ed25519, keccak256, secp256k1 modules) for
-# backward compatibility with existing consumers. The canonical entry
-# points for new code are the per-algorithm crates in this workspace:
-#   * lux-crypto-keccak    -> keccak256 (verified against published vectors)
-#   * lux-crypto-secp256k1 -> secp256k1 ecrecover (verified)
-# Per-algorithm crates for the remaining algorithms will land as their
-# C-ABI bodies are wired in luxcpp/crypto. See COVERAGE.md.
+[lints]
+workspace = true
+
+# ---------------------------------------------------------------------------
+# Per-algorithm dependencies. Each algorithm sits behind a Cargo feature so
+# downstream consumers can pick exactly the surface they need. The default
+# set covers the four algorithms whose underlying C-ABI body is wired and
+# byte-equal to a published reference today: keccak256, secp256k1 ecrecover,
+# SHA-256, RIPEMD-160. Add `blake2b` to that set for hash-only callers.
+# ---------------------------------------------------------------------------
+
+[dependencies]
+lux-crypto-aead       = { version = "0.1.0", path = "../lux-crypto-aead",       optional = true }
+lux-crypto-blake2b    = { version = "0.1.0", path = "../lux-crypto-blake2b",    optional = true }
+lux-crypto-blake3     = { version = "0.1.0", path = "../lux-crypto-blake3",     optional = true }
+lux-crypto-bls        = { version = "0.1.0", path = "../lux-crypto-bls",        optional = true }
+lux-crypto-bn254      = { version = "0.1.0", path = "../lux-crypto-bn254",      optional = true }
+lux-crypto-ed25519    = { version = "0.1.0", path = "../lux-crypto-ed25519",    optional = true }
+lux-crypto-evm256     = { version = "0.1.0", path = "../lux-crypto-evm256",     optional = true }
+lux-crypto-ipa        = { version = "0.1.0", path = "../lux-crypto-ipa",        optional = true }
+lux-crypto-keccak     = { version = "0.1.0", path = "../lux-crypto-keccak",     optional = true }
+lux-crypto-kzg        = { version = "0.1.0", path = "../lux-crypto-kzg",        optional = true }
+lux-crypto-lamport    = { version = "0.1.0", path = "../lux-crypto-lamport",    optional = true }
+lux-crypto-mldsa      = { version = "0.1.0", path = "../lux-crypto-mldsa",      optional = true }
+lux-crypto-mlkem      = { version = "0.1.0", path = "../lux-crypto-mlkem",      optional = true }
+lux-crypto-ntt        = { version = "0.1.0", path = "../lux-crypto-ntt",        optional = true }
+lux-crypto-pedersen   = { version = "0.1.0", path = "../lux-crypto-pedersen",   optional = true }
+lux-crypto-poly-mul   = { version = "0.1.0", path = "../lux-crypto-poly-mul",   optional = true }
+lux-crypto-ripemd160  = { version = "0.1.0", path = "../lux-crypto-ripemd160",  optional = true }
+lux-crypto-secp256k1  = { version = "0.1.0", path = "../lux-crypto-secp256k1",  optional = true }
+lux-crypto-sha256     = { version = "0.1.0", path = "../lux-crypto-sha256",     optional = true }
+lux-crypto-slhdsa     = { version = "0.1.0", path = "../lux-crypto-slhdsa",     optional = true }
+
+[features]
+default = ["keccak", "secp256k1", "sha256", "ripemd160"]
+
+aead       = ["dep:lux-crypto-aead"]
+blake2b    = ["dep:lux-crypto-blake2b"]
+blake3     = ["dep:lux-crypto-blake3"]
+bls        = ["dep:lux-crypto-bls"]
+bn254      = ["dep:lux-crypto-bn254"]
+ed25519    = ["dep:lux-crypto-ed25519"]
+evm256     = ["dep:lux-crypto-evm256"]
+ipa        = ["dep:lux-crypto-ipa"]
+keccak     = ["dep:lux-crypto-keccak"]
+kzg        = ["dep:lux-crypto-kzg"]
+lamport    = ["dep:lux-crypto-lamport"]
+mldsa      = ["dep:lux-crypto-mldsa"]
+mlkem      = ["dep:lux-crypto-mlkem"]
+ntt        = ["dep:lux-crypto-ntt"]
+pedersen   = ["dep:lux-crypto-pedersen"]
+poly-mul   = ["dep:lux-crypto-poly-mul"]
+ripemd160  = ["dep:lux-crypto-ripemd160"]
+secp256k1  = ["dep:lux-crypto-secp256k1"]
+sha256     = ["dep:lux-crypto-sha256"]
+slhdsa     = ["dep:lux-crypto-slhdsa"]
+
+# Convenience set: every algorithm whose C-ABI body is wired today.
+working = ["keccak", "secp256k1", "sha256", "ripemd160", "blake2b"]
+
+# Convenience set: every per-algorithm crate in the workspace, including
+# the ones whose C-ABI body is currently a CRYPTO_ERR_NOTIMPL stub.
+all = [
+    "aead", "blake2b", "blake3", "bls", "bn254", "ed25519", "evm256",
+    "ipa", "keccak", "kzg", "lamport", "mldsa", "mlkem", "ntt", "pedersen",
+    "poly-mul", "ripemd160", "secp256k1", "sha256", "slhdsa",
+]

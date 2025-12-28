@@ -1,7 +1,3 @@
-// Build script for lux-crypto-evm256. The C-ABI symbols are exported from the
-// modexp translation unit and packed into `libevm256.a`; `libevm256_cpu.a`
-// provides the CPU body.
-
 use std::env;
 use std::path::PathBuf;
 
@@ -12,23 +8,18 @@ fn main() {
     } else if let Ok(d) = env::var("CRYPTO_BUILD_DIR") {
         PathBuf::from(d)
     } else {
-        manifest_dir
-            .join("..").join("..").join("..").join("..")
+        manifest_dir.join("..").join("..").join("..").join("..")
             .join("luxcpp").join("crypto").join("build-cto")
     };
-
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
-
-    let lib_path = base.join("evm256");
-    println!("cargo:rustc-link-search=native={}", lib_path.display());
-    println!("cargo:rustc-link-lib=static=evm256");
-    println!("cargo:rustc-link-lib=static=evm256_cpu");
-
-    if cfg!(target_os = "macos") {
-        println!("cargo:rustc-link-lib=c++");
-    } else {
-        println!("cargo:rustc-link-lib=stdc++");
-    }
+    // The evm256 functions (evm256_mulmod, evm256_addmod) are exported from
+    // libmodexp.a alongside modexp itself. The empty libevm256.a is a
+    // placeholder for future kernel-side dispatch.
+    let modexp_path = base.join("modexp");
+    println!("cargo:rustc-link-search=native={}", modexp_path.display());
+    println!("cargo:rustc-link-lib=static=modexp");
+    println!("cargo:rustc-link-lib=static=modexp_cpu");
+    if cfg!(target_os = "macos") { println!("cargo:rustc-link-lib=c++"); } else { println!("cargo:rustc-link-lib=stdc++"); }
 }

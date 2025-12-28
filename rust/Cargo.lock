@@ -5,6 +5,60 @@ version = 3
 [[package]]
 name = "lux-crypto"
 version = "0.1.0"
+dependencies = [
+ "lux-crypto-aead",
+ "lux-crypto-blake2b",
+ "lux-crypto-blake3",
+ "lux-crypto-bls",
+ "lux-crypto-bn254",
+ "lux-crypto-ed25519",
+ "lux-crypto-evm256",
+ "lux-crypto-ipa",
+ "lux-crypto-keccak",
+ "lux-crypto-kzg",
+ "lux-crypto-lamport",
+ "lux-crypto-mldsa",
+ "lux-crypto-mlkem",
+ "lux-crypto-ntt",
+ "lux-crypto-pedersen",
+ "lux-crypto-poly-mul",
+ "lux-crypto-ripemd160",
+ "lux-crypto-secp256k1",
+ "lux-crypto-sha256",
+ "lux-crypto-slhdsa",
+]
+
+[[package]]
+name = "lux-crypto-aead"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-blake2b"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-blake3"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-bls"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-bn254"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-ed25519"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-evm256"
+version = "0.1.0"
+
+[[package]]
+name = "lux-crypto-ipa"
+version = "0.1.0"
 
 [[package]]
 name = "lux-crypto-aead"
