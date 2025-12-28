@@ -1,0 +1,16 @@
+[package]
+name = "lux-crypto-sha256"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux SHA-256. Calls into luxcpp/crypto/sha256 via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+keywords = ["sha256", "fips180", "hash", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_sha256"
+
+[lints]
+workspace = true
