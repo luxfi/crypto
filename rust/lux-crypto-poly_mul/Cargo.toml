@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-poly_mul"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux polynomial multiplication over Z_Q[X]/(X^n+1) with Q = 998244353. Calls into luxcpp/crypto/poly_mul via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["polynomial", "ntt", "negacyclic", "lattice", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_poly_mul"
+
+[lints]
+workspace = true
