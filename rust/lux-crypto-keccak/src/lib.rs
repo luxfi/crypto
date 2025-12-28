@@ -22,8 +22,7 @@ extern "C" {
     /// The C-ABI declaration in `lux/crypto/keccak.h` returns `void`; we mirror
     /// that exactly. Caller must guarantee `output` points to at least 32
     /// writable bytes.
-    #[link_name = "lux_keccak256"]
-    fn lux_keccak256(input: *const u8, input_len: usize, output: *mut u8);
+    fn keccak256(input: *const u8, input_len: usize, output: *mut u8);
 }
 
 /// Length of a keccak256 digest in bytes.
@@ -39,7 +38,7 @@ pub fn hash(input: &[u8]) -> [u8; DIGEST_LEN] {
     // SAFETY: `input.as_ptr()` is valid for `input.len()` bytes (read-only)
     // and `out.as_mut_ptr()` is valid for `DIGEST_LEN` bytes (write).
     unsafe {
-        lux_keccak256(input.as_ptr(), input.len(), out.as_mut_ptr());
+        keccak256(input.as_ptr(), input.len(), out.as_mut_ptr());
     }
     out
 }
@@ -51,7 +50,7 @@ pub fn hash(input: &[u8]) -> [u8; DIGEST_LEN] {
 pub fn hash_into<'a>(input: &[u8], output: &'a mut [u8; DIGEST_LEN]) -> &'a [u8; DIGEST_LEN] {
     // SAFETY: pointers are valid for the durations of the call.
     unsafe {
-        lux_keccak256(input.as_ptr(), input.len(), output.as_mut_ptr());
+        keccak256(input.as_ptr(), input.len(), output.as_mut_ptr());
     }
     output
 }
