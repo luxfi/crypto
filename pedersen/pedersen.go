@@ -41,11 +41,11 @@ func NewGenerators(rng io.Reader) (*Generators, error) {
 	if _, err := rng.Read(hBytes); err != nil {
 		return nil, err
 	}
-	g, err := bn254.HashToG1(gBytes, []byte("LUX_PEDERSEN_G"))
+	g, err := bn254.HashToG1(gBytes, []byte("PEDERSEN_G_V1"))
 	if err != nil {
 		return nil, err
 	}
-	h, err := bn254.HashToG1(hBytes, []byte("LUX_PEDERSEN_H"))
+	h, err := bn254.HashToG1(hBytes, []byte("PEDERSEN_H_V1"))
 	if err != nil {
 		return nil, err
 	}
