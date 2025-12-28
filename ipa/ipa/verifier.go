@@ -3,8 +3,8 @@ package ipa
 import (
 	"fmt"
 
+	"github.com/luxfi/crypto/banderwagon"
 	"github.com/luxfi/crypto/ipa/bandersnatch/fr"
-	"github.com/luxfi/crypto/ipa/banderwagon"
 	"github.com/luxfi/crypto/ipa/common"
 )
 

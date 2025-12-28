@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/luxfi/crypto/banderwagon"
 	"github.com/luxfi/crypto/ipa/bandersnatch/fr"
-	"github.com/luxfi/crypto/ipa/banderwagon"
 )
 
 func TestPoly256(polynomial ...uint64) []fr.Element {
