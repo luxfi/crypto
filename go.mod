@@ -10,7 +10,6 @@ require (
 	github.com/cloudflare/circl v1.6.3
 	github.com/consensys/gnark-crypto v0.19.2
 	github.com/crate-crypto/go-eth-kzg v1.5.0
-	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/c-kzg-4844/v2 v2.1.5
