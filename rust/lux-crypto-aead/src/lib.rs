@@ -1,16 +1,11 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
-// lux-crypto-aead: canonical Rust binding for the Lux ChaCha20-Poly1305 AEAD
-// C-ABI per RFC 8439. Links statically against `libaead.a` and
-// `libaead_cpu.a` produced by `luxcpp/crypto/aead`.
-//
-// AEAD construction is "Authenticated Encryption with Associated Data"
-// (Krovetz/Rogaway 2011). Key is 32 bytes, nonce is 12 bytes, tag is 16 bytes.
-// Plaintext and ciphertext have the same length; tag is appended out-of-band
-// in the C-ABI. The associated data ("aad") is authenticated but not
-// encrypted.
+// lux-crypto-aead: canonical Rust binding for Lux ChaCha20-Poly1305 AEAD
+// (RFC 8439). Single-shot seal/open with 32-byte key, 12-byte nonce, and
+// 16-byte authentication tag.
 
+#![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use core::ffi::c_int;
@@ -26,7 +21,6 @@ extern "C" {
         ct: *mut u8,
         tag: *mut u8,
     ) -> c_int;
-
     fn aead_chacha20poly1305_open(
         key: *const u8,
         nonce: *const u8,
@@ -39,84 +33,90 @@ extern "C" {
     ) -> c_int;
 }
 
-/// Length of the ChaCha20-Poly1305 key in bytes.
+/// Length of a ChaCha20-Poly1305 key in bytes.
 pub const KEY_LEN: usize = 32;
-/// Length of the ChaCha20-Poly1305 nonce in bytes (96-bit, RFC 8439).
+/// Length of a ChaCha20-Poly1305 nonce in bytes (RFC 8439 IETF construction).
 pub const NONCE_LEN: usize = 12;
-/// Length of the Poly1305 authentication tag in bytes.
+/// Length of a Poly1305 authentication tag in bytes.
 pub const TAG_LEN: usize = 16;
 
-/// Errors returned by ChaCha20-Poly1305.
+/// Errors returned by AEAD operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// One of the input buffers was malformed (e.g. NULL where a non-empty
-    /// buffer was expected).
-    BadInput,
-    /// The Poly1305 tag did not match (decryption / verification failure).
-    AuthFail,
-    /// The C-ABI returned an unexpected status.
+    /// C-ABI returned an error status.
     Internal(c_int),
+    /// `open` rejected the ciphertext/tag.
+    InvalidTag,
+    /// Input lengths disagreed.
+    LengthMismatch,
 }
 
-/// Encrypt-and-authenticate `pt` with associated data `aad`. Returns
-/// `(ciphertext, tag)`. Ciphertext length matches plaintext length.
+/// Encrypt-and-authenticate `pt` under `key` with `nonce` and associated data.
+///
+/// Writes ciphertext to `ct` (must be the same length as `pt`) and the 16-byte
+/// authentication tag to `tag`.
+#[inline]
 pub fn seal(
     key: &[u8; KEY_LEN],
     nonce: &[u8; NONCE_LEN],
     aad: &[u8],
     pt: &[u8],
-) -> Result<(Vec<u8>, [u8; TAG_LEN]), Error> {
-    let mut ct = vec![0u8; pt.len()];
-    let mut tag = [0u8; TAG_LEN];
-    // SAFETY: All pointers are valid for the call's duration; lengths are
-    // expressed accurately to the C-ABI (NULL is allowed for empty slices).
+    ct: &mut [u8],
+    tag: &mut [u8; TAG_LEN],
+) -> Result<(), Error> {
+    if ct.len() != pt.len() {
+        return Err(Error::LengthMismatch);
+    }
+    // SAFETY: lengths checked; pointers valid for the call's duration.
     let rc = unsafe {
         aead_chacha20poly1305_seal(
             key.as_ptr(),
             nonce.as_ptr(),
-            if aad.is_empty() { core::ptr::null() } else { aad.as_ptr() },
+            aad.as_ptr(),
             aad.len(),
-            if pt.is_empty() { core::ptr::null() } else { pt.as_ptr() },
+            pt.as_ptr(),
             pt.len(),
-            if ct.is_empty() { core::ptr::null_mut() } else { ct.as_mut_ptr() },
+            ct.as_mut_ptr(),
             tag.as_mut_ptr(),
         )
     };
     match rc {
-        0 => Ok((ct, tag)),
-        -1 => Err(Error::BadInput),
-        x => Err(Error::Internal(x)),
+        0 => Ok(()),
+        other => Err(Error::Internal(other)),
     }
 }
 
-/// Verify-and-decrypt `ct` with `tag` and associated data `aad`. Returns
-/// the plaintext. Length of plaintext equals length of ciphertext.
+/// Authenticate-and-decrypt `ct` under `key` with `nonce`, `aad`, and `tag`.
+///
+/// Writes plaintext to `pt` (must be the same length as `ct`).
+#[inline]
 pub fn open(
     key: &[u8; KEY_LEN],
     nonce: &[u8; NONCE_LEN],
     aad: &[u8],
     ct: &[u8],
     tag: &[u8; TAG_LEN],
-) -> Result<Vec<u8>, Error> {
-    let mut pt = vec![0u8; ct.len()];
-    // SAFETY: All pointers are valid for the call's duration; lengths are
-    // expressed accurately to the C-ABI (NULL is allowed for empty slices).
+    pt: &mut [u8],
+) -> Result<(), Error> {
+    if pt.len() != ct.len() {
+        return Err(Error::LengthMismatch);
+    }
+    // SAFETY: lengths checked; pointers valid for the call's duration.
     let rc = unsafe {
         aead_chacha20poly1305_open(
             key.as_ptr(),
             nonce.as_ptr(),
-            if aad.is_empty() { core::ptr::null() } else { aad.as_ptr() },
+            aad.as_ptr(),
             aad.len(),
-            if ct.is_empty() { core::ptr::null() } else { ct.as_ptr() },
+            ct.as_ptr(),
             ct.len(),
             tag.as_ptr(),
-            if pt.is_empty() { core::ptr::null_mut() } else { pt.as_mut_ptr() },
+            pt.as_mut_ptr(),
         )
     };
     match rc {
-        0 => Ok(pt),
-        -1 => Err(Error::BadInput),
-        -3 => Err(Error::AuthFail),
-        x => Err(Error::Internal(x)),
+        0 => Ok(()),
+        -3 => Err(Error::InvalidTag),
+        other => Err(Error::Internal(other)),
     }
 }

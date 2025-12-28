@@ -1,6 +1,7 @@
-// Build script for lux-crypto-ntt. Links `libntt.a` and `libntt_cpu.a` produced
-// by `luxcpp/crypto/ntt`. Implements Cyclone-FFT plus a generic forward/inverse
-// path over arbitrary NTT-friendly primes.
+// Build script for lux-crypto-poly-mul. The `poly_mul` C-ABI symbol lives in
+// `libntt.a` (the NTT subsystem owns the symbol per luxcpp/crypto/poly_mul);
+// we link it from there. The `libpoly_mul_cpu.a` archive carries the helper
+// symbols specific to the negacyclic poly_mul body.
 
 use std::env;
 use std::path::PathBuf;
@@ -21,8 +22,14 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
 
-    let lib_path = base.join("ntt");
-    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    // poly_mul body archive: helpers used by the negacyclic ring multiply.
+    let pm = base.join("poly_mul");
+    println!("cargo:rustc-link-search=native={}", pm.display());
+    println!("cargo:rustc-link-lib=static=poly_mul_cpu");
+
+    // The C-ABI symbol `poly_mul` itself is exported from the NTT subsystem.
+    let ntt = base.join("ntt");
+    println!("cargo:rustc-link-search=native={}", ntt.display());
     println!("cargo:rustc-link-lib=static=ntt");
     println!("cargo:rustc-link-lib=static=ntt_cpu");
 

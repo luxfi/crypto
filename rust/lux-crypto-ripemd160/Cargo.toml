@@ -6,8 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 description = "Canonical Rust binding for Lux RIPEMD-160. Calls into luxcpp/crypto/ripemd160 via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-readme = "README.md"
-keywords = ["ripemd160", "ripemd", "bitcoin", "hash", "ffi"]
+keywords = ["ripemd160", "hash", "ffi"]
 categories = ["cryptography"]
 
 [lib]

@@ -1,3 +1,6 @@
+// Build script for lux-crypto-ripemd160. Links `libripemd160.a` and
+// `libripemd160_cpu.a` produced by `luxcpp/crypto/ripemd160`.
+
 use std::env;
 use std::path::PathBuf;
 
@@ -9,13 +12,8 @@ fn main() {
         PathBuf::from(d)
     } else {
         manifest_dir
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("luxcpp")
-            .join("crypto")
-            .join("build-cto")
+            .join("..").join("..").join("..").join("..")
+            .join("luxcpp").join("crypto").join("build-cto")
     };
 
     println!("cargo:rerun-if-changed=src/lib.rs");
