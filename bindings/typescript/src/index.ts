@@ -5,6 +5,6 @@
  * Same PQ crypto from Lux blockchain to AI agents.
  */
 
-export { LUX_CRYPTO_AVAILABLE } from './ffi.js';
+export { cryptoAvailable } from './ffi.js';
 export * as mlkem768 from './mlkem768.js';
 export * as mldsa65 from './mldsa65.js';

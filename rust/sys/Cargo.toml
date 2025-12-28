@@ -8,12 +8,14 @@ description = "Raw FFI bindings to luxcpp/crypto. Used by Hanzo/Lux/Zoo Rust nod
 # This crate exposes C ABI bindings to luxcpp/crypto.
 #
 # Phase 1 surface:
-#   * secp256k1: lux_secp256k1_ecrecover, lux_secp256k1_ecrecover_batch
+#   * secp256k1: secp256k1_ecrecover, secp256k1_ecrecover_batch
 #
 # Build expectations:
-#   - Environment variable `LUX_CRYPTO_DIR` points to the install prefix that
+#   - Environment variable `CRYPTO_DIR` points to the install prefix that
 #     contains `include/lux/crypto/*.h` and `lib/lib<alg>_cpu.a`.
-#   - Or, set `LUX_CRYPTO_BUILD_DIR` to the cmake build directory.
+#   - Or, set `CRYPTO_BUILD_DIR` to the cmake build directory.
+#   - Deprecated names `LUX_CRYPTO_DIR` / `LUX_CRYPTO_BUILD_DIR` are read for
+#     one release with a deprecation warning.
 #
 # This is intentionally a `-sys` crate: no Rust types, just `extern "C"`
 # declarations. Higher-level safe wrappers belong in `lux-crypto`.

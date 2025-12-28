@@ -1,11 +1,11 @@
 /**
  * Quick smoke test for luxcrypto TypeScript bindings.
  */
-import { LUX_CRYPTO_AVAILABLE, mlkem768, mldsa65 } from './index.js';
+import { cryptoAvailable, mlkem768, mldsa65 } from './index.js';
 
-console.log(`luxcrypto available: ${LUX_CRYPTO_AVAILABLE}`);
+console.log(`luxcrypto available: ${cryptoAvailable}`);
 
-if (!LUX_CRYPTO_AVAILABLE) {
+if (!cryptoAvailable) {
   console.error('libluxcrypto not found — build with: cd ~/work/lux/crypto && make lib');
   process.exit(1);
 }
