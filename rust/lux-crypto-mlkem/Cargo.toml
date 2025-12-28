@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-mlkem"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux ML-KEM (FIPS 203, Kyber). Calls into luxcpp/crypto/mlkem via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["ml-kem", "kyber", "fips203", "post-quantum", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_mlkem"
+
+[lints]
+workspace = true
