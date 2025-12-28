@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-ntt"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux NTT (Number Theoretic Transform). Calls into luxcpp/crypto/ntt via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["ntt", "polynomial", "fhe", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_ntt"
+
+[lints]
+workspace = true

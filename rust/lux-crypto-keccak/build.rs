@@ -35,6 +35,7 @@ fn main() {
 
     let lib_path = base.join("keccak");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
+    println!("cargo:rustc-link-lib=static=keccak");
     println!("cargo:rustc-link-lib=static=keccak_cpu");
 
     if cfg!(target_os = "macos") {
