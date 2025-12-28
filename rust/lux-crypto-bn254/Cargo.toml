@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-bn254"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux BN254 (alt_bn128) pairing-based EVM precompiles. Calls into luxcpp/crypto/bn254 via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["bn254", "alt-bn128", "pairing", "ethereum", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_bn254"
+
+[lints]
+workspace = true
