@@ -44,7 +44,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/crate-crypto/go-ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 )
 
 type (
