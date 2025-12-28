@@ -15,14 +15,8 @@ package blake3
 #include <stdint.h>
 #include <stdlib.h>
 
-// C API from luxcpp/crypto
+// C API from luxcpp/crypto (brand-neutral symbols).
 #include <lux/crypto/crypto.h>
-
-// Short aliases for Go code readability (hides lux_crypto_ prefix)
-#define crypto_gpu_available    lux_crypto_gpu_available
-#define crypto_get_backend      lux_crypto_get_backend
-#define crypto_blake3           lux_crypto_blake3
-#define crypto_batch_hash       lux_crypto_batch_hash
 */
 import "C"
 

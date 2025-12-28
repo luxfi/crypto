@@ -22,8 +22,6 @@ description = "Umbrella crate for Lux crypto. Re-exports per-algorithm crates th
 #     contains `include/lux/crypto/*.h` and `lib/lib<alg>_cpu.a`.
 #   - Or, set `CRYPTO_BUILD_DIR` to the cmake build directory containing
 #     `<alg>/lib<alg>_cpu.a`.
-#   - Deprecated names `LUX_CRYPTO_DIR` / `LUX_CRYPTO_BUILD_DIR` are read for
-#     one release with a deprecation warning.
 #
 # Brand-neutral naming: NO -sys suffix. We author the C/C++ ourselves at
 # luxcpp/crypto; this is not a wrapper around third-party FFI. One crate
