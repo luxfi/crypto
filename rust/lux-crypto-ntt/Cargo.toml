@@ -4,10 +4,9 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Canonical Rust binding for the Lux Number-Theoretic Transform. Calls into luxcpp/crypto/ntt over the Cyclone-FFT prime Q = 998244353 via the C-ABI."
+description = "Canonical Rust binding for Lux Number-Theoretic Transform. Calls into luxcpp/crypto/ntt via the C-ABI."
 repository = "https://github.com/luxfi/crypto"
-readme = "README.md"
-keywords = ["ntt", "fft", "crypto", "lattice", "ffi"]
+keywords = ["ntt", "fft", "lattice", "fhe", "ffi"]
 categories = ["cryptography"]
 
 [lib]
