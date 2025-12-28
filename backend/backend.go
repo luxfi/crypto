@@ -8,13 +8,14 @@
 //
 // The package selects which implementation to run based on the value of
 // Default(). Callers can override programmatically with SetDefault(),
-// or globally with the LUX_CRYPTO_BACKEND environment variable.
+// or globally with the CRYPTO_BACKEND environment variable.
 //
 // The default value is Auto — pick the most capable backend the binary
 // was compiled and linked with, in the order GPU > CGo > Vanilla.
 package backend
 
 import (
+	"log"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -68,8 +69,21 @@ func Parse(s string) (Backend, bool) {
 
 var current uint32 // atomic Backend
 
-func init() {
+// envBackend reads CRYPTO_BACKEND, falling back to deprecated LUX_CRYPTO_BACKEND
+// for one transition release. The deprecated read is removed in v2.
+func envBackend() (string, bool) {
+	if v, ok := os.LookupEnv("CRYPTO_BACKEND"); ok {
+		return v, true
+	}
 	if v, ok := os.LookupEnv("LUX_CRYPTO_BACKEND"); ok {
+		log.Println("LUX_CRYPTO_BACKEND is deprecated; use CRYPTO_BACKEND")
+		return v, true
+	}
+	return "", false
+}
+
+func init() {
+	if v, ok := envBackend(); ok {
 		if b, parsed := Parse(v); parsed {
 			atomic.StoreUint32(&current, uint32(b))
 		}
@@ -77,7 +91,7 @@ func init() {
 }
 
 // Default returns the active backend selection. The value is Auto unless
-// SetDefault was called or LUX_CRYPTO_BACKEND was set in the environment.
+// SetDefault was called or CRYPTO_BACKEND was set in the environment.
 func Default() Backend {
 	return Backend(atomic.LoadUint32(&current))
 }
@@ -87,6 +101,18 @@ func Default() Backend {
 // Use the empty string or "auto" via Parse to revert to Auto behavior.
 func SetDefault(b Backend) {
 	atomic.StoreUint32(&current, uint32(b))
+}
+
+// Available is reserved for backend probing. Today, Auto and Vanilla are
+// always available; CGo and GPU are reported by build-tagged shims and the
+// runtime resolver.
+func Available(b Backend) bool {
+	switch b {
+	case Auto, Vanilla:
+		return true
+	default:
+		return false
+	}
 }
 
 // Resolve picks a concrete backend for the caller. If Default() is Auto the

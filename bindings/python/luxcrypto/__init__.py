@@ -15,8 +15,8 @@ Same PQ crypto from blockchain to AI agents.
     assert mldsa65.verify(pk, b"hello", sig)
 """
 
-from luxcrypto._ffi import LUX_CRYPTO_AVAILABLE
+from luxcrypto._ffi import crypto_available
 from luxcrypto import mlkem768, mldsa65
 
 __version__ = "0.1.0"
-__all__ = ["mlkem768", "mldsa65", "LUX_CRYPTO_AVAILABLE"]
+__all__ = ["mlkem768", "mldsa65", "crypto_available"]
