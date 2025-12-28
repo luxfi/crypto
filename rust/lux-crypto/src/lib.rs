@@ -58,14 +58,12 @@ impl Secp256k1Status {
 }
 
 // The canonical luxcpp/crypto C header declares brand-neutral symbols
-// (`secp256k1_ecrecover`, `mldsa_*`, etc.). The current static archives at
-// `build-canonical/<alg>/lib<alg>_cpu.a` still export those symbols with a
-// `lux_` prefix until the next rebuild. We map both via `#[link_name]` so the
-// Rust call surface stays brand-neutral and consumers see one canonical name.
+// (`secp256k1_ecrecover`, `mldsa_*`, etc.). The static archives at
+// `build-canonical/<alg>/lib<alg>_cpu.a` export the same names. The Rust
+// call surface mirrors them one-for-one.
 extern "C" {
     /// Recover the 64-byte uncompressed public key from (hash, r, s, v).
     /// Returns one of the `Secp256k1Status` codes as `c_int`.
-    #[link_name = "lux_secp256k1_ecrecover"]
     pub fn secp256k1_ecrecover(
         hash: *const u8,
         r: *const u8,
@@ -76,7 +74,6 @@ extern "C" {
 
     /// Batch ecrecover. inputs is n * 97 bytes (hash || r || s || v).
     /// pubkey_out is n * 64 bytes; status_out is n bytes.
-    #[link_name = "lux_secp256k1_ecrecover_batch"]
     pub fn secp256k1_ecrecover_batch(
         inputs: *const u8,
         n: usize,
@@ -146,14 +143,12 @@ pub mod mldsa {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_mldsa_keygen"]
         fn mldsa_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mldsa_sign"]
         fn mldsa_sign(
             mode: c_int,
             sk: *const u8,
@@ -162,7 +157,6 @@ pub mod mldsa {
             sig: *mut u8,
             sig_len: *mut usize,
         ) -> c_int;
-        #[link_name = "lux_mldsa_verify"]
         fn mldsa_verify(
             mode: c_int,
             pk: *const u8,
@@ -251,21 +245,18 @@ pub mod mlkem {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_mlkem_keygen"]
         fn mlkem_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mlkem_encap"]
         fn mlkem_encap(
             mode: c_int,
             pk: *const u8,
             ct: *mut u8,
             ss: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_mlkem_decap"]
         fn mlkem_decap(
             mode: c_int,
             sk: *const u8,
@@ -334,14 +325,12 @@ pub mod slhdsa {
     use super::{c_int, CryptoStatus, NistMode};
 
     extern "C" {
-        #[link_name = "lux_slhdsa_keygen"]
         fn slhdsa_keygen(
             mode: c_int,
             seed: *const u8,
             pk: *mut u8,
             sk: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_slhdsa_sign"]
         fn slhdsa_sign(
             mode: c_int,
             sk: *const u8,
@@ -350,7 +339,6 @@ pub mod slhdsa {
             sig: *mut u8,
             sig_len: *mut usize,
         ) -> c_int;
-        #[link_name = "lux_slhdsa_verify"]
         fn slhdsa_verify(
             mode: c_int,
             pk: *const u8,
@@ -433,16 +421,13 @@ pub mod ed25519 {
     use super::{c_int, CryptoStatus};
 
     extern "C" {
-        #[link_name = "lux_ed25519_keygen"]
         fn ed25519_keygen(seed: *const u8, sk: *mut u8, pk: *mut u8) -> c_int;
-        #[link_name = "lux_ed25519_sign"]
         fn ed25519_sign(
             sk: *const u8,
             msg: *const u8,
             msg_len: usize,
             sig: *mut u8,
         ) -> c_int;
-        #[link_name = "lux_ed25519_verify"]
         fn ed25519_verify(
             pk: *const u8,
             msg: *const u8,
@@ -486,7 +471,6 @@ pub mod ed25519 {
 pub mod keccak256 {
     extern "C" {
         // The C ABI declares this as `void` in lux/crypto/keccak.h.
-        #[link_name = "lux_keccak256"]
         fn keccak256(input: *const u8, input_len: usize, output: *mut u8);
     }
 
