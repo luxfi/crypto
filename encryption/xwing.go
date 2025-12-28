@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"filippo.io/age"
+	"github.com/luxfi/age"
 )
 
 // XWingRecipient implements age.Recipient using X-Wing hybrid KEM
