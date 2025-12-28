@@ -122,6 +122,16 @@ func (x *X25519Impl) PrivateKeySize() int   { return 32 }
 func (x *X25519Impl) CiphertextSize() int   { return 32 }
 func (x *X25519Impl) SharedSecretSize() int { return 32 }
 
+// ParseX25519PublicKey reconstructs an X25519PublicKey from 32 raw bytes.
+func ParseX25519PublicKey(data []byte) (*X25519PublicKey, error) {
+	if len(data) != 32 {
+		return nil, errors.New("invalid X25519 public key size: expected 32 bytes")
+	}
+	pk := &X25519PublicKey{}
+	copy(pk.data[:], data)
+	return pk, nil
+}
+
 // Bytes returns the public key bytes
 func (pk *X25519PublicKey) Bytes() []byte {
 	return pk.data[:]
