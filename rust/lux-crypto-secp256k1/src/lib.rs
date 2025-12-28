@@ -92,8 +92,7 @@ impl Error {
 extern "C" {
     /// Recover the 64-byte uncompressed public key (X || Y, big-endian) from
     /// `(hash, r, s, v)` where `v` is the recovery id 0 or 1.
-    #[link_name = "lux_secp256k1_ecrecover"]
-    fn lux_secp256k1_ecrecover(
+    fn secp256k1_ecrecover(
         hash: *const u8,
         r: *const u8,
         s: *const u8,
@@ -103,8 +102,7 @@ extern "C" {
 
     /// Batch ecrecover. `inputs` is `n * 97` bytes (`hash || r || s || v`).
     /// `pubkey_out` is `n * 64` bytes; `status_out` is `n` bytes.
-    #[link_name = "lux_secp256k1_ecrecover_batch"]
-    fn lux_secp256k1_ecrecover_batch(
+    fn secp256k1_ecrecover_batch(
         inputs: *const u8,
         n: usize,
         pubkey_out: *mut u8,
@@ -135,7 +133,7 @@ pub fn ecrecover(
     let mut out = [0u8; PUBKEY_LEN];
     // SAFETY: All pointers are valid for the call's duration; v is a copy.
     let rc = unsafe {
-        lux_secp256k1_ecrecover(hash.as_ptr(), r.as_ptr(), s.as_ptr(), v, out.as_mut_ptr())
+        secp256k1_ecrecover(hash.as_ptr(), r.as_ptr(), s.as_ptr(), v, out.as_mut_ptr())
     };
     if rc == 0 {
         Ok(out)
@@ -162,7 +160,7 @@ pub fn ecrecover_batch(inputs: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let mut statuses = vec![0u8; n];
     // SAFETY: We have shown the buffers are sized to the C-ABI contract.
     let rc = unsafe {
-        lux_secp256k1_ecrecover_batch(
+        secp256k1_ecrecover_batch(
             inputs.as_ptr(),
             n,
             pubkeys.as_mut_ptr(),
