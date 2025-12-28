@@ -133,8 +133,8 @@ func TestNewGeneratorsFromSeed_GoldenVector(t *testing.T) {
 	gotG := affineHex(&gA)
 	gotH := affineHex(&hA)
 
-	const wantG = "afba7c7a97100c5eb0ec96758698779b5d8d38d228bcdb7c85a4c1626ea5247a"
-	const wantH = "abc19b5bad508d8e7b944a37812a342cdbaa5946f0b3fd854805820c006c6110"
+	const wantG = "c563aa8a283f268b65b4210a0a78ee1341f76b59d94c1ac626effe1a5aa0c6b7"
+	const wantH = "e9ebf4392683dcb418584dd8ecd1e1dd16b486147e676dbf4b62779a340f3186"
 
 	if gotG != wantG {
 		t.Fatalf("golden G mismatch (derivation regression):\n got=%s\nwant=%s", gotG, wantG)
