@@ -172,6 +172,85 @@ func TestBLSBatchVerify(t *testing.T) {
 	t.Logf("BLS batch verify: %d/%d valid", validCount, n)
 }
 
+func TestBLSBatchSign(t *testing.T) {
+	n := 10
+
+	sks := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	// Generate keys and messages
+	for i := 0; i < n; i++ {
+		var err error
+		sks[i], err = BLSKeygen(nil)
+		if err != nil {
+			t.Fatalf("BLSKeygen[%d] failed: %v", i, err)
+		}
+		pks[i], err = BLSSecretKeyToPublicKey(sks[i])
+		if err != nil {
+			t.Fatalf("BLSSecretKeyToPublicKey[%d] failed: %v", i, err)
+		}
+
+		msgs[i] = make([]byte, BLSMessageSize)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+	}
+
+	// Batch sign
+	sigs, err := BLSBatchSign(sks, msgs)
+	if err != nil {
+		t.Fatalf("BLSBatchSign failed: %v", err)
+	}
+
+	if len(sigs) != n {
+		t.Errorf("sigs length = %d, want %d", len(sigs), n)
+	}
+
+	// Verify all signatures
+	validCount := 0
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) != BLSSignatureSize {
+			t.Errorf("sig[%d] length = %d, want %d", i, len(sigs[i]), BLSSignatureSize)
+			continue
+		}
+		if BLSVerify(sigs[i], pks[i], msgs[i]) {
+			validCount++
+		} else {
+			t.Errorf("signature %d should be valid", i)
+		}
+	}
+
+	t.Logf("BLS batch sign: %d/%d valid", validCount, n)
+}
+
+func TestBLSBatchSignErrors(t *testing.T) {
+	// Test empty inputs
+	_, err := BLSBatchSign(nil, nil)
+	if err != ErrNullPointer {
+		t.Errorf("expected ErrNullPointer for nil inputs, got %v", err)
+	}
+
+	_, err = BLSBatchSign([][]byte{}, [][]byte{})
+	if err != ErrNullPointer {
+		t.Errorf("expected ErrNullPointer for empty inputs, got %v", err)
+	}
+
+	// Test mismatched lengths
+	sk, _ := BLSKeygen(nil)
+	msg := make([]byte, BLSMessageSize)
+	_, err = BLSBatchSign([][]byte{sk}, [][]byte{msg, msg})
+	if err != ErrNullPointer {
+		t.Errorf("expected ErrNullPointer for mismatched lengths, got %v", err)
+	}
+
+	// Test invalid key
+	_, err = BLSBatchSign([][]byte{[]byte("short")}, [][]byte{msg})
+	if err != ErrInvalidKey {
+		t.Errorf("expected ErrInvalidKey for short key, got %v", err)
+	}
+}
+
 func TestMLDSAKeygen(t *testing.T) {
 	pk, sk, err := MLDSAKeygen(nil)
 	if err != nil {
@@ -426,6 +505,41 @@ func BenchmarkBLSBatchVerify(b *testing.B) {
 	}
 }
 
+func BenchmarkBLSBatchSign(b *testing.B) {
+	n := 100
+	sks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		sks[i], _ = BLSKeygen(nil)
+		msgs[i] = make([]byte, BLSMessageSize)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = BLSBatchSign(sks, msgs)
+	}
+}
+
+func BenchmarkBLSSequentialSign(b *testing.B) {
+	// Benchmark sequential signing for comparison with BLSBatchSign
+	n := 100
+	sks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		sks[i], _ = BLSKeygen(nil)
+		msgs[i] = make([]byte, BLSMessageSize)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < n; j++ {
+			_, _ = BLSSign(sks[j], msgs[j])
+		}
+	}
+}
+
 func BenchmarkSHA3_256(b *testing.B) {
 	data := make([]byte, 1024)
 
@@ -446,4 +560,270 @@ func BenchmarkBatchHash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = BatchHash(inputs, HashTypeSHA3_256)
 	}
+}
+
+// Benchmarks for pool allocation reduction
+// Run with: go test -bench=BenchmarkPool -benchmem
+
+func BenchmarkPoolBLSSignWithHash(b *testing.B) {
+	// BLSSign with message that requires hashing (tests pool32 usage)
+	sk, _ := BLSKeygen(nil)
+	msg := make([]byte, 64) // Not 32 bytes, so will be hashed internally
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = BLSSign(sk, msg)
+	}
+}
+
+func BenchmarkPoolBLSVerifyWithHash(b *testing.B) {
+	// BLSVerify with message that requires hashing
+	sk, _ := BLSKeygen(nil)
+	pk, _ := BLSSecretKeyToPublicKey(sk)
+	msg := make([]byte, 64)
+	sig, _ := BLSSign(sk, msg)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BLSVerify(sig, pk, msg)
+	}
+}
+
+func BenchmarkPoolBLSBatchVerifyWithHash(b *testing.B) {
+	// Batch verify with messages requiring hashing
+	n := 100
+	sigs := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		sk, _ := BLSKeygen(nil)
+		pks[i], _ = BLSSecretKeyToPublicKey(sk)
+		msgs[i] = make([]byte, 64) // Requires hashing
+		sigs[i], _ = BLSSign(sk, msgs[i])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = BLSBatchVerify(sigs, pks, msgs)
+	}
+}
+
+func BenchmarkPoolSHA3_256(b *testing.B) {
+	// SHA3_256 allocates output buffer (not pooled - caller keeps it)
+	data := make([]byte, 1024)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = SHA3_256(data)
+	}
+}
+
+// =============================================================================
+// Parallel vs Sequential Hashing Benchmarks
+// =============================================================================
+
+// BenchmarkBLSBatchVerifyParallel benchmarks parallel batch verify (default).
+func BenchmarkBLSBatchVerifyParallel(b *testing.B) {
+	n := 100
+	sigs := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		sk, _ := BLSKeygen(nil)
+		pks[i], _ = BLSSecretKeyToPublicKey(sk)
+		// Use variable-length messages to require hashing
+		msgs[i] = make([]byte, 128+i)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+		sigs[i], _ = BLSSign(sk, msgs[i])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = BLSBatchVerify(sigs, pks, msgs)
+	}
+}
+
+// BenchmarkBLSBatchVerifySequential benchmarks sequential batch verify.
+func BenchmarkBLSBatchVerifySequential(b *testing.B) {
+	n := 100
+	sigs := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		sk, _ := BLSKeygen(nil)
+		pks[i], _ = BLSSecretKeyToPublicKey(sk)
+		// Use variable-length messages to require hashing
+		msgs[i] = make([]byte, 128+i)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+		sigs[i], _ = BLSSign(sk, msgs[i])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = BLSBatchVerifySequential(sigs, pks, msgs)
+	}
+}
+
+// BenchmarkMLDSABatchVerifyParallel benchmarks parallel ML-DSA batch verify.
+func BenchmarkMLDSABatchVerifyParallel(b *testing.B) {
+	n := 10 // Smaller batch for ML-DSA (larger keys/sigs)
+	sigs := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		pk, sk, _ := MLDSAKeygen(nil)
+		pks[i] = pk
+		msgs[i] = make([]byte, 100)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+		sigs[i], _ = MLDSASign(sk, msgs[i])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = MLDSABatchVerify(sigs, msgs, pks)
+	}
+}
+
+// BenchmarkMLDSABatchVerifySequential benchmarks sequential ML-DSA batch verify.
+func BenchmarkMLDSABatchVerifySequential(b *testing.B) {
+	n := 10
+	sigs := make([][]byte, n)
+	pks := make([][]byte, n)
+	msgs := make([][]byte, n)
+
+	for i := 0; i < n; i++ {
+		pk, sk, _ := MLDSAKeygen(nil)
+		pks[i] = pk
+		msgs[i] = make([]byte, 100)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+		sigs[i], _ = MLDSASign(sk, msgs[i])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = MLDSABatchVerifySequential(sigs, msgs, pks)
+	}
+}
+
+// BenchmarkHashMessagesParallel benchmarks parallel message hashing only.
+func BenchmarkHashMessagesParallel(b *testing.B) {
+	n := 100
+	msgs := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		msgs[i] = make([]byte, 1024)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+	}
+	hashes := make([][]byte, n)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		hashMessagesParallel(msgs, hashes)
+	}
+}
+
+// BenchmarkHashMessagesSequential benchmarks sequential message hashing only.
+func BenchmarkHashMessagesSequential(b *testing.B) {
+	n := 100
+	msgs := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		msgs[i] = make([]byte, 1024)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+	}
+	hashes := make([][]byte, n)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		hashMessagesSequential(msgs, hashes)
+	}
+}
+
+// TestParallelHashingCorrectness verifies parallel hashing produces same results.
+func TestParallelHashingCorrectness(t *testing.T) {
+	n := 100
+	msgs := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		msgs[i] = make([]byte, 64+i)
+		for j := range msgs[i] {
+			msgs[i][j] = byte(i + j)
+		}
+	}
+
+	seqHashes := make([][]byte, n)
+	parHashes := make([][]byte, n)
+
+	hashMessagesSequential(msgs, seqHashes)
+	hashMessagesParallel(msgs, parHashes)
+
+	for i := 0; i < n; i++ {
+		if !bytes.Equal(seqHashes[i], parHashes[i]) {
+			t.Errorf("hash mismatch at index %d: seq=%x, par=%x", i, seqHashes[i], parHashes[i])
+		}
+	}
+	t.Logf("Parallel hashing correctness verified for %d messages", n)
+}
+
+// TestPoolReturnCorrectness verifies pooled buffers work correctly
+func TestPoolReturnCorrectness(t *testing.T) {
+	// Sign with message requiring hash (uses pool internally)
+	sk, err := BLSKeygen(nil)
+	if err != nil {
+		t.Fatalf("BLSKeygen failed: %v", err)
+	}
+
+	pk, err := BLSSecretKeyToPublicKey(sk)
+	if err != nil {
+		t.Fatalf("BLSSecretKeyToPublicKey failed: %v", err)
+	}
+
+	// Use message > 32 bytes to trigger internal hashing with pooled buffer
+	msg := []byte("This is a longer message that will require SHA3 hashing internally")
+
+	sig, err := BLSSign(sk, msg)
+	if err != nil {
+		t.Fatalf("BLSSign failed: %v", err)
+	}
+
+	// Verify should also use pooled buffer for hash
+	if !BLSVerify(sig, pk, msg) {
+		t.Error("BLSVerify failed for valid signature")
+	}
+
+	// Run multiple times to exercise pool reuse
+	for i := 0; i < 100; i++ {
+		sig2, err := BLSSign(sk, msg)
+		if err != nil {
+			t.Fatalf("BLSSign iteration %d failed: %v", i, err)
+		}
+		if !BLSVerify(sig2, pk, msg) {
+			t.Errorf("BLSVerify iteration %d failed", i)
+		}
+	}
+
+	t.Log("Pool correctness test passed")
 }
