@@ -154,14 +154,44 @@ func AggregatePublicKeys(pks []*PublicKey) (*PublicKey, error) {
 	return &PublicKey{pk: result}, nil
 }
 
+// isIdentityG1 checks if a public key is the identity point (point at infinity).
+// Returns true if the key is the identity, false otherwise.
+func isIdentityG1(pk *blssign.PublicKey[blssign.KeyG1SigG2]) bool {
+	// Serialize the public key and check if it's all zeros (compressed identity)
+	pkBytes, err := pk.MarshalBinary()
+	if err != nil {
+		return false
+	}
+	// BLS12-381 G1 compressed identity point is a specific encoding
+	// Check if it matches the identity point encoding
+	for _, b := range pkBytes {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if pk == nil || pk.pk == nil || sig == nil {
+		return false
+	}
+	// Check that public key is not the identity point (zero-key)
+	// Identity point verification would trivially pass for any signature
+	if isIdentityG1(pk.pk) {
 		return false
 	}
 	return blssign.Verify(pk.pk, msg, sig.sig)
 }
 
 func VerifyProofOfPossession(pk *PublicKey, sig *Signature, msg []byte) bool {
+	if pk == nil || pk.pk == nil || sig == nil {
+		return false
+	}
+	// Check that public key is not the identity point (zero-key)
+	if isIdentityG1(pk.pk) {
+		return false
+	}
 	return Verify(pk, sig, msg)
 }
 
