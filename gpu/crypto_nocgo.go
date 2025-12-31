@@ -1,30 +1,16 @@
-//go:build !luxgpu
+//go:build !cgo
 
 // Package gpu provides GPU-accelerated cryptographic operations.
 // This file provides stub implementations when CGO is disabled.
+// Use CGO_ENABLED=0 to use pure Go fallback.
 package gpu
 
 import (
 	"errors"
 )
 
+// ErrCGORequired is returned when GPU operations are called without CGO
 var ErrCGORequired = errors.New("CGO required for GPU acceleration")
-
-// Sizes
-const (
-	BLSSecretKeySize  = 32
-	BLSPublicKeySize  = 48
-	BLSSignatureSize  = 96
-	BLSMessageSize    = 32
-
-	MLDSASecretKeySize  = 4032
-	MLDSAPublicKeySize  = 1952
-	MLDSASignatureSize  = 3309
-
-	HashTypeSHA3_256 = 0
-	HashTypeSHA3_512 = 1
-	HashTypeBLAKE3   = 2
-)
 
 func GPUAvailable() bool { return false }
 func GetBackend() string { return "CPU (CGO disabled)" }
