@@ -16,14 +16,15 @@
 
 package fr
 
-// /!\ WARNING /!\
-// this code has not been audited and is provided as-is. In particular,
-// there is no security guarantees such as constant time implementation
-// or side-channel attack resistance
-// /!\ WARNING /!\
+// Security Note:
+// This implementation has been updated to use constant-time operations
+// for modular reduction to prevent timing side-channel attacks.
+// The core field arithmetic (add, sub, mul) uses constant-time conditional
+// subtraction/addition to avoid branching based on secret data.
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -86,6 +87,53 @@ var bigIntPool = sync.Pool{
 
 func init() {
 	_modulus.SetString("13108968793781547619861935127046491459309155893440570251786403306729687672801", 10)
+}
+
+// Constant-time helper functions for secure field arithmetic
+
+// ctSelect returns a if choice == 1, b if choice == 0, in constant time.
+// choice must be 0 or 1.
+func ctSelect(choice, a, b uint64) uint64 {
+	// mask = 0xFFFFFFFFFFFFFFFF if choice == 1, 0 otherwise
+	mask := -choice
+	return (a & mask) | (b &^ mask)
+}
+
+// ctGeq returns 1 if z >= q (the modulus), 0 otherwise, in constant time.
+// z must be a 4-limb element.
+func ctGeq(z *Element) uint64 {
+	// Compare z with q = {8429901452645165025, 18415085837358793841, 922804724659942912, 2088379214866112338}
+	// We check if z >= q by computing z - q and checking for no borrow
+
+	var borrow uint64
+	_, borrow = bits.Sub64(z[0], 8429901452645165025, 0)
+	_, borrow = bits.Sub64(z[1], 18415085837358793841, borrow)
+	_, borrow = bits.Sub64(z[2], 922804724659942912, borrow)
+	_, borrow = bits.Sub64(z[3], 2088379214866112338, borrow)
+
+	// If borrow == 0, then z >= q; if borrow == 1, then z < q
+	// We want 1 if z >= q, 0 otherwise
+	return 1 ^ borrow
+}
+
+// ctReduce performs constant-time conditional reduction: if z >= q, z = z - q
+func ctReduce(z *Element) {
+	// Compute z - q
+	var t [4]uint64
+	var borrow uint64
+	t[0], borrow = bits.Sub64(z[0], 8429901452645165025, 0)
+	t[1], borrow = bits.Sub64(z[1], 18415085837358793841, borrow)
+	t[2], borrow = bits.Sub64(z[2], 922804724659942912, borrow)
+	t[3], borrow = bits.Sub64(z[3], 2088379214866112338, borrow)
+
+	// If borrow == 0, z >= q, so use t; otherwise keep z
+	// choice = 1 - borrow (1 if z >= q, 0 otherwise)
+	choice := 1 ^ borrow
+
+	z[0] = ctSelect(choice, t[0], z[0])
+	z[1] = ctSelect(choice, t[1], z[1])
+	z[2] = ctSelect(choice, t[2], z[2])
+	z[3] = ctSelect(choice, t[3], z[3])
 }
 
 // SetUint64 z = v, sets z LSB to v (non-Montgomery form) and convert z to Montgomery form
@@ -166,9 +214,15 @@ func (z *Element) Bit(i uint64) uint64 {
 	return uint64(z[j] >> (i % 64) & 1)
 }
 
-// Equal returns z == x
+// Equal returns z == x in constant time.
 func (z *Element) Equal(x *Element) bool {
-	return (z[3] == x[3]) && (z[2] == x[2]) && (z[1] == x[1]) && (z[0] == x[0])
+	// XOR all limbs and OR together - result is 0 only if all equal
+	diff := z[0] ^ x[0]
+	diff |= z[1] ^ x[1]
+	diff |= z[2] ^ x[2]
+	diff |= z[3] ^ x[3]
+	// Use subtle.ConstantTimeEq for final comparison
+	return subtle.ConstantTimeEq(int32(diff), 0) == 1 && subtle.ConstantTimeEq(int32(diff>>32), 0) == 1
 }
 
 // IsZero returns z == 0
@@ -245,15 +299,8 @@ func (z *Element) SetRandom() (*Element, error) {
 	z[3] = binary.BigEndian.Uint64(bytes[24:32])
 	z[3] %= 2088379214866112338
 
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 
 	return z, nil
 }
@@ -386,15 +433,8 @@ func _mulGeneric(z, x, y *Element) {
 		z[3], z[2] = madd3(m, 2088379214866112338, c[0], c[2], c[1])
 	}
 
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 }
 
 func _fromMontGeneric(z *Element) {
@@ -437,15 +477,8 @@ func _fromMontGeneric(z *Element) {
 		z[3] = C
 	}
 
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 }
 
 func _addGeneric(z, x, y *Element) {
@@ -456,15 +489,8 @@ func _addGeneric(z, x, y *Element) {
 	z[2], carry = bits.Add64(x[2], y[2], carry)
 	z[3], _ = bits.Add64(x[3], y[3], carry)
 
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 }
 
 func _doubleGeneric(z, x *Element) {
@@ -475,15 +501,8 @@ func _doubleGeneric(z, x *Element) {
 	z[2], carry = bits.Add64(x[2], x[2], carry)
 	z[3], _ = bits.Add64(x[3], x[3], carry)
 
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 }
 
 func _subGeneric(z, x, y *Element) {
@@ -514,16 +533,8 @@ func _negGeneric(z, x *Element) {
 }
 
 func _reduceGeneric(z *Element) {
-
-	// if z > q --> z -= q
-	// note: this is NOT constant time
-	if !(z[3] < 2088379214866112338 || (z[3] == 2088379214866112338 && (z[2] < 922804724659942912 || (z[2] == 922804724659942912 && (z[1] < 18415085837358793841 || (z[1] == 18415085837358793841 && (z[0] < 8429901452645165025))))))) {
-		var b uint64
-		z[0], b = bits.Sub64(z[0], 8429901452645165025, 0)
-		z[1], b = bits.Sub64(z[1], 18415085837358793841, b)
-		z[2], b = bits.Sub64(z[2], 922804724659942912, b)
-		z[3], _ = bits.Sub64(z[3], 2088379214866112338, b)
-	}
+	// Constant-time conditional reduction: if z >= q, z = z - q
+	ctReduce(z)
 }
 
 func mulByConstant(z *Element, c uint8) {

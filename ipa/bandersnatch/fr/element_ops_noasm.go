@@ -19,11 +19,8 @@
 
 package fr
 
-// /!\ WARNING /!\
-// this code has not been audited and is provided as-is. In particular,
-// there is no security guarantees such as constant time implementation
-// or side-channel attack resistance
-// /!\ WARNING /!\
+// Security Note: Field arithmetic uses constant-time conditional operations
+// to prevent timing side-channel attacks. See element.go for details.
 
 // MulBy3 x *= 3
 func MulBy3(x *Element) {

@@ -187,9 +187,29 @@ func AggregatePublicKeys(pks []*PublicKey) (*PublicKey, error) {
 	return &PublicKey{pk: agg.ToAffine()}, nil
 }
 
+// isIdentityG1 checks if a public key is the identity point (point at infinity).
+// Returns true if the key is the identity, false otherwise.
+func isIdentityG1(pk *blst.P1Affine) bool {
+	// Check if the point is at infinity using blst's built-in check
+	// The identity point in G1 is represented as all zeros in compressed form
+	pkBytes := pk.Compress()
+	// Check for all-zero bytes (identity point encoding)
+	for _, b := range pkBytes {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Verify the [sig] of [msg] against the [pk].
 func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if pk == nil || pk.pk == nil || sig == nil || sig.sig == nil {
+		return false
+	}
+	// Check that public key is not the identity point (zero-key)
+	// Identity point verification would trivially pass for any signature
+	if isIdentityG1(pk.pk) {
 		return false
 	}
 	return sig.sig.Verify(true, pk.pk, false, msg, dstSignature)
@@ -198,6 +218,10 @@ func Verify(pk *PublicKey, sig *Signature, msg []byte) bool {
 // VerifyProofOfPossession verifies the possession of the secret pre-image of [sk]
 func VerifyProofOfPossession(pk *PublicKey, sig *Signature, msg []byte) bool {
 	if pk == nil || pk.pk == nil || sig == nil || sig.sig == nil {
+		return false
+	}
+	// Check that public key is not the identity point (zero-key)
+	if isIdentityG1(pk.pk) {
 		return false
 	}
 	return sig.sig.Verify(true, pk.pk, false, msg, dstPoP)

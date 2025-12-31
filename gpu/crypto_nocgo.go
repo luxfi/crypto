@@ -24,6 +24,7 @@ func BLSAggregateSignatures(sigs [][]byte) ([]byte, error) { return nil, ErrCGOR
 func BLSAggregatePublicKeys(pks [][]byte) ([]byte, error) { return nil, ErrCGORequired }
 func BLSVerifyAggregated(aggSig, aggPK, msg []byte) bool { return false }
 func BLSBatchVerify(sigs, pks, msgs [][]byte) ([]bool, error) { return nil, ErrCGORequired }
+func BLSBatchSign(sks, msgs [][]byte) ([][]byte, error)       { return nil, ErrCGORequired }
 
 func MLDSAKeygen(seed []byte) (pk, sk []byte, err error) { return nil, nil, ErrCGORequired }
 func MLDSASign(sk, msg []byte) ([]byte, error) { return nil, ErrCGORequired }

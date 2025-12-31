@@ -14,21 +14,35 @@ import (
 	"github.com/luxfi/crypto/mldsa"
 )
 
-// Lattice-based ring signature using ML-DSA (FIPS 204) key material.
+// Post-quantum ring signature using ML-DSA (FIPS 204) key material.
 //
-// This implementation uses ML-DSA for key generation (providing post-quantum
-// security for the underlying keys) combined with a hash-based ring signature
-// construction.
+// ⚠️ CRITICAL SECURITY NOTE: PLACEHOLDER IMPLEMENTATION ⚠️
 //
-// The construction provides:
-// - Post-quantum secure key material (ML-DSA-65, NIST Level 3)
-// - Ring signature anonymity (signer hidden among ring members)
-// - Linkability (same key produces same key image)
-// - Double-spend detection via key images
+// This is a HASH-BASED SIMULATION of ring signatures, NOT a true lattice-based
+// ring signature scheme. The "lattice" in the name refers ONLY to the post-quantum
+// key material (ML-DSA), NOT to the ring signature construction itself.
 //
-// Note: This is a hash-based simulation of ring signatures. For production
-// post-quantum ring signatures, consider using dedicated lattice-based
-// ring signature constructions.
+// IMPLEMENTATION STATUS: This is a PLACEHOLDER using hash-based construction.
+// It MUST be replaced with a real lattice-based ring signature before production use
+// in any system claiming post-quantum security.
+//
+// The current construction provides:
+// ✓ Post-quantum secure key material (ML-DSA-65, NIST Level 3)
+// ✓ Ring signature anonymity (signer hidden among ring members)
+// ✓ Linkability (same key produces same key image)
+// ✓ Double-spend detection via key images
+//
+// CRITICAL LIMITATIONS:
+// ✗ Security relies on hash function (SHA-512) properties, NOT lattice hardness
+// ✗ Ring signature itself is NOT post-quantum secure against quantum adversaries
+// ✗ Suitable ONLY for applications where PQ key material is required but classical
+//   ring signature security is acceptable (e.g., development, testing)
+//
+// For production post-quantum ring signatures, integrate one of:
+// - Raptor (lattice-based ring signatures from NTRU)
+// - MatRiCT (module-LWE based)
+// - Calamari/Squid (isogeny-based)
+// - Or implement from github.com/luxfi/lattice with proper ring signature construction
 
 // Size constants based on ML-DSA-65 (192-bit security, NIST Level 3)
 const (
@@ -42,8 +56,10 @@ const (
 	latticeResponseSize = 64
 )
 
-// LatticeSignature implements post-quantum ring signatures.
-// Uses ML-DSA key material with a hash-based ring construction.
+// LatticeSignature implements ring signatures with post-quantum key material.
+// IMPORTANT: This uses ML-DSA key material but the ring signature construction
+// itself is hash-based (NOT a true lattice ring signature scheme).
+// The construction provides anonymity among ring members with linkability.
 type LatticeSignature struct {
 	keyImage []byte   // Key image for linkability (32 bytes)
 	s        [][]byte // Response values for each ring member (64 bytes each)
@@ -171,7 +187,9 @@ func ParseLatticeSignature(data []byte) (*LatticeSignature, error) {
 	return sig, nil
 }
 
-// LatticeSigner creates post-quantum ring signatures using ML-DSA key material.
+// LatticeSigner creates ring signatures using ML-DSA (post-quantum) key material.
+// Note: While the keys are post-quantum secure, the ring signature construction
+// is hash-based and provides classical (not post-quantum) ring signature security.
 type LatticeSigner struct {
 	privateKey *mldsa.PrivateKey
 	publicKey  *mldsa.PublicKey
@@ -180,7 +198,7 @@ type LatticeSigner struct {
 	secretScalar []byte
 }
 
-// NewLatticeSigner creates a new lattice-based ring signer.
+// NewLatticeSigner creates a new ring signer using ML-DSA key material.
 func NewLatticeSigner(reader io.Reader) (*LatticeSigner, error) {
 	if reader == nil {
 		reader = rand.Reader
@@ -238,7 +256,7 @@ func (s *LatticeSigner) KeyImage() []byte {
 	return result
 }
 
-// Sign creates a lattice-based ring signature.
+// Sign creates a ring signature using the hash-based construction with ML-DSA keys.
 func (signer *LatticeSigner) Sign(message []byte, ring [][]byte, signerIndex int) (RingSignature, error) {
 	n := len(ring)
 	if n < 2 {
