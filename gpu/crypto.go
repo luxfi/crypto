@@ -1,4 +1,4 @@
-//go:build cgo
+//go:build luxgpu
 
 // Package gpu provides GPU-accelerated cryptographic operations via libcrypto.
 // This bridges the luxcpp/crypto C++ library to Go, enabling:
