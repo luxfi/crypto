@@ -1,4 +1,4 @@
-//go:build !cgo
+//go:build !luxgpu
 
 // Package gpu provides GPU-accelerated cryptographic operations.
 // This file provides stub implementations when CGO is disabled.
