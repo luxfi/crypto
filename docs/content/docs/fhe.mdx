@@ -1,0 +1,286 @@
+---
+title: Fully Homomorphic Encryption
+description: Compute on encrypted data with FHE
+---
+
+# Fully Homomorphic Encryption
+
+Fully Homomorphic Encryption (FHE) allows computation on encrypted data without decryption.
+
+## Schemes
+
+Lux supports three FHE schemes:
+
+| Scheme | Use Case | Operations | Performance |
+|--------|----------|------------|-------------|
+| **TFHE** | Boolean circuits | AND, OR, NOT, XOR | Fast bootstrapping |
+| **CKKS** | Approximate arithmetic | +, -, ×, rotations | Machine learning |
+| **BGV** | Exact integers | +, -, × mod p | Financial calculations |
+
+## TFHE (Boolean)
+
+Fast boolean operations with programmable bootstrapping:
+
+```go
+import "github.com/luxfi/crypto/fhe/tfhe"
+
+// Generate keys
+params := tfhe.DefaultParams()
+sk := tfhe.GenerateSecretKey(params)
+pk := tfhe.GeneratePublicKey(sk)
+
+// Encrypt boolean values
+ct1 := tfhe.Encrypt(true, pk)
+ct2 := tfhe.Encrypt(false, pk)
+
+// Homomorphic operations
+notCt := tfhe.Not(ct1)           // NOT
+andCt := tfhe.And(ct1, ct2)      // AND
+orCt := tfhe.Or(ct1, ct2)        // OR
+xorCt := tfhe.Xor(ct1, ct2)      // XOR
+
+// Decrypt result
+result := tfhe.Decrypt(andCt, sk)
+```
+
+### Programmable Bootstrapping
+
+TFHE supports arbitrary function evaluation during bootstrapping:
+
+```go
+// Define lookup table for custom function
+lut := tfhe.NewLUT(func(x bool) bool {
+    return !x  // Example: NOT function
+})
+
+// Evaluate with bootstrapping
+result := tfhe.Bootstrap(ct, lut, sk)
+```
+
+---
+
+## CKKS (Approximate)
+
+Approximate arithmetic for machine learning on encrypted data:
+
+```go
+import "github.com/luxfi/crypto/fhe/ckks"
+
+// Create context with GPU acceleration
+ctx := ckks.NewContext(ckks.Config{
+    LogN:    14,        // Ring dimension
+    LogQ:    []int{55, 40, 40, 40, 40},
+    LogP:    []int{61},
+    Scale:   1 << 40,
+    Backend: ckks.BackendGPU,
+})
+
+// Generate keys
+sk := ctx.GenerateSecretKey()
+pk := ctx.GeneratePublicKey(sk)
+rlk := ctx.GenerateRelinKey(sk)   // For multiplication
+gk := ctx.GenerateGaloisKeys(sk)  // For rotations
+
+// Encrypt vectors
+vec1 := []float64{1.0, 2.0, 3.0, 4.0}
+vec2 := []float64{0.5, 1.5, 2.5, 3.5}
+
+ct1 := ctx.Encrypt(vec1, pk)
+ct2 := ctx.Encrypt(vec2, pk)
+
+// Homomorphic operations
+sum := ctx.Add(ct1, ct2)
+prod := ctx.Mul(ct1, ct2, rlk)
+rotated := ctx.Rotate(ct1, 1, gk)
+
+// Decrypt
+result := ctx.Decrypt(sum, sk)
+// result ≈ [1.5, 3.5, 5.5, 7.5]
+```
+
+### SIMD Packing
+
+CKKS supports SIMD operations on packed vectors:
+
+```go
+// Pack 4096 values into single ciphertext
+values := make([]float64, 4096)
+for i := range values {
+    values[i] = float64(i)
+}
+
+ct := ctx.Encrypt(values, pk)
+
+// Single operation applies to all 4096 values
+doubled := ctx.MulScalar(ct, 2.0)
+```
+
+---
+
+## BGV (Exact Integers)
+
+Exact modular arithmetic for financial applications:
+
+```go
+import "github.com/luxfi/crypto/fhe/bgv"
+
+// Create context
+ctx := bgv.NewContext(bgv.Config{
+    LogN:     14,
+    PlainMod: 65537,  // Prime plaintext modulus
+    LogQ:     []int{55, 40, 40, 40},
+})
+
+// Generate keys
+sk := ctx.GenerateSecretKey()
+pk := ctx.GeneratePublicKey(sk)
+
+// Encrypt integers
+ct1 := ctx.Encrypt(42, pk)
+ct2 := ctx.Encrypt(17, pk)
+
+// Exact arithmetic mod 65537
+sum := ctx.Add(ct1, ct2)      // 42 + 17 = 59
+diff := ctx.Sub(ct1, ct2)     // 42 - 17 = 25
+prod := ctx.Mul(ct1, ct2)     // 42 * 17 = 714
+
+// Decrypt
+result := ctx.Decrypt(sum, sk)  // Exactly 59
+```
+
+---
+
+## Threshold FHE
+
+Distributed decryption with threshold secret sharing:
+
+```go
+import "github.com/luxfi/crypto/fhe/threshold"
+
+// Generate shares for 5 parties, threshold 3
+params := threshold.DefaultParams()
+shares := threshold.GenerateShares(params, 5, 3)
+
+// Each party gets a share
+party1Share := shares[0]
+party2Share := shares[1]
+party3Share := shares[2]
+
+// Encrypt with combined public key
+pk := threshold.CombinePublicKeys(shares)
+ct := threshold.Encrypt(data, pk)
+
+// Partial decryptions (any 3 of 5)
+partial1 := threshold.PartialDecrypt(ct, party1Share)
+partial2 := threshold.PartialDecrypt(ct, party2Share)
+partial3 := threshold.PartialDecrypt(ct, party3Share)
+
+// Combine partial decryptions
+result := threshold.CombinePartials([][]byte{
+    partial1, partial2, partial3,
+})
+```
+
+---
+
+## EVM Integration
+
+FHE operations are exposed as EVM precompiles:
+
+| Address | Precompile | Gas |
+|---------|------------|-----|
+| `0x0200...0080` | FheOS (orchestrator) | Varies |
+| `0x0200...0081` | ACL (access control) | 2,100 |
+| `0x0200...0082` | InputVerifier | 5,000 |
+| `0x0200...0083` | Gateway (T-Chain) | 10,000 |
+
+### Solidity Usage
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@lux/fhe/TFHE.sol";
+
+contract ConfidentialVoting {
+    euint32 private yesVotes;
+    euint32 private noVotes;
+
+    function vote(einput encryptedVote, bytes calldata proof) external {
+        // Verify and convert input
+        euint32 voteValue = TFHE.asEuint32(encryptedVote, proof);
+
+        // Homomorphic addition
+        yesVotes = TFHE.add(yesVotes, voteValue);
+    }
+
+    function getResults() external view returns (euint32, euint32) {
+        // Results remain encrypted
+        return (yesVotes, noVotes);
+    }
+}
+```
+
+---
+
+## Performance
+
+### GPU Acceleration
+
+| Operation | CPU | GPU (M1 Max) | Speedup |
+|-----------|-----|--------------|---------|
+| CKKS Encrypt | 500 μs | 50 μs | 10x |
+| CKKS Add | 100 μs | 10 μs | 10x |
+| CKKS Multiply | 500 μs | 30 μs | 17x |
+| CKKS Rotate | 200 μs | 20 μs | 10x |
+| BGV Multiply | 400 μs | 25 μs | 16x |
+| TFHE Bootstrap | 20 ms | 1 ms | 20x |
+
+### Memory Usage
+
+| Parameter Set | Ciphertext Size | Key Size |
+|---------------|-----------------|----------|
+| CKKS PN14QP438 | 1.7 MB | 150 MB |
+| BGV PN14 | 1.5 MB | 100 MB |
+| TFHE Default | 16 KB | 2 MB |
+
+---
+
+## Security Levels
+
+| Parameter Set | Security (bits) | Use Case |
+|---------------|-----------------|----------|
+| CKKS PN12 | 128 | Development |
+| CKKS PN14 | 192 | Production |
+| CKKS PN15 | 256 | High security |
+| TFHE Default | 128 | Production |
+
+---
+
+## C++ Library
+
+For high-performance FHE, use the C++ library directly:
+
+```cpp
+#include <lux/fhe/ckks.h>
+
+// Create context
+auto ctx = ckks::Context::create(params);
+
+// Encrypt
+auto ct = ctx.encrypt(data, pk);
+
+// Homomorphic multiply
+auto result = ctx.mul(ct1, ct2, rlk);
+```
+
+See [C++ Libraries](/docs/cpp-libraries) for installation.
+
+---
+
+## Next Steps
+
+- [GPU Acceleration](/docs/gpu-acceleration) - Hardware acceleration
+- [C++ Libraries](/docs/cpp-libraries) - Native C++ FHE
+- [Threshold Crypto](/docs/threshold) - Distributed key management
+- [Precompiles](/docs/precompiles) - EVM integration
