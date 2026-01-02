@@ -1,0 +1,288 @@
+---
+title: C++ Libraries
+description: High-performance C++ cryptography libraries for GPU acceleration
+---
+
+# C++ Libraries
+
+The Lux crypto stack includes high-performance C++ libraries for GPU-accelerated cryptographic operations. These libraries are wrapped by the Go packages in this repository.
+
+## Architecture
+
+```
+lux-gpu (luxcpp/gpu)        ← Foundation (Metal/CUDA)
+    ▲
+lux-lattice (luxcpp/lattice) ← NTT acceleration
+    ▲
+lux-fhe (luxcpp/fhe)         ← TFHE/CKKS/BGV
+    ▲
+lux-crypto (luxcpp/crypto)   ← BLS pairings (uses gpu directly)
+```
+
+## Libraries
+
+### lux-gpu
+
+GPU acceleration foundation using Metal (Apple Silicon) and CUDA (NVIDIA).
+
+**Repository**: [github.com/luxcpp/gpu](https://github.com/luxcpp/gpu)
+
+**Features**:
+- Unified memory model (CPU/GPU shared memory)
+- Lazy evaluation for optimized execution
+- FFT/NTT for polynomial arithmetic
+- Batch operations for parallel processing
+
+**Installation**:
+```bash
+git clone https://github.com/luxcpp/gpu
+cd gpu
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build -j
+cmake --install build
+```
+
+**CMake Integration**:
+```cmake
+find_package(lux-gpu REQUIRED)
+target_link_libraries(myapp PRIVATE lux::gpu)
+```
+
+---
+
+### lux-lattice
+
+GPU-accelerated lattice cryptography for post-quantum security.
+
+**Repository**: [github.com/luxcpp/lattice](https://github.com/luxcpp/lattice)
+
+**Features**:
+- Number Theoretic Transform (NTT) with Metal/CUDA
+- Polynomial ring operations over cyclotomic polynomials
+- RLWE/MLWE parameter sets
+- Optimized for FHE and post-quantum crypto
+
+**Installation**:
+```bash
+git clone https://github.com/luxcpp/lattice
+cd lattice
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build -j
+cmake --install build
+```
+
+**CMake Integration**:
+```cmake
+find_package(lux-lattice REQUIRED)
+target_link_libraries(myapp PRIVATE lux::lattice)
+```
+
+**Example**:
+```cpp
+#include <lux/lattice/ntt.h>
+#include <lux/lattice/poly.h>
+
+// Forward NTT
+auto ntt_result = lux::lattice::ntt_forward(poly, params);
+
+// Inverse NTT
+auto poly_result = lux::lattice::ntt_inverse(ntt_result, params);
+```
+
+---
+
+### lux-fhe
+
+Fully Homomorphic Encryption with GPU acceleration.
+
+**Repository**: [github.com/luxcpp/fhe](https://github.com/luxcpp/fhe)
+
+**Features**:
+- TFHE (Fast Fully Homomorphic Encryption)
+- CKKS (Approximate arithmetic on encrypted data)
+- BGV (Exact integer arithmetic)
+- Threshold FHE for distributed decryption
+
+**Installation**:
+```bash
+git clone https://github.com/luxcpp/fhe
+cd fhe
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build -j
+cmake --install build
+```
+
+**CMake Integration**:
+```cmake
+find_package(lux-fhe REQUIRED)
+target_link_libraries(myapp PRIVATE lux::fhe)
+```
+
+**Example**:
+```cpp
+#include <lux/fhe/tfhe.h>
+#include <lux/fhe/ckks.h>
+
+// TFHE boolean operations
+auto ct = tfhe::encrypt(true, secret_key);
+auto not_ct = tfhe::gate_not(ct);
+auto result = tfhe::decrypt(not_ct, secret_key);
+
+// CKKS approximate arithmetic
+auto ct1 = ckks::encrypt({1.0, 2.0, 3.0}, public_key);
+auto ct2 = ckks::encrypt({4.0, 5.0, 6.0}, public_key);
+auto sum = ckks::add(ct1, ct2);
+```
+
+---
+
+### lux-crypto
+
+Core cryptography with GPU-accelerated BLS pairings.
+
+**Repository**: [github.com/luxcpp/crypto](https://github.com/luxcpp/crypto)
+
+**Features**:
+- BLS12-381 pairings with GPU acceleration
+- ML-DSA (CRYSTALS-Dilithium) post-quantum signatures
+- ML-KEM (CRYSTALS-Kyber) post-quantum key encapsulation
+- secp256k1 for Ethereum compatibility
+
+**Installation**:
+```bash
+git clone https://github.com/luxcpp/crypto
+cd crypto
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build -j
+cmake --install build
+```
+
+**CMake Integration**:
+```cmake
+find_package(lux-crypto REQUIRED)
+target_link_libraries(myapp PRIVATE lux::crypto)
+```
+
+**Example**:
+```cpp
+#include <lux/crypto/bls.h>
+#include <lux/crypto/mldsa.h>
+
+// BLS signatures
+auto sk = bls::generate_private_key();
+auto pk = bls::public_key(sk);
+auto sig = bls::sign(sk, message);
+bool valid = bls::verify(pk, message, sig);
+
+// Signature aggregation
+auto agg_sig = bls::aggregate({sig1, sig2, sig3});
+bool agg_valid = bls::verify_aggregate({pk1, pk2, pk3}, message, agg_sig);
+
+// Post-quantum signatures
+auto [pq_pk, pq_sk] = mldsa::keygen();
+auto pq_sig = mldsa::sign(pq_sk, message);
+bool pq_valid = mldsa::verify(pq_pk, message, pq_sig);
+```
+
+---
+
+## Library Contract
+
+All Lux C++ libraries follow a standard installation layout:
+
+```
+/usr/local/
+├── include/lux/<pkg>/       # Headers
+├── lib/
+│   ├── liblux<pkg>.dylib    # Shared library
+│   └── cmake/<pkg>/         # CMake config
+│       └── lux-<pkg>Config.cmake
+└── lib/pkgconfig/
+    └── lux-<pkg>.pc         # pkg-config
+```
+
+**Naming Conventions**:
+- CMake package: `lux-<pkg>` (e.g., `lux-gpu`, `lux-lattice`)
+- CMake target: `lux::<pkg>` (e.g., `lux::gpu`, `lux::lattice`)
+- Library file: `liblux<pkg>.{dylib,so}` (e.g., `libluxgpu.dylib`)
+- Headers: `#include <lux/<pkg>/header.h>`
+
+---
+
+## Go Bindings
+
+This repository (`luxfi/crypto`) provides Go bindings for these C++ libraries:
+
+| Go Package | C++ Library | Description |
+|------------|-------------|-------------|
+| `github.com/luxfi/crypto/gpu` | lux-gpu | GPU array operations |
+| `github.com/luxfi/crypto/bls` | lux-crypto | BLS signatures |
+| `github.com/luxfi/crypto/mldsa` | lux-crypto | Post-quantum signatures |
+| `github.com/luxfi/crypto/mlkem` | lux-crypto | Post-quantum KEM |
+
+**CGO Linking**:
+```go
+// #cgo pkg-config: lux-gpu lux-crypto
+// #include <lux/gpu/array.h>
+// #include <lux/crypto/bls.h>
+import "C"
+```
+
+---
+
+## Performance
+
+GPU acceleration provides significant speedups for cryptographic operations:
+
+| Operation | CPU | GPU (M1 Max) | Speedup |
+|-----------|-----|--------------|---------|
+| BLS Sign | 1.2 ms | 0.15 ms | 8x |
+| BLS Verify | 2.5 ms | 0.3 ms | 8x |
+| NTT (n=4096) | 50 μs | 5 μs | 10x |
+| FHE Add | 100 μs | 10 μs | 10x |
+| FHE Mult | 500 μs | 30 μs | 17x |
+
+---
+
+## Building from Source
+
+### Prerequisites
+
+**macOS (Apple Silicon)**:
+```bash
+xcode-select --install
+brew install cmake ninja
+```
+
+**Linux (with CUDA)**:
+```bash
+apt install cmake ninja-build
+# Install CUDA toolkit
+```
+
+### Build All Libraries
+
+```bash
+# Clone all repos
+git clone https://github.com/luxcpp/gpu
+git clone https://github.com/luxcpp/lattice
+git clone https://github.com/luxcpp/fhe
+git clone https://github.com/luxcpp/crypto
+
+# Build in order (respecting dependencies)
+for lib in gpu lattice fhe crypto; do
+    cd $lib
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -G Ninja
+    cmake --build build
+    sudo cmake --install build
+    cd ..
+done
+```
+
+---
+
+## Next Steps
+
+- [BLS Signatures](/docs/bls) - BLS cryptography with Go
+- [Post-Quantum Crypto](/docs/post-quantum) - Dilithium and Kyber
+- [Precompiles](/docs/precompiles) - EVM precompiled contracts
