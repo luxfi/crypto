@@ -11,7 +11,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 
-	"github.com/luxfi/crypto/hashing"
+	"github.com/luxfi/crypto/hash"
 )
 
 const checksumLen = 4
@@ -33,7 +33,7 @@ func Encode(bytes []byte) (string, error) {
 	}
 	checked := make([]byte, bytesLen+checksumLen)
 	copy(checked, bytes)
-	copy(checked[len(bytes):], hashing.Checksum(bytes, checksumLen))
+	copy(checked[len(bytes):], hash.Checksum(bytes, checksumLen))
 	return base58.Encode(checked), nil
 }
 
@@ -49,7 +49,7 @@ func Decode(str string) ([]byte, error) {
 	// Verify the checksum
 	rawBytes := decodedBytes[:len(decodedBytes)-checksumLen]
 	checksum := decodedBytes[len(decodedBytes)-checksumLen:]
-	if !bytes.Equal(checksum, hashing.Checksum(rawBytes, checksumLen)) {
+	if !bytes.Equal(checksum, hash.Checksum(rawBytes, checksumLen)) {
 		return nil, ErrBadChecksum
 	}
 	return rawBytes, nil
