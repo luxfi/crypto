@@ -1469,4 +1469,160 @@ New package for anonymous group signing (LSAG - Linkable Spontaneous Anonymous G
 
 ---
 
+## GPU-Accelerated ZK Operations (2026-01-02) - COMPLETED
+
+### Overview
+
+The `gpu/` package provides GPU-accelerated ZK cryptographic operations with automatic threshold-based routing between CPU and GPU execution paths.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    gpu/zk.go                            │
+│  - Threshold-gated routing (CPU vs GPU)                 │
+│  - CPU fallback via gnark-crypto                        │
+│  - GPUHooks interface for platform injection            │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                 ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ gpu/zk_metal.go │ │ gpu/zk_cuda.go  │ │ (future backends)│
+│ (darwin,arm64)  │ │ (linux,nvidia)  │ │                  │
+│ CGO + Metal     │ │ CGO + CUDA      │ │                  │
+└────────┬────────┘ └────────┬────────┘ └──────────────────┘
+         │                   │
+         └───────────────────┘
+                   │
+         ┌────────▼────────┐
+         │ luxcpp/crypto    │
+         │ C/C++ + Metal    │
+         │ v0.1.0           │
+         └─────────────────┘
+```
+
+### Threshold Constants (Tuned for Apple Silicon)
+
+| Operation | Threshold | Description |
+|-----------|-----------|-------------|
+| `ThresholdPoseidon2` | 64 | Batch Poseidon2 hashes |
+| `ThresholdMerkle` | 128 | Merkle layer leaf pairs |
+| `ThresholdMSM` | 256 | Point-scalar pairs |
+| `ThresholdCommitment` | 128 | Batch commitments |
+| `ThresholdFRI` | 512 | FRI evaluations |
+
+Below threshold: CPU (lower latency). Above threshold: GPU (higher throughput).
+
+### Core Types
+
+```go
+// Fr256 represents a 256-bit field element (BN254 scalar field).
+// Uses 4 x 64-bit limbs in little-endian order.
+type Fr256 [4]uint64
+
+// ZKContext provides GPU-accelerated ZK operations with automatic routing.
+type ZKContext struct {
+    gpuEnabled bool
+    deviceName string
+    gpuCalls   int64
+    cpuCalls   int64
+}
+
+// GPUHooks contains function pointers to GPU implementations.
+// Set by platform-specific init() functions (zk_metal.go, zk_cuda.go).
+type GPUHooks struct {
+    HashPair        func(left, right []Fr256) ([]Fr256, error)
+    MerkleLayer     func(nodes []Fr256) ([]Fr256, error)
+    MerkleTree      func(leaves []Fr256) ([]Fr256, error)
+    BatchCommitment func(values, blindings, salts []Fr256) ([]Fr256, error)
+    BatchNullifier  func(keys, commitments, indices []Fr256) ([]Fr256, error)
+}
+```
+
+### Operations
+
+| Function | Description |
+|----------|-------------|
+| `Poseidon2Hash(left, right)` | Single Poseidon2 hash (always CPU) |
+| `Poseidon2BatchHash(left, right)` | Batch hashes with threshold routing |
+| `MerkleRoot(leaves)` | Poseidon2 Merkle root |
+| `MerkleTree(leaves)` | Complete Merkle tree internal nodes |
+| `Commitment(value, blinding, salt)` | Poseidon2 commitment |
+| `Nullifier(key, commitment, index)` | Poseidon2 nullifier |
+
+### Usage
+
+```go
+import "github.com/luxfi/crypto/gpu"
+
+// Get the global ZK context
+ctx := gpu.GetZKContext()
+
+// Check GPU availability
+if ctx.GPUEnabled() {
+    fmt.Println("GPU:", ctx.DeviceName())
+}
+
+// Single hash (always CPU)
+result := gpu.Poseidon2Hash(&left, &right)
+
+// Batch hash (threshold routing)
+results, err := gpu.Poseidon2BatchHash(leftSlice, rightSlice)
+
+// Merkle root
+root, err := gpu.MerkleRoot(leaves)
+
+// Statistics
+gpuCalls, cpuCalls := ctx.Stats()
+```
+
+### Build Tags
+
+| Build | Tags | GPU Support |
+|-------|------|-------------|
+| Default | (none) | CPU only (gnark-crypto) |
+| Metal | `darwin,arm64,cgo,gpu` | Apple Silicon GPU |
+| CUDA | `linux,cgo,gpu` | NVIDIA GPU (future) |
+
+```bash
+# CPU-only build
+go build ./...
+
+# Metal GPU build
+CGO_ENABLED=1 go build -tags "gpu" ./...
+```
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `gpu/zk.go` | Core ZK operations, threshold routing, CPU fallback |
+| `gpu/zk_metal.go` | Metal CGO bindings (darwin,arm64) |
+| `gpu/zk_test.go` | Tests for ZK operations |
+
+### Dependencies
+
+- `github.com/consensys/gnark-crypto` - CPU Poseidon2 via BN254/Fr
+- `luxcpp/crypto v0.1.0` - C/C++ Metal shaders (optional, for GPU)
+
+### Test Coverage
+
+All tests pass in both CGO and non-CGO modes:
+
+```bash
+# Non-CGO (CPU only)
+CGO_ENABLED=0 go test ./gpu/...
+
+# CGO (with GPU if available)
+CGO_ENABLED=1 go test -tags gpu ./gpu/...
+```
+
+### Published Versions
+
+- `github.com/luxfi/crypto v1.17.35` - Go package with GPU ZK operations
+- `github.com/luxcpp/crypto v0.1.0` - C++ Metal shaders and C API
+
+---
+
 **Single source of truth for AI assistants on this project.**
