@@ -12,14 +12,12 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/include
+#cgo pkg-config: lux-crypto
 #cgo darwin,arm64 CFLAGS: -DUSE_METAL=1
 #cgo linux CFLAGS: -DUSE_CUDA=1
-#cgo darwin LDFLAGS: -framework Accelerate
-#cgo linux LDFLAGS: -lm
 #cgo LDFLAGS: -lstdc++
 
-#include "gpu_crypto.h"
+#include <lux/crypto/crypto.h>
 
 */
 import "C"
@@ -29,6 +27,19 @@ import (
 	"sync"
 	"unsafe"
 )
+
+// pinSlices pins all byte slices and returns a pinner and the C pointer array.
+// Caller must call pinner.Unpin() when done.
+func pinSlices(slices [][]byte) (*runtime.Pinner, []*C.uint8_t) {
+	var pinner runtime.Pinner
+	cPtrs := make([]*C.uint8_t, len(slices))
+	for i, slice := range slices {
+		pinner.Pin(&slice[0])
+		cPtrs[i] = (*C.uint8_t)(unsafe.Pointer(&slice[0]))
+	}
+	pinner.Pin(&cPtrs[0])
+	return &pinner, cPtrs
+}
 
 // Error codes
 var (
@@ -47,17 +58,17 @@ var (
 
 // GPUAvailable returns true if GPU acceleration is available.
 func GPUAvailable() bool {
-	return bool(C.gpu_available())
+	return bool(C.crypto_gpu_available())
 }
 
 // GetBackend returns the name of the active backend: "Metal", "CUDA", or "CPU".
 func GetBackend() string {
-	return C.GoString(C.gpu_backend_name())
+	return C.GoString(C.crypto_get_backend())
 }
 
 // ClearCache clears internal caches.
 func ClearCache() {
-	C.gpu_clear_cache()
+	C.crypto_clear_cache()
 }
 
 // =============================================================================
@@ -125,19 +136,16 @@ func hashMessagesSequential(msgs [][]byte, hashes [][]byte) {
 // BLSKeygen generates a BLS key pair from seed.
 func BLSKeygen(seed []byte) ([]byte, error) {
 	sk := make([]byte, BLSSecretKeySize)
-	pk := make([]byte, BLSPublicKeySize)
 
 	var seedPtr *C.uint8_t
-	var seedLen C.size_t
 	if len(seed) > 0 {
 		seedPtr = (*C.uint8_t)(unsafe.Pointer(&seed[0]))
-		seedLen = C.size_t(len(seed))
 	}
 
-	ret := C.bls_keygen(seedPtr, seedLen,
+	ret := C.bls_keygen(
 		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&pk[0])))
-	if ret != C.GPU_OK {
+		seedPtr)
+	if ret != C.CRYPTO_SUCCESS {
 		return nil, codeToError(int(ret))
 	}
 
@@ -152,9 +160,9 @@ func BLSSecretKeyToPublicKey(sk []byte) ([]byte, error) {
 
 	pk := make([]byte, BLSPublicKeySize)
 	ret := C.bls_sk_to_pk(
-		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&pk[0])))
-	if ret != C.GPU_OK {
+		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
+		(*C.uint8_t)(unsafe.Pointer(&sk[0])))
+	if ret != C.CRYPTO_SUCCESS {
 		return nil, codeToError(int(ret))
 	}
 
@@ -162,6 +170,7 @@ func BLSSecretKeyToPublicKey(sk []byte) ([]byte, error) {
 }
 
 // BLSSign creates a BLS signature.
+// Note: msg should be a 32-byte hash of the actual message.
 func BLSSign(sk, msg []byte) ([]byte, error) {
 	if len(sk) != BLSSecretKeySize {
 		return nil, ErrInvalidKey
@@ -170,13 +179,21 @@ func BLSSign(sk, msg []byte) ([]byte, error) {
 		return nil, ErrNullPointer
 	}
 
+	// Hash message if not already 32 bytes
+	var msgHash [32]byte
+	if len(msg) == 32 {
+		copy(msgHash[:], msg)
+	} else {
+		// Use SHA3-256 to hash the message
+		SHA3_256Into(msgHash[:], msg)
+	}
+
 	sig := make([]byte, BLSSignatureSize)
 	ret := C.bls_sign(
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
 		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
-		C.size_t(len(msg)),
-		(*C.uint8_t)(unsafe.Pointer(&sig[0])))
-	if ret != C.GPU_OK {
+		(*C.uint8_t)(unsafe.Pointer(&msgHash[0])))
+	if ret != C.CRYPTO_SUCCESS {
 		return nil, codeToError(int(ret))
 	}
 
@@ -184,19 +201,27 @@ func BLSSign(sk, msg []byte) ([]byte, error) {
 }
 
 // BLSVerify verifies a BLS signature.
+// Note: msg should be a 32-byte hash of the actual message.
 func BLSVerify(sig, pk, msg []byte) bool {
 	if len(sig) != BLSSignatureSize || len(pk) != BLSPublicKeySize || len(msg) == 0 {
 		return false
 	}
 
-	return bool(C.bls_verify(
+	// Hash message if not already 32 bytes
+	var msgHash [32]byte
+	if len(msg) == 32 {
+		copy(msgHash[:], msg)
+	} else {
+		SHA3_256Into(msgHash[:], msg)
+	}
+
+	return C.bls_verify(
 		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
 		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
-		C.size_t(len(msg))))
+		(*C.uint8_t)(unsafe.Pointer(&msgHash[0]))) == 1
 }
 
-// BLSAggregateSignatures aggregates multiple BLS signatures.
+// BLSAggregateSignatures aggregates multiple BLS signatures using GPU-accelerated BLS aggregation.
 func BLSAggregateSignatures(sigs [][]byte) ([]byte, error) {
 	if len(sigs) == 0 {
 		return nil, ErrNullPointer
@@ -209,19 +234,23 @@ func BLSAggregateSignatures(sigs [][]byte) ([]byte, error) {
 		}
 	}
 
-	// Simple aggregation: XOR all signatures (placeholder for real BLS aggregation)
+	// Pin slices for CGO
+	pinner, cSigs := pinSlices(sigs)
+	defer pinner.Unpin()
+
 	agg := make([]byte, BLSSignatureSize)
-	copy(agg, sigs[0])
-	for i := 1; i < len(sigs); i++ {
-		for j := 0; j < BLSSignatureSize; j++ {
-			agg[j] ^= sigs[i][j]
-		}
+	ret := C.bls_aggregate_signatures(
+		(*C.uint8_t)(unsafe.Pointer(&agg[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cSigs[0])),
+		C.uint32_t(len(sigs)))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
 	}
 
 	return agg, nil
 }
 
-// BLSAggregatePublicKeys aggregates multiple BLS public keys.
+// BLSAggregatePublicKeys aggregates multiple BLS public keys using GPU-accelerated aggregation.
 func BLSAggregatePublicKeys(pks [][]byte) ([]byte, error) {
 	if len(pks) == 0 {
 		return nil, ErrNullPointer
@@ -234,26 +263,44 @@ func BLSAggregatePublicKeys(pks [][]byte) ([]byte, error) {
 		}
 	}
 
-	// Simple aggregation: XOR all public keys (placeholder for real BLS aggregation)
+	// Pin slices for CGO
+	pinner, cPKs := pinSlices(pks)
+	defer pinner.Unpin()
+
 	agg := make([]byte, BLSPublicKeySize)
-	copy(agg, pks[0])
-	for i := 1; i < len(pks); i++ {
-		for j := 0; j < BLSPublicKeySize; j++ {
-			agg[j] ^= pks[i][j]
-		}
+	ret := C.bls_aggregate_public_keys(
+		(*C.uint8_t)(unsafe.Pointer(&agg[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cPKs[0])),
+		C.uint32_t(len(pks)))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
 	}
 
 	return agg, nil
 }
 
-// BLSVerifyAggregated verifies an aggregated BLS signature.
+// BLSVerifyAggregated verifies an aggregated BLS signature against an aggregated public key.
 func BLSVerifyAggregated(aggSig, aggPK, msg []byte) bool {
-	return BLSVerify(aggSig, aggPK, msg)
+	if len(aggSig) != BLSSignatureSize || len(aggPK) != BLSPublicKeySize || len(msg) == 0 {
+		return false
+	}
+
+	// Hash message if not already 32 bytes
+	var msgHash [32]byte
+	if len(msg) == 32 {
+		copy(msgHash[:], msg)
+	} else {
+		SHA3_256Into(msgHash[:], msg)
+	}
+
+	return C.bls_verify_aggregated(
+		(*C.uint8_t)(unsafe.Pointer(&aggSig[0])),
+		(*C.uint8_t)(unsafe.Pointer(&aggPK[0])),
+		(*C.uint8_t)(unsafe.Pointer(&msgHash[0]))) == 1
 }
 
-// BLSBatchVerify verifies multiple BLS signatures in parallel.
+// BLSBatchVerify verifies multiple BLS signatures in parallel using GPU-accelerated batch verification.
 // Messages are hashed in parallel using a worker pool before verification.
-// Verification calls are also parallelized using the same worker pool pattern.
 func BLSBatchVerify(sigs, pks, msgs [][]byte) ([]bool, error) {
 	n := len(sigs)
 	if n != len(pks) || n != len(msgs) {
@@ -277,37 +324,43 @@ func BLSBatchVerify(sigs, pks, msgs [][]byte) ([]bool, error) {
 	msgHashes := make([][]byte, n)
 	hashMessagesParallel(msgs, msgHashes)
 
-	// Verify all signatures in parallel
-	results := make([]bool, n)
-	numWorkers := runtime.NumCPU()
-	if numWorkers > n {
-		numWorkers = n
-	}
+	// Pin all slices for CGO
+	var pinner runtime.Pinner
 
-	work := make(chan int, n)
+	cSigs := make([]*C.uint8_t, n)
+	cPKs := make([]*C.uint8_t, n)
+	cMsgs := make([]*C.uint8_t, n)
 	for i := 0; i < n; i++ {
-		work <- i
+		pinner.Pin(&sigs[i][0])
+		pinner.Pin(&pks[i][0])
+		pinner.Pin(&msgHashes[i][0])
+		cSigs[i] = (*C.uint8_t)(unsafe.Pointer(&sigs[i][0]))
+		cPKs[i] = (*C.uint8_t)(unsafe.Pointer(&pks[i][0]))
+		cMsgs[i] = (*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0]))
 	}
-	close(work)
+	pinner.Pin(&cSigs[0])
+	pinner.Pin(&cPKs[0])
+	pinner.Pin(&cMsgs[0])
+	defer pinner.Unpin()
 
-	var wg sync.WaitGroup
-	wg.Add(numWorkers)
-
-	for w := 0; w < numWorkers; w++ {
-		go func() {
-			defer wg.Done()
-			for i := range work {
-				// Use hashed message for verification
-				results[i] = bool(C.bls_verify(
-					(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
-					(*C.uint8_t)(unsafe.Pointer(&pks[i][0])),
-					(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0])),
-					C.size_t(len(msgHashes[i]))))
-			}
-		}()
+	// Use GPU-accelerated batch verification
+	cResults := make([]C.int, n)
+	ret := C.bls_batch_verify(
+		(**C.uint8_t)(unsafe.Pointer(&cSigs[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cPKs[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cMsgs[0])),
+		C.uint32_t(n),
+		(*C.int)(unsafe.Pointer(&cResults[0])))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
 	}
 
-	wg.Wait()
+	// Convert results
+	results := make([]bool, n)
+	for i := 0; i < n; i++ {
+		results[i] = cResults[i] == 1
+	}
+
 	return results, nil
 }
 
@@ -336,20 +389,20 @@ func BLSBatchVerifySequential(sigs, pks, msgs [][]byte) ([]bool, error) {
 	msgHashes := make([][]byte, n)
 	hashMessagesSequential(msgs, msgHashes)
 
-	// Verify all signatures sequentially
+	// Verify all signatures sequentially using single-verification API
 	results := make([]bool, n)
 	for i := 0; i < n; i++ {
-		results[i] = bool(C.bls_verify(
+		results[i] = C.bls_verify(
 			(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
 			(*C.uint8_t)(unsafe.Pointer(&pks[i][0])),
-			(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0])),
-			C.size_t(len(msgHashes[i]))))
+			(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0]))) == 1
 	}
 	return results, nil
 }
 
-// BLSBatchSign signs multiple messages with multiple secret keys in parallel using GPU.
+// BLSBatchSign signs multiple messages with multiple secret keys in parallel.
 // It signs N messages with N secret keys, returning N signatures.
+// Uses parallel worker pool for signing operations.
 func BLSBatchSign(sks, msgs [][]byte) ([][]byte, error) {
 	n := len(sks)
 	if n != len(msgs) {
@@ -359,101 +412,21 @@ func BLSBatchSign(sks, msgs [][]byte) ([][]byte, error) {
 		return nil, ErrNullPointer
 	}
 
-	sigs := make([][]byte, n)
+	// Validate input sizes
 	for i := 0; i < n; i++ {
-		sig, err := BLSSign(sks[i], msgs[i])
-		if err != nil {
-			return nil, err
-		}
-		sigs[i] = sig
-	}
-	return sigs, nil
-}
-
-// =============================================================================
-// ML-DSA (Post-Quantum) Signatures
-// =============================================================================
-
-// MLDSAKeygen generates an ML-DSA key pair.
-func MLDSAKeygen(seed []byte) (pk, sk []byte, err error) {
-	pk = make([]byte, MLDSAPublicKeySize)
-	sk = make([]byte, MLDSASecretKeySize)
-
-	var seedPtr *C.uint8_t
-	var seedLen C.size_t
-	if len(seed) > 0 {
-		seedPtr = (*C.uint8_t)(unsafe.Pointer(&seed[0]))
-		seedLen = C.size_t(len(seed))
-	}
-
-	ret := C.mldsa_keygen(seedPtr, seedLen,
-		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&sk[0])))
-	if ret != C.GPU_OK {
-		return nil, nil, codeToError(int(ret))
-	}
-
-	return pk, sk, nil
-}
-
-// MLDSASign creates an ML-DSA signature.
-func MLDSASign(sk, msg []byte) ([]byte, error) {
-	if len(sk) != MLDSASecretKeySize {
-		return nil, ErrInvalidKey
-	}
-	if len(msg) == 0 {
-		return nil, ErrNullPointer
-	}
-
-	sig := make([]byte, MLDSASignatureSize)
-	ret := C.mldsa_sign(
-		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
-		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
-		C.size_t(len(msg)),
-		(*C.uint8_t)(unsafe.Pointer(&sig[0])))
-	if ret != C.GPU_OK {
-		return nil, codeToError(int(ret))
-	}
-
-	return sig, nil
-}
-
-// MLDSAVerify verifies an ML-DSA signature.
-func MLDSAVerify(sig, msg, pk []byte) bool {
-	if len(sig) != MLDSASignatureSize || len(pk) != MLDSAPublicKeySize || len(msg) == 0 {
-		return false
-	}
-
-	return bool(C.mldsa_verify(
-		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
-		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
-		C.size_t(len(msg)),
-		(*C.uint8_t)(unsafe.Pointer(&pk[0]))))
-}
-
-// MLDSABatchVerify verifies multiple ML-DSA signatures in parallel.
-// ML-DSA handles hashing internally, so this only parallelizes verification calls.
-func MLDSABatchVerify(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
-	n := len(sigs)
-	if n != len(msgs) || n != len(pks) {
-		return nil, ErrNullPointer
-	}
-	if n == 0 {
-		return nil, ErrNullPointer
-	}
-
-	// Validate input sizes before parallel operations
-	for i := 0; i < n; i++ {
-		if len(sigs[i]) != MLDSASignatureSize {
-			return nil, ErrInvalidSig
-		}
-		if len(pks[i]) != MLDSAPublicKeySize {
+		if len(sks[i]) != BLSSecretKeySize {
 			return nil, ErrInvalidKey
 		}
 	}
 
-	// Verify all signatures in parallel
-	results := make([]bool, n)
+	// Hash all messages in parallel
+	msgHashes := make([][]byte, n)
+	hashMessagesParallel(msgs, msgHashes)
+
+	// Sign all messages in parallel using worker pool
+	sigs := make([][]byte, n)
+	errs := make([]error, n)
+
 	numWorkers := runtime.NumCPU()
 	if numWorkers > n {
 		numWorkers = n
@@ -472,21 +445,163 @@ func MLDSABatchVerify(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
 		go func() {
 			defer wg.Done()
 			for i := range work {
-				results[i] = bool(C.mldsa_verify(
+				sigs[i] = make([]byte, BLSSignatureSize)
+				ret := C.bls_sign(
 					(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
-					(*C.uint8_t)(unsafe.Pointer(&msgs[i][0])),
-					C.size_t(len(msgs[i])),
-					(*C.uint8_t)(unsafe.Pointer(&pks[i][0]))))
+					(*C.uint8_t)(unsafe.Pointer(&sks[i][0])),
+					(*C.uint8_t)(unsafe.Pointer(&msgHashes[i][0])))
+				if ret != C.CRYPTO_SUCCESS {
+					errs[i] = codeToError(int(ret))
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+
+	// Check for errors
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return sigs, nil
+}
+
+// =============================================================================
+// ML-DSA (Post-Quantum) Signatures
+// =============================================================================
+
+// MLDSAKeygen generates an ML-DSA key pair using GPU-accelerated lattice operations.
+func MLDSAKeygen(seed []byte) (pk, sk []byte, err error) {
+	pk = make([]byte, MLDSAPublicKeySize)
+	sk = make([]byte, MLDSASecretKeySize)
+
+	var seedPtr *C.uint8_t
+	if len(seed) > 0 {
+		seedPtr = (*C.uint8_t)(unsafe.Pointer(&seed[0]))
+	}
+
+	ret := C.mldsa_keygen(
+		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
+		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
+		seedPtr)
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, nil, codeToError(int(ret))
+	}
+
+	return pk, sk, nil
+}
+
+// MLDSASign creates an ML-DSA signature using GPU-accelerated NTT.
+func MLDSASign(sk, msg []byte) ([]byte, error) {
+	if len(sk) != MLDSASecretKeySize {
+		return nil, ErrInvalidKey
+	}
+	if len(msg) == 0 {
+		return nil, ErrNullPointer
+	}
+
+	sig := make([]byte, MLDSASignatureSize)
+	var sigLen C.size_t
+
+	ret := C.mldsa_sign(
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
+		&sigLen,
+		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
+		C.size_t(len(msg)),
+		(*C.uint8_t)(unsafe.Pointer(&sk[0])))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
+	}
+
+	return sig[:sigLen], nil
+}
+
+// MLDSAVerify verifies an ML-DSA signature using GPU-accelerated NTT.
+func MLDSAVerify(sig, msg, pk []byte) bool {
+	if len(sig) == 0 || len(pk) != MLDSAPublicKeySize || len(msg) == 0 {
+		return false
+	}
+
+	return C.mldsa_verify(
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
+		C.size_t(len(sig)),
+		(*C.uint8_t)(unsafe.Pointer(&msg[0])),
+		C.size_t(len(msg)),
+		(*C.uint8_t)(unsafe.Pointer(&pk[0]))) == 1
+}
+
+// MLDSABatchVerify verifies multiple ML-DSA signatures using GPU-accelerated NTT batch operations.
+func MLDSABatchVerify(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
+	n := len(sigs)
+	if n != len(msgs) || n != len(pks) {
+		return nil, ErrNullPointer
+	}
+	if n == 0 {
+		return nil, ErrNullPointer
+	}
+
+	// Validate input sizes before batch operation
+	for i := 0; i < n; i++ {
+		if len(sigs[i]) == 0 {
+			return nil, ErrInvalidSig
+		}
+		if len(pks[i]) != MLDSAPublicKeySize {
+			return nil, ErrInvalidKey
+		}
+	}
+
+	// Pin all slices for CGO
+	var pinner runtime.Pinner
+
+	cSigs := make([]*C.uint8_t, n)
+	cSigLens := make([]C.size_t, n)
+	cMsgs := make([]*C.uint8_t, n)
+	cMsgLens := make([]C.size_t, n)
+	cPKs := make([]*C.uint8_t, n)
+
+	for i := 0; i < n; i++ {
+		pinner.Pin(&sigs[i][0])
+		pinner.Pin(&msgs[i][0])
+		pinner.Pin(&pks[i][0])
+		cSigs[i] = (*C.uint8_t)(unsafe.Pointer(&sigs[i][0]))
+		cSigLens[i] = C.size_t(len(sigs[i]))
+		cMsgs[i] = (*C.uint8_t)(unsafe.Pointer(&msgs[i][0]))
+		cMsgLens[i] = C.size_t(len(msgs[i]))
+		cPKs[i] = (*C.uint8_t)(unsafe.Pointer(&pks[i][0]))
+	}
+	pinner.Pin(&cSigs[0])
+	pinner.Pin(&cMsgs[0])
+	pinner.Pin(&cPKs[0])
+	defer pinner.Unpin()
+
+	// Use GPU-accelerated batch verification
+	cResults := make([]C.int, n)
+	ret := C.mldsa_batch_verify(
+		(**C.uint8_t)(unsafe.Pointer(&cSigs[0])),
+		(*C.size_t)(unsafe.Pointer(&cSigLens[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cMsgs[0])),
+		(*C.size_t)(unsafe.Pointer(&cMsgLens[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cPKs[0])),
+		C.uint32_t(n),
+		(*C.int)(unsafe.Pointer(&cResults[0])))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
+	}
+
+	// Convert results
+	results := make([]bool, n)
+	for i := 0; i < n; i++ {
+		results[i] = cResults[i] == 1
+	}
+
 	return results, nil
 }
 
 // MLDSABatchVerifySequential verifies multiple ML-DSA signatures sequentially.
-// Useful for benchmarking to compare sequential vs parallel performance.
+// Useful for benchmarking to compare sequential vs GPU-accelerated batch performance.
 func MLDSABatchVerifySequential(sigs, msgs [][]byte, pks [][]byte) ([]bool, error) {
 	n := len(sigs)
 	if n != len(msgs) || n != len(pks) {
@@ -498,7 +613,7 @@ func MLDSABatchVerifySequential(sigs, msgs [][]byte, pks [][]byte) ([]bool, erro
 
 	// Validate input sizes
 	for i := 0; i < n; i++ {
-		if len(sigs[i]) != MLDSASignatureSize {
+		if len(sigs[i]) == 0 {
 			return nil, ErrInvalidSig
 		}
 		if len(pks[i]) != MLDSAPublicKeySize {
@@ -506,14 +621,15 @@ func MLDSABatchVerifySequential(sigs, msgs [][]byte, pks [][]byte) ([]bool, erro
 		}
 	}
 
-	// Verify all signatures sequentially
+	// Verify all signatures sequentially using single-verification API
 	results := make([]bool, n)
 	for i := 0; i < n; i++ {
-		results[i] = bool(C.mldsa_verify(
+		results[i] = C.mldsa_verify(
 			(*C.uint8_t)(unsafe.Pointer(&sigs[i][0])),
+			C.size_t(len(sigs[i])),
 			(*C.uint8_t)(unsafe.Pointer(&msgs[i][0])),
 			C.size_t(len(msgs[i])),
-			(*C.uint8_t)(unsafe.Pointer(&pks[i][0]))))
+			(*C.uint8_t)(unsafe.Pointer(&pks[i][0]))) == 1
 	}
 	return results, nil
 }
@@ -524,92 +640,232 @@ func MLDSABatchVerifySequential(sigs, msgs [][]byte, pks [][]byte) ([]bool, erro
 
 // ThresholdContext manages threshold signature operations.
 type ThresholdContext struct {
-	ctx *C.threshold_ctx_t
+	ctx *C.ThresholdContext
+	t   uint32
+	n   uint32
 }
 
 // NewThresholdContext creates a new threshold context with t-of-n scheme.
 func NewThresholdContext(t, n uint32) (*ThresholdContext, error) {
-	ctx := C.threshold_new(C.uint32_t(t), C.uint32_t(n))
+	ctx := C.threshold_create(C.uint32_t(t), C.uint32_t(n))
 	if ctx == nil {
 		return nil, ErrThreshold
 	}
-	return &ThresholdContext{ctx: ctx}, nil
+	return &ThresholdContext{ctx: ctx, t: t, n: n}, nil
 }
 
 // Close releases the threshold context.
 func (tc *ThresholdContext) Close() {
 	if tc.ctx != nil {
-		C.threshold_free(tc.ctx)
+		C.threshold_destroy(tc.ctx)
 		tc.ctx = nil
 	}
 }
 
-// Keygen generates threshold key shares.
+// Keygen generates threshold key shares using Shamir Secret Sharing.
+// Returns n shares and the combined public key.
 func (tc *ThresholdContext) Keygen(seed []byte) (shares [][]byte, pk []byte, err error) {
-	return nil, nil, ErrNotSupported
+	if tc.ctx == nil {
+		return nil, nil, ErrThreshold
+	}
+
+	// Allocate output arrays - use larger buffer for shares (threshold shares may be larger)
+	const maxShareSize = 256 // Should be enough for any threshold scheme
+	shareSize := C.size_t(0)
+	pk = make([]byte, BLSPublicKeySize)
+
+	// Create shares with max size and pin them for CGO
+	var pinner runtime.Pinner
+	shares = make([][]byte, tc.n)
+	cShares := make([]*C.uint8_t, tc.n)
+	for i := uint32(0); i < tc.n; i++ {
+		shares[i] = make([]byte, maxShareSize)
+		pinner.Pin(&shares[i][0])
+		cShares[i] = (*C.uint8_t)(unsafe.Pointer(&shares[i][0]))
+	}
+	pinner.Pin(&cShares[0])
+	defer pinner.Unpin()
+
+	var seedPtr *C.uint8_t
+	if len(seed) > 0 {
+		seedPtr = (*C.uint8_t)(unsafe.Pointer(&seed[0]))
+	}
+
+	ret := C.threshold_keygen(tc.ctx,
+		(**C.uint8_t)(unsafe.Pointer(&cShares[0])),
+		&shareSize,
+		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
+		seedPtr)
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, nil, codeToError(int(ret))
+	}
+
+	// Resize shares to actual size
+	for i := uint32(0); i < tc.n; i++ {
+		shares[i] = shares[i][:shareSize]
+	}
+
+	return shares, pk, nil
 }
 
-// PartialSign creates a partial signature.
+// PartialSign creates a partial signature share.
 func (tc *ThresholdContext) PartialSign(shareIndex uint32, share, msg []byte) ([]byte, error) {
-	return nil, ErrNotSupported
+	if tc.ctx == nil {
+		return nil, ErrThreshold
+	}
+	if len(share) == 0 || len(msg) == 0 {
+		return nil, ErrNullPointer
+	}
+
+	// Hash message if not already 32 bytes
+	var msgHash [32]byte
+	if len(msg) == 32 {
+		copy(msgHash[:], msg)
+	} else {
+		SHA3_256Into(msgHash[:], msg)
+	}
+
+	partialSig := make([]byte, BLSSignatureSize)
+	ret := C.threshold_partial_sign(tc.ctx,
+		(*C.uint8_t)(unsafe.Pointer(&partialSig[0])),
+		C.uint32_t(shareIndex),
+		(*C.uint8_t)(unsafe.Pointer(&share[0])),
+		(*C.uint8_t)(unsafe.Pointer(&msgHash[0])))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
+	}
+
+	return partialSig, nil
 }
 
-// Combine combines partial signatures into a full signature.
+// Combine combines partial signatures into a full signature using Lagrange interpolation.
 func (tc *ThresholdContext) Combine(partialSigs [][]byte, indices []uint32) ([]byte, error) {
-	return nil, ErrNotSupported
+	if tc.ctx == nil {
+		return nil, ErrThreshold
+	}
+	if len(partialSigs) < int(tc.t) {
+		return nil, ErrThreshold
+	}
+	if len(partialSigs) != len(indices) {
+		return nil, ErrNullPointer
+	}
+
+	// Pin all slices for CGO
+	var pinner runtime.Pinner
+
+	cPartials := make([]*C.uint8_t, len(partialSigs))
+	for i, partial := range partialSigs {
+		if len(partial) != BLSSignatureSize {
+			return nil, ErrInvalidSig
+		}
+		pinner.Pin(&partial[0])
+		cPartials[i] = (*C.uint8_t)(unsafe.Pointer(&partial[0]))
+	}
+	pinner.Pin(&cPartials[0])
+	defer pinner.Unpin()
+
+	cIndices := make([]C.uint32_t, len(indices))
+	for i, idx := range indices {
+		cIndices[i] = C.uint32_t(idx)
+	}
+
+	sig := make([]byte, BLSSignatureSize)
+	ret := C.threshold_combine(tc.ctx,
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cPartials[0])),
+		(*C.uint32_t)(unsafe.Pointer(&cIndices[0])),
+		C.uint32_t(len(partialSigs)))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
+	}
+
+	return sig, nil
 }
 
 // Verify verifies a threshold signature.
 func (tc *ThresholdContext) Verify(sig, pk, msg []byte) bool {
-	return false
+	if tc.ctx == nil || len(sig) != BLSSignatureSize || len(pk) != BLSPublicKeySize || len(msg) == 0 {
+		return false
+	}
+
+	// Hash message if not already 32 bytes
+	var msgHash [32]byte
+	if len(msg) == 32 {
+		copy(msgHash[:], msg)
+	} else {
+		SHA3_256Into(msgHash[:], msg)
+	}
+
+	return C.threshold_verify(tc.ctx,
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
+		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
+		(*C.uint8_t)(unsafe.Pointer(&msgHash[0]))) == 1
 }
 
 // =============================================================================
 // Hash Functions
 // =============================================================================
 
+// SHA3_256Into computes SHA3-256 hash into a pre-allocated buffer.
+func SHA3_256Into(out, data []byte) {
+	if len(out) < 32 {
+		return
+	}
+	if len(data) == 0 {
+		for i := range out[:32] {
+			out[i] = 0
+		}
+		return
+	}
+	C.crypto_sha3_256(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
+		(*C.uint8_t)(unsafe.Pointer(&data[0])),
+		C.size_t(len(data)))
+}
+
 // SHA3_256 computes SHA3-256 hash.
 func SHA3_256(data []byte) []byte {
-	if len(data) == 0 {
-		return make([]byte, 32)
-	}
 	out := make([]byte, 32)
-	C.sha3_256(
+	if len(data) == 0 {
+		return out
+	}
+	C.crypto_sha3_256(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 	return out
 }
 
 // SHA3_512 computes SHA3-512 hash.
 func SHA3_512(data []byte) []byte {
-	if len(data) == 0 {
-		return make([]byte, 64)
-	}
 	out := make([]byte, 64)
-	C.sha3_512(
+	if len(data) == 0 {
+		return out
+	}
+	C.crypto_sha3_512(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 	return out
 }
 
 // BLAKE3 computes BLAKE3 hash.
 func BLAKE3(data []byte) []byte {
-	if len(data) == 0 {
-		return make([]byte, 32)
-	}
 	out := make([]byte, 32)
-	C.blake3_hash(
+	if len(data) == 0 {
+		return out
+	}
+	C.crypto_blake3(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 	return out
 }
 
-// BatchHash computes multiple hashes in parallel.
+// BatchHash computes multiple hashes in parallel using GPU acceleration.
 func BatchHash(inputs [][]byte, hashType int) ([][]byte, error) {
-	if len(inputs) == 0 {
+	n := len(inputs)
+	if n == 0 {
 		return nil, ErrNullPointer
 	}
 
@@ -623,18 +879,40 @@ func BatchHash(inputs [][]byte, hashType int) ([][]byte, error) {
 		return nil, ErrHash
 	}
 
-	results := make([][]byte, len(inputs))
+	// Pin all slices for CGO
+	var pinner runtime.Pinner
+
+	// Allocate output buffers
+	results := make([][]byte, n)
+	cOuts := make([]*C.uint8_t, n)
+	cIns := make([]*C.uint8_t, n)
+	cLens := make([]C.size_t, n)
+
 	for i, input := range inputs {
 		results[i] = make([]byte, hashSize)
-		switch hashType {
-		case HashTypeSHA3_256:
-			results[i] = SHA3_256(input)
-		case HashTypeSHA3_512:
-			results[i] = SHA3_512(input)
-		case HashTypeBLAKE3:
-			results[i] = BLAKE3(input)
+		pinner.Pin(&results[i][0])
+		cOuts[i] = (*C.uint8_t)(unsafe.Pointer(&results[i][0]))
+		if len(input) > 0 {
+			pinner.Pin(&input[0])
+			cIns[i] = (*C.uint8_t)(unsafe.Pointer(&input[0]))
 		}
+		cLens[i] = C.size_t(len(input))
 	}
+	pinner.Pin(&cOuts[0])
+	pinner.Pin(&cIns[0])
+	defer pinner.Unpin()
+
+	// Use GPU-accelerated batch hashing
+	ret := C.crypto_batch_hash(
+		(**C.uint8_t)(unsafe.Pointer(&cOuts[0])),
+		(**C.uint8_t)(unsafe.Pointer(&cIns[0])),
+		(*C.size_t)(unsafe.Pointer(&cLens[0])),
+		C.uint32_t(n),
+		C.int(hashType))
+	if ret != C.CRYPTO_SUCCESS {
+		return nil, codeToError(int(ret))
+	}
+
 	return results, nil
 }
 
@@ -643,24 +921,55 @@ func BatchHash(inputs [][]byte, hashType int) ([][]byte, error) {
 // =============================================================================
 
 // ConsensusVerifyBlock verifies both BLS and threshold signatures for a block.
+// Uses GPU-accelerated consensus verification from the C library.
 func ConsensusVerifyBlock(blsSigs, blsPKs [][]byte, thresholdSig, thresholdPK, blockHash []byte) bool {
-	// Verify BLS aggregated signature
-	if len(blsSigs) > 0 && len(blsPKs) > 0 {
-		aggSig, err := BLSAggregateSignatures(blsSigs)
-		if err != nil {
-			return false
-		}
-		aggPK, err := BLSAggregatePublicKeys(blsPKs)
-		if err != nil {
-			return false
-		}
-		if !BLSVerifyAggregated(aggSig, aggPK, blockHash) {
-			return false
-		}
+	if len(blockHash) != 32 {
+		return false
 	}
 
-	// Threshold signature verification not yet implemented
-	return true
+	// Pin slices for CGO
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+
+	// Create C arrays for BLS signatures and public keys
+	var cSigs **C.uint8_t
+	var cPKs **C.uint8_t
+	blsCount := uint32(0)
+
+	if len(blsSigs) > 0 && len(blsPKs) > 0 && len(blsSigs) == len(blsPKs) {
+		blsCount = uint32(len(blsSigs))
+		cSigsSlice := make([]*C.uint8_t, blsCount)
+		cPKsSlice := make([]*C.uint8_t, blsCount)
+		for i := uint32(0); i < blsCount; i++ {
+			if len(blsSigs[i]) != BLSSignatureSize || len(blsPKs[i]) != BLSPublicKeySize {
+				return false
+			}
+			pinner.Pin(&blsSigs[i][0])
+			pinner.Pin(&blsPKs[i][0])
+			cSigsSlice[i] = (*C.uint8_t)(unsafe.Pointer(&blsSigs[i][0]))
+			cPKsSlice[i] = (*C.uint8_t)(unsafe.Pointer(&blsPKs[i][0]))
+		}
+		pinner.Pin(&cSigsSlice[0])
+		pinner.Pin(&cPKsSlice[0])
+		cSigs = (**C.uint8_t)(unsafe.Pointer(&cSigsSlice[0]))
+		cPKs = (**C.uint8_t)(unsafe.Pointer(&cPKsSlice[0]))
+	}
+
+	// Handle threshold signature
+	var threshSig *C.uint8_t
+	var threshPK *C.uint8_t
+	if len(thresholdSig) == BLSSignatureSize && len(thresholdPK) == BLSPublicKeySize {
+		threshSig = (*C.uint8_t)(unsafe.Pointer(&thresholdSig[0]))
+		threshPK = (*C.uint8_t)(unsafe.Pointer(&thresholdPK[0]))
+	}
+
+	return C.consensus_verify_block(
+		cSigs,
+		cPKs,
+		C.uint32_t(blsCount),
+		threshSig,
+		threshPK,
+		(*C.uint8_t)(unsafe.Pointer(&blockHash[0]))) == 1
 }
 
 // =============================================================================
@@ -669,46 +978,44 @@ func ConsensusVerifyBlock(blsSigs, blsPKs [][]byte, thresholdSig, thresholdPK, b
 
 // sha3Into256 computes SHA3-256 into a provided buffer (no size check).
 func sha3Into256(out, data []byte) {
-	C.sha3_256(
+	C.crypto_sha3_256(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 }
 
 // sha3Into512 computes SHA3-512 into a provided buffer (no size check).
 func sha3Into512(out, data []byte) {
-	C.sha3_512(
+	C.crypto_sha3_512(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 }
 
 // blake3Into computes BLAKE3 into a provided buffer (no size check).
 func blake3Into(out, data []byte) {
-	C.blake3_hash(
+	C.crypto_blake3(
+		(*C.uint8_t)(unsafe.Pointer(&out[0])),
 		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.size_t(len(data)),
-		(*C.uint8_t)(unsafe.Pointer(&out[0])))
+		C.size_t(len(data)))
 }
 
 func codeToError(code int) error {
 	switch code {
-	case 0:
+	case int(C.CRYPTO_SUCCESS):
 		return nil
-	case -1:
+	case int(C.CRYPTO_ERROR_INVALID_KEY):
 		return ErrInvalidKey
-	case -2:
+	case int(C.CRYPTO_ERROR_INVALID_SIG):
 		return ErrInvalidSig
-	case -3:
+	case int(C.CRYPTO_ERROR_NULL_PTR):
 		return ErrNullPointer
-	case -4:
+	case int(C.CRYPTO_ERROR_GPU):
 		return ErrGPU
-	case -5:
+	case int(C.CRYPTO_ERROR_THRESHOLD):
 		return ErrThreshold
-	case -6:
+	case int(C.CRYPTO_ERROR_HASH):
 		return ErrHash
-	case -7:
-		return ErrNotSupported
 	default:
 		return ErrGPU
 	}
