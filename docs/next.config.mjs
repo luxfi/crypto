@@ -3,6 +3,8 @@ import { createMDX } from "fumadocs-mdx/next"
 /** @type {import('next').NextConfig} */
 const config = {
   output: 'export',
+  basePath: '/crypto',
+  assetPrefix: '/crypto',
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
