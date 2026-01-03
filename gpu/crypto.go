@@ -1,12 +1,14 @@
-//go:build !cgo
+//go:build !cgo || !gpu
 
 // Package gpu provides GPU-accelerated cryptographic operations.
-// This file provides pure Go fallback implementations when CGO is disabled.
+// This file provides pure Go fallback implementations when CGO is disabled or the gpu build tag is not set.
 // Uses gnark-crypto for BLS12-381, cloudflare/circl for ML-DSA.
 package gpu
 
 import (
+	"crypto/rand"
 	"errors"
+	"math/big"
 	"sync"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
@@ -14,6 +16,13 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/zeebo/blake3"
 	"golang.org/x/crypto/sha3"
+)
+
+// Error definitions
+var (
+	ErrInvalidKey       = errors.New("invalid key")
+	ErrInvalidSignature = errors.New("invalid signature")
+	ErrCGORequired      = errors.New("CGO required for this operation")
 )
 
 // Pure Go fallback - no GPU acceleration
@@ -52,7 +61,7 @@ func BLSSecretKeyToPublicKey(sk []byte) ([]byte, error) {
 
 	_, _, g1Gen, _ := bls12381.Generators()
 	var pk bls12381.G1Affine
-	pk.ScalarMultiplication(&g1Gen, scalar.BigInt(nil))
+	pk.ScalarMultiplication(&g1Gen, scalar.BigInt(new(big.Int)))
 
 	return pk.Marshal(), nil
 }
@@ -75,7 +84,7 @@ func BLSSign(sk, msg []byte) ([]byte, error) {
 
 	// Multiply by secret key
 	var sig bls12381.G2Affine
-	sig.ScalarMultiplication(&msgPoint, scalar.BigInt(nil))
+	sig.ScalarMultiplication(&msgPoint, scalar.BigInt(new(big.Int)))
 
 	return sig.Marshal(), nil
 }
@@ -224,22 +233,32 @@ func BLSBatchSign(sks, msgs [][]byte) ([][]byte, error) {
 // =============================================================================
 
 func MLDSAKeygen(seed []byte) (pk, sk []byte, err error) {
-	var pubKey mldsa65.PublicKey
-	var privKey mldsa65.PrivateKey
+	var pubKey *mldsa65.PublicKey
+	var privKey *mldsa65.PrivateKey
 
 	if seed != nil && len(seed) >= 32 {
-		// Deterministic keygen from seed
-		mldsa65.NewKeyFromSeed(&pubKey, &privKey, seed[:32])
+		// Deterministic keygen from seed - copy to fixed size array
+		var seedArr [32]byte
+		copy(seedArr[:], seed[:32])
+		pubKey, privKey = mldsa65.NewKeyFromSeed(&seedArr)
 	} else {
 		// Random keygen
-		if _, err = mldsa65.GenerateKey(nil); err != nil {
+		pubKey, privKey, err = mldsa65.GenerateKey(rand.Reader)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	pk = pubKey.Bytes()
-	sk = privKey.Bytes()
-	return pk, sk, nil
+	pkBytes, err := pubKey.MarshalBinary()
+	if err != nil {
+		return nil, nil, err
+	}
+	skBytes, err := privKey.MarshalBinary()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkBytes, skBytes, nil
 }
 
 func MLDSASign(sk, msg []byte) ([]byte, error) {
@@ -248,7 +267,9 @@ func MLDSASign(sk, msg []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	sig := mldsa65.SignTo(&privKey, msg, nil, false, nil)
+	// SignTo writes to a provided buffer, returns signature
+	sig := make([]byte, mldsa65.SignatureSize)
+	mldsa65.SignTo(&privKey, msg, nil, false, sig)
 	return sig, nil
 }
 
@@ -388,7 +409,7 @@ func (tc *ThresholdContext) Combine(partialSigs [][]byte, indices []uint32) ([]b
 		}
 
 		var scaled bls12381.G2Affine
-		scaled.ScalarMultiplication(&sig, lagrange[i].BigInt(nil))
+		scaled.ScalarMultiplication(&sig, lagrange[i].BigInt(new(big.Int)))
 
 		if i == 0 {
 			result.FromAffine(&scaled)

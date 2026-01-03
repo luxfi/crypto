@@ -8,8 +8,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"testing"
 
+	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/luxfi/crypto/lamport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -446,48 +449,111 @@ func TestBLSPrecompiles(t *testing.T) {
 	t.Run("BLSVerify", func(t *testing.T) {
 		verifier := &BLSVerify{}
 
-		// Create dummy input (placeholder implementation)
-		// Format: [96 bytes sig][48 bytes pubkey][message]
-		message := []byte("test message for BLS")
+		// Generate valid BLS key pair and signature
+		var scalar fr.Element
+		scalar.SetRandom()
+
+		// Generate public key: pk = g1 * scalar
+		_, _, g1Gen, _ := bls12381.Generators()
+		var pk bls12381.G1Affine
+		pk.ScalarMultiplication(&g1Gen, scalar.BigInt(new(big.Int)))
+
+		// The precompile uses raw message with nil DST
+		message := []byte("test message for BLS verification")
+		msgPoint, err := bls12381.HashToG2(message, nil) // nil DST to match precompile
+		require.NoError(t, err)
+
+		// Sign: sig = H(m) * scalar
+		var sig bls12381.G2Affine
+		sig.ScalarMultiplication(&msgPoint, scalar.BigInt(new(big.Int)))
+
+		// Build input: [96 bytes sig (G2 compressed)][48 bytes pubkey (G1 compressed)][message]
+		sigBytes := sig.Bytes()
+		pkBytes := pk.Bytes()
 		input := make([]byte, 96+48+len(message))
-		rand.Read(input[:96])    // Random signature
-		rand.Read(input[96:144]) // Random pubkey
+		copy(input[:96], sigBytes[:])
+		copy(input[96:144], pkBytes[:])
 		copy(input[144:], message)
 
 		// Test gas
 		gas := verifier.RequiredGas(input)
 		assert.Equal(t, uint64(150000), gas)
 
-		// Test run (placeholder always returns success)
+		// Test run - should verify successfully
 		output, err := verifier.Run(input)
 		require.NoError(t, err)
 		assert.Len(t, output, 32)
+		// Check that output indicates success (all zeros except last byte = 1)
+		expected := make([]byte, 32)
+		expected[31] = 1
+		assert.Equal(t, expected, output)
 	})
 
 	t.Run("BLSAggregateVerify", func(t *testing.T) {
 		aggVerifier := &BLSAggregateVerify{}
 
-		// Build aggregate input
-		// Format: [num_sigs(1)][signatures][pubkeys][encoded_messages]
 		numSigs := 3
-		sigSize := 96
-		pubSize := 48
+		sigSize := 96 // G2 compressed
+		pubSize := 48 // G1 compressed
 		msgSize := 32
 
-		totalSize := 1 + numSigs*(sigSize+pubSize+4+msgSize)
+		// Generate valid BLS signatures
+		var pubKeys []bls12381.G1Affine
+		var sigs []bls12381.G2Affine
+		var messages [][]byte
+
+		_, _, g1Gen, _ := bls12381.Generators()
+
+		for i := 0; i < numSigs; i++ {
+			var scalar fr.Element
+			scalar.SetRandom()
+
+			// Generate public key
+			var pk bls12381.G1Affine
+			pk.ScalarMultiplication(&g1Gen, scalar.BigInt(new(big.Int)))
+			pubKeys = append(pubKeys, pk)
+
+			// Create unique message
+			msg := make([]byte, 32)
+			msg[0] = byte(i)
+			rand.Read(msg[1:])
+			messages = append(messages, msg)
+
+			// Sign message with nil DST to match precompile
+			msgPoint, _ := bls12381.HashToG2(msg, nil)
+			var sig bls12381.G2Affine
+			sig.ScalarMultiplication(&msgPoint, scalar.BigInt(new(big.Int)))
+			sigs = append(sigs, sig)
+		}
+
+		// Aggregate signatures: aggSig = sig[0] + sig[1] + ... + sig[n-1]
+		var aggSig bls12381.G2Jac
+		for i, sig := range sigs {
+			if i == 0 {
+				aggSig.FromAffine(&sig)
+			} else {
+				var sigJac bls12381.G2Jac
+				sigJac.FromAffine(&sig)
+				aggSig.AddAssign(&sigJac)
+			}
+		}
+		var aggSigAffine bls12381.G2Affine
+		aggSigAffine.FromJacobian(&aggSig)
+
+		// Build input: [num_sigs (1)][aggregate_sig (96)][public_keys (n*48)][messages with length prefix]
+		totalSize := 1 + sigSize + numSigs*pubSize + numSigs*(4+msgSize)
 		input := make([]byte, totalSize)
 		input[0] = byte(numSigs)
 
-		offset := 1
-		// Add signatures
-		for i := 0; i < numSigs; i++ {
-			rand.Read(input[offset : offset+sigSize])
-			offset += sigSize
-		}
+		// Add aggregate signature
+		aggSigBytes := aggSigAffine.Bytes()
+		copy(input[1:1+sigSize], aggSigBytes[:])
 
+		offset := 1 + sigSize
 		// Add public keys
 		for i := 0; i < numSigs; i++ {
-			rand.Read(input[offset : offset+pubSize])
+			pkBytes := pubKeys[i].Bytes()
+			copy(input[offset:offset+pubSize], pkBytes[:])
 			offset += pubSize
 		}
 
@@ -495,17 +561,16 @@ func TestBLSPrecompiles(t *testing.T) {
 		for i := 0; i < numSigs; i++ {
 			binary.BigEndian.PutUint32(input[offset:offset+4], uint32(msgSize))
 			offset += 4
-			rand.Read(input[offset : offset+msgSize])
+			copy(input[offset:offset+msgSize], messages[i])
 			offset += msgSize
 		}
 
 		// Test gas
 		gas := aggVerifier.RequiredGas(input)
-		// blsAggregateVerifyGas = 200000, blsPerSignatureGas = 30000
 		expectedGas := uint64(200000 + 30000*uint64(numSigs))
 		assert.Equal(t, expectedGas, gas)
 
-		// Test run
+		// Test run - should verify successfully
 		output, err := aggVerifier.Run(input)
 		require.NoError(t, err)
 		assert.Len(t, output, 32)
@@ -514,16 +579,28 @@ func TestBLSPrecompiles(t *testing.T) {
 	t.Run("BLSPublicKeyAggregate", func(t *testing.T) {
 		aggregator := &BLSPublicKeyAggregate{}
 
-		// Build input
+		// Build input with valid BLS public keys
 		// Format: [num_keys(1)][pubkeys...]
 		numKeys := 5
-		pubSize := 48
+		pubSize := 48 // G1 compressed size
 
 		input := make([]byte, 1+numKeys*pubSize)
 		input[0] = byte(numKeys)
 
+		// Generate valid BLS public keys
 		for i := 0; i < numKeys; i++ {
-			rand.Read(input[1+i*pubSize : 1+(i+1)*pubSize])
+			// Generate random scalar
+			var scalar fr.Element
+			scalar.SetRandom()
+
+			// Compute public key: pk = g1 * scalar
+			_, _, g1Gen, _ := bls12381.Generators()
+			var pk bls12381.G1Affine
+			pk.ScalarMultiplication(&g1Gen, scalar.BigInt(new(big.Int)))
+
+			// Serialize to compressed format
+			pkBytes := pk.Bytes()
+			copy(input[1+i*pubSize:1+(i+1)*pubSize], pkBytes[:])
 		}
 
 		// Test gas
