@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build luxgpu && darwin
+//go:build cgo && metal && darwin
 
 // Package gpu provides GPU-accelerated Poseidon2 hash functions via Metal.
 // This package links to luxcpp/crypto for hardware acceleration.
