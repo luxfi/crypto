@@ -1469,38 +1469,43 @@ New package for anonymous group signing (LSAG - Linkable Spontaneous Anonymous G
 
 ---
 
-## GPU-Accelerated ZK Operations (2026-01-02) - COMPLETED
+## GPU-Accelerated ZK Operations (2026-01-03) - UNIFIED ARCHITECTURE
 
 ### Overview
 
 The `gpu/` package provides GPU-accelerated ZK cryptographic operations with automatic threshold-based routing between CPU and GPU execution paths.
 
-### Architecture
+### Architecture (Unified GPU Stack)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    gpu/zk.go                            │
+│              crypto/gpu/zk.go                           │
 │  - Threshold-gated routing (CPU vs GPU)                 │
 │  - CPU fallback via gnark-crypto                        │
-│  - GPUHooks interface for platform injection            │
+│  - Uses github.com/luxfi/gpu for GPU ops                │
 └──────────────────────────┬──────────────────────────────┘
                            │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ gpu/zk_metal.go │ │ gpu/zk_cuda.go  │ │ (future backends)│
-│ (darwin,arm64)  │ │ (linux,nvidia)  │ │                  │
-│ CGO + Metal     │ │ CGO + CUDA      │ │                  │
-└────────┬────────┘ └────────┬────────┘ └──────────────────┘
-         │                   │
-         └───────────────────┘
-                   │
-         ┌────────▼────────┐
-         │ luxcpp/crypto    │
-         │ C/C++ + Metal    │
-         │ v0.1.0           │
-         └─────────────────┘
+                           ▼
+         ┌─────────────────────────────────────┐
+         │        github.com/luxfi/gpu         │
+         │   Go bindings to luxcpp/gpu (MLX)   │
+         │                                     │
+         │  zk.go (non-CGO stub)               │
+         │  zk_cgo.go (CGO bindings)           │
+         └──────────────────┬──────────────────┘
+                            │
+                            ▼
+         ┌─────────────────────────────────────┐
+         │          luxcpp/gpu (MLX)           │
+         │   Unified Metal/CUDA/CPU backend    │
+         │                                     │
+         │  mlx/zk/zk.cpp     - C++ impl       │
+         │  mlx/zk/zk_c_api.h - C API          │
+         └─────────────────────────────────────┘
 ```
+
+**Key Change (2026-01-03)**: Removed separate platform files (`zk_metal.go`, `zk_cuda.go`)
+in favor of the unified `github.com/luxfi/gpu` package which handles all backends via MLX.
 
 ### Threshold Constants (Tuned for Apple Silicon)
 
@@ -1517,9 +1522,9 @@ Below threshold: CPU (lower latency). Above threshold: GPU (higher throughput).
 ### Core Types
 
 ```go
-// Fr256 represents a 256-bit field element (BN254 scalar field).
+// Fr256 is a type alias to luxgpu.Fr256 - 256-bit field element (BN254 scalar field).
 // Uses 4 x 64-bit limbs in little-endian order.
-type Fr256 [4]uint64
+type Fr256 = luxgpu.Fr256  // [4]uint64
 
 // ZKContext provides GPU-accelerated ZK operations with automatic routing.
 type ZKContext struct {
@@ -1528,17 +1533,10 @@ type ZKContext struct {
     gpuCalls   int64
     cpuCalls   int64
 }
-
-// GPUHooks contains function pointers to GPU implementations.
-// Set by platform-specific init() functions (zk_metal.go, zk_cuda.go).
-type GPUHooks struct {
-    HashPair        func(left, right []Fr256) ([]Fr256, error)
-    MerkleLayer     func(nodes []Fr256) ([]Fr256, error)
-    MerkleTree      func(leaves []Fr256) ([]Fr256, error)
-    BatchCommitment func(values, blindings, salts []Fr256) ([]Fr256, error)
-    BatchNullifier  func(keys, commitments, indices []Fr256) ([]Fr256, error)
-}
 ```
+
+**Note**: `Fr256` is now a type alias to `github.com/luxfi/gpu.Fr256`, ensuring consistent
+type representation across the GPU stack.
 
 ### Operations
 
@@ -1597,14 +1595,24 @@ CGO_ENABLED=1 go build -tags "gpu" ./...
 
 | File | Purpose |
 |------|---------|
-| `gpu/zk.go` | Core ZK operations, threshold routing, CPU fallback |
-| `gpu/zk_metal.go` | Metal CGO bindings (darwin,arm64) |
+| `gpu/zk.go` | Core ZK operations, threshold routing, CPU fallback via gnark-crypto |
 | `gpu/zk_test.go` | Tests for ZK operations |
 
 ### Dependencies
 
+- `github.com/luxfi/gpu` - Unified GPU bindings (wraps luxcpp/gpu)
 - `github.com/consensys/gnark-crypto` - CPU Poseidon2 via BN254/Fr
-- `luxcpp/crypto v0.1.0` - C/C++ Metal shaders (optional, for GPU)
+
+### GPU Stack (luxcpp/gpu)
+
+| File | Purpose |
+|------|---------|
+| `lux/gpu/zk.go` | Non-CGO stub (returns ErrZKNotAvailable) |
+| `lux/gpu/zk_cgo.go` | CGO bindings to luxcpp/gpu |
+| `luxcpp/gpu/mlx/zk/zk.h` | C++ ZK operations header |
+| `luxcpp/gpu/mlx/zk/zk.cpp` | C++ ZK implementation using MLX |
+| `luxcpp/gpu/mlx/zk/zk_c_api.h` | C API for Go bindings |
+| `luxcpp/gpu/mlx/zk/zk_c_api.cpp` | C API implementation |
 
 ### Test Coverage
 
@@ -1615,13 +1623,14 @@ All tests pass in both CGO and non-CGO modes:
 CGO_ENABLED=0 go test ./gpu/...
 
 # CGO (with GPU if available)
-CGO_ENABLED=1 go test -tags gpu ./gpu/...
+CGO_ENABLED=1 go test ./gpu/...
 ```
 
 ### Published Versions
 
-- `github.com/luxfi/crypto v1.17.35` - Go package with GPU ZK operations
-- `github.com/luxcpp/crypto v0.1.0` - C++ Metal shaders and C API
+- `github.com/luxfi/crypto` - Go package with GPU ZK operations
+- `github.com/luxfi/gpu` - Go bindings to unified GPU (Metal/CUDA/CPU)
+- `luxcpp/gpu` - C++ MLX-based GPU library
 
 ---
 
