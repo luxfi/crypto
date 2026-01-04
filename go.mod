@@ -16,6 +16,7 @@ require (
 	github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
 	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/cache v1.1.0
+	github.com/luxfi/gpu v0.29.4
 	github.com/luxfi/ids v1.2.4
 	github.com/luxfi/log v1.1.26
 	github.com/mr-tron/base58 v1.2.0

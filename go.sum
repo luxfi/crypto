@@ -209,6 +209,8 @@ github.com/leanovate/gopter v0.2.11 h1:vRjThO1EKPb/1NsDXuDrzldR28RLkBflWYcU9CvzW
 github.com/leanovate/gopter v0.2.11/go.mod h1:aK3tzZP/C+p1m3SPRE4SYZFGP7jjkuSI4f7Xvpt0S9c=
 github.com/luxfi/cache v1.1.0 h1:6LUyGGZ+rrMAJBbAU6+UwkcamXj3zsboRUodIof2Ong=
 github.com/luxfi/cache v1.1.0/go.mod h1:9GvlEEE9rFPaaWxvVpSPwW8ZMo2+8VMNNcuPa4AwzPg=
+github.com/luxfi/gpu v0.29.4 h1:0eCgEbffLayTLaPYLkXx5IbL2490r5jqZAKoSfkVVZI=
+github.com/luxfi/gpu v0.29.4/go.mod h1:7pFsHqra1Vrmy2aGXVEPKeKsPR+Bn+QmBXuByK3fdPA=
 github.com/luxfi/ids v1.2.4 h1:e0OaeSI6xWjS9JnxxxfvCCs9HHDUrwDc3M9ctIhjcDI=
 github.com/luxfi/ids v1.2.4/go.mod h1:HwvRJSNbuZS+u+0JqeHfPX2S13iFyLCnfGxjBCmt244=
 github.com/luxfi/log v1.1.26 h1:ECnJ4wV7TF6WZ5gC6CD6ddZ4OhF+zhQij4bgVUhumDg=
