@@ -1,8 +1,9 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build cgo && metal && (darwin || linux)
+//go:build luxgpu
 
+// NOTE: Requires luxcpp/crypto. Build with: go build -tags=luxgpu
 // Package gpu provides GPU-accelerated SLH-DSA operations via Metal/CUDA.
 // This package links to luxcpp/crypto for hardware acceleration.
 // The C++ library handles automatic fallback to CPU when GPU is unavailable.
@@ -12,9 +13,9 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../../luxcpp/crypto/include
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
-#cgo linux LDFLAGS: -L${SRCDIR}/../../../../../../luxcpp/crypto/build-local -lluxcrypto
+#cgo CFLAGS: -I${SRCDIR}/../../../../../luxcpp/crypto/include
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo linux LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto
 
 #include <stdint.h>
 #include <stdlib.h>
