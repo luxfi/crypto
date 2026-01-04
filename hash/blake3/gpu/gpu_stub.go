@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build !luxgpu
+//go:build !cgo
 
 // Package gpu provides GPU-accelerated Blake3 hash functions.
 // This is the stub implementation when GPU acceleration is not available.
