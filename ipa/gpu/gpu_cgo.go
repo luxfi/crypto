@@ -9,8 +9,9 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../luxcpp/crypto/include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo pkg-config: lux-crypto-only
+#cgo darwin LDFLAGS: -framework Metal -framework Foundation
+#cgo linux LDFLAGS: 
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -20,6 +21,7 @@ package gpu
 import "C"
 
 import (
+	"encoding/binary"
 	"errors"
 	"unsafe"
 
@@ -29,9 +31,9 @@ import (
 
 // Thresholds for GPU batch operations
 const (
-	MSMThreshold       = 64  // Min points for GPU MSM
-	PedersenThreshold  = 32  // Min values for GPU Pedersen commit
-	IPAVerifyThreshold = 16  // Min proofs for GPU IPA verify
+	MSMThreshold       = 64 // Min points for GPU MSM
+	PedersenThreshold  = 32 // Min values for GPU Pedersen commit
+	IPAVerifyThreshold = 16 // Min proofs for GPU IPA verify
 )
 
 var (
@@ -57,6 +59,38 @@ func Available() bool {
 	return bool(C.metal_ipa_available())
 }
 
+// bytesToScalar converts 32-byte big-endian to C.BanderwagonScalar (4 x uint64 limbs, little-endian).
+func bytesToScalar(b []byte) C.BanderwagonScalar {
+	var s C.BanderwagonScalar
+	// Convert big-endian bytes to little-endian limbs
+	// b[0:8] -> limbs[3], b[8:16] -> limbs[2], b[16:24] -> limbs[1], b[24:32] -> limbs[0]
+	s.limbs[0] = C.uint64_t(binary.BigEndian.Uint64(b[24:32]))
+	s.limbs[1] = C.uint64_t(binary.BigEndian.Uint64(b[16:24]))
+	s.limbs[2] = C.uint64_t(binary.BigEndian.Uint64(b[8:16]))
+	s.limbs[3] = C.uint64_t(binary.BigEndian.Uint64(b[0:8]))
+	return s
+}
+
+// pointToAffine converts banderwagon.Element to C.BanderwagonAffine using serialization.
+func pointToAffine(p *banderwagon.Element) C.BanderwagonAffine {
+	var affine C.BanderwagonAffine
+	bytes := p.Bytes()
+	// Use deserialize to get proper affine coordinates
+	C.metal_ipa_point_deserialize(&affine, (*C.uint8_t)(unsafe.Pointer(&bytes[0])))
+	return affine
+}
+
+// affineToPoint converts C.BanderwagonAffine to banderwagon.Element using serialization.
+func affineToPoint(affine *C.BanderwagonAffine) (*banderwagon.Element, error) {
+	var bytes [32]byte
+	C.metal_ipa_point_serialize((*C.uint8_t)(unsafe.Pointer(&bytes[0])), affine)
+	var result banderwagon.Element
+	if err := result.SetBytes(bytes[:]); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // MSM performs multi-scalar multiplication on Banderwagon points using GPU.
 // result = sum_i (scalars[i] * points[i])
 func MSM(points []banderwagon.Element, scalars []fr.Element) (*banderwagon.Element, error) {
@@ -78,33 +112,27 @@ func MSM(points []banderwagon.Element, scalars []fr.Element) (*banderwagon.Eleme
 		return &result, err
 	}
 
-	// Convert points to C format (affine coordinates)
-	cPoints := make([]C.BanderwagonAffine, n)
-	for i := 0; i < n; i++ {
-		bytes := points[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cPoints[i].x.bytes[j] = C.uint8_t(bytes[j])
-		}
-		// Y coordinate derived from X in banderwagon (not stored)
-	}
-
 	// Convert scalars to C format
 	cScalars := make([]C.BanderwagonScalar, n)
 	for i := 0; i < n; i++ {
 		bytes := scalars[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cScalars[i].bytes[j] = C.uint8_t(bytes[j])
-		}
+		cScalars[i] = bytesToScalar(bytes[:])
 	}
 
-	// Allocate result
-	var cResult C.BanderwagonExtended
+	// Convert points to C format
+	cPoints := make([]C.BanderwagonAffine, n)
+	for i := 0; i < n; i++ {
+		cPoints[i] = pointToAffine(&points[i])
+	}
+
+	// Allocate result (API uses BanderwagonAffine for result)
+	var cResult C.BanderwagonAffine
 
 	ret := C.metal_ipa_msm(
 		ctx,
 		&cResult,
-		(*C.BanderwagonAffine)(unsafe.Pointer(&cPoints[0])),
 		(*C.BanderwagonScalar)(unsafe.Pointer(&cScalars[0])),
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cPoints[0])),
 		C.uint32_t(n),
 	)
 
@@ -115,18 +143,7 @@ func MSM(points []banderwagon.Element, scalars []fr.Element) (*banderwagon.Eleme
 		return &result, err
 	}
 
-	// Convert result back to Go type
-	var resultBytes [32]byte
-	for i := 0; i < 32; i++ {
-		resultBytes[i] = byte(cResult.x.bytes[i])
-	}
-
-	var result banderwagon.Element
-	if err := result.SetBytes(resultBytes[:]); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
+	return affineToPoint(&cResult)
 }
 
 // BatchMSM performs multiple MSM operations in parallel on GPU.
@@ -162,42 +179,47 @@ func BatchMSM(pointSets [][]banderwagon.Element, scalarSets [][]fr.Element) ([]*
 		return results, nil
 	}
 
-	// Prepare batch data
-	counts := make([]C.uint32_t, n)
-	totalPoints := 0
-	for i := 0; i < n; i++ {
-		counts[i] = C.uint32_t(len(pointSets[i]))
-		totalPoints += len(pointSets[i])
-	}
-
-	// Flatten all points and scalars
-	allPoints := make([]C.BanderwagonAffine, totalPoints)
-	allScalars := make([]C.BanderwagonScalar, totalPoints)
-	idx := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < len(pointSets[i]); j++ {
-			bytes := pointSets[i][j].Bytes()
-			for k := 0; k < 32; k++ {
-				allPoints[idx].x.bytes[k] = C.uint8_t(bytes[k])
+	// Determine vector size (all must be same size for batch_msm)
+	vectorSize := len(pointSets[0])
+	for i := 1; i < n; i++ {
+		if len(pointSets[i]) != vectorSize || len(scalarSets[i]) != vectorSize {
+			// Fall back to sequential if sizes differ
+			for j := 0; j < n; j++ {
+				result, err := MSM(pointSets[j], scalarSets[j])
+				if err != nil {
+					return nil, err
+				}
+				results[j] = result
 			}
-			sBytes := scalarSets[i][j].Bytes()
-			for k := 0; k < 32; k++ {
-				allScalars[idx].bytes[k] = C.uint8_t(sBytes[k])
-			}
-			idx++
+			return results, nil
 		}
 	}
 
+	// Flatten all scalars
+	allScalars := make([]C.BanderwagonScalar, n*vectorSize)
+	for i := 0; i < n; i++ {
+		for j := 0; j < vectorSize; j++ {
+			bytes := scalarSets[i][j].Bytes()
+			allScalars[i*vectorSize+j] = bytesToScalar(bytes[:])
+		}
+	}
+
+	// Convert shared basis points
+	cPoints := make([]C.BanderwagonAffine, vectorSize)
+	for j := 0; j < vectorSize; j++ {
+		cPoints[j] = pointToAffine(&pointSets[0][j])
+	}
+
 	// Allocate results
-	cResults := make([]C.BanderwagonExtended, n)
+	cResults := make([]C.BanderwagonAffine, n)
 
 	ret := C.metal_ipa_batch_msm(
 		ctx,
-		(*C.BanderwagonExtended)(unsafe.Pointer(&cResults[0])),
-		(*C.BanderwagonAffine)(unsafe.Pointer(&allPoints[0])),
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cResults[0])),
 		(*C.BanderwagonScalar)(unsafe.Pointer(&allScalars[0])),
-		(*C.uint32_t)(unsafe.Pointer(&counts[0])),
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cPoints[0])),
 		C.uint32_t(n),
+		C.uint32_t(vectorSize),
 	)
 
 	if ret != C.METAL_IPA_SUCCESS {
@@ -214,15 +236,11 @@ func BatchMSM(pointSets [][]banderwagon.Element, scalarSets [][]fr.Element) ([]*
 
 	// Convert results
 	for i := 0; i < n; i++ {
-		var resultBytes [32]byte
-		for j := 0; j < 32; j++ {
-			resultBytes[j] = byte(cResults[i].x.bytes[j])
-		}
-		var elem banderwagon.Element
-		if err := elem.SetBytes(resultBytes[:]); err != nil {
+		result, err := affineToPoint(&cResults[i])
+		if err != nil {
 			return nil, err
 		}
-		results[i] = &elem
+		results[i] = result
 	}
 
 	return results, nil
@@ -255,7 +273,7 @@ func BatchPedersenCommit(basis []banderwagon.Element, valueSets [][]fr.Element) 
 
 // VerkleCommitNode computes a Verkle tree internal node commitment.
 // Uses width-256 Pedersen commitment optimized for Verkle trees.
-func VerkleCommitNode(children []banderwagon.Element) (*banderwagon.Element, error) {
+func VerkleCommitNode(children []banderwagon.Element, stem []byte) (*banderwagon.Element, error) {
 	if len(children) != 256 {
 		return nil, errors.New("Verkle node requires exactly 256 children")
 	}
@@ -282,20 +300,24 @@ func VerkleCommitNode(children []banderwagon.Element) (*banderwagon.Element, err
 	}
 
 	// Convert children to C format
-	cChildren := make([]C.BanderwagonExtended, 256)
+	cChildren := make([]C.BanderwagonAffine, 256)
 	for i := 0; i < 256; i++ {
-		bytes := children[i].Bytes()
-		for j := 0; j < 32; j++ {
-			cChildren[i].x.bytes[j] = C.uint8_t(bytes[j])
-		}
+		cChildren[i] = pointToAffine(&children[i])
 	}
 
-	var cResult C.BanderwagonExtended
+	// Prepare stem (pad to 32 bytes if needed)
+	var stemBytes [32]byte
+	if len(stem) > 0 {
+		copy(stemBytes[:], stem)
+	}
+
+	var cResult C.BanderwagonAffine
 
 	ret := C.metal_verkle_commit_node(
 		ctx,
 		&cResult,
-		(*C.BanderwagonExtended)(unsafe.Pointer(&cChildren[0])),
+		(*C.BanderwagonAffine)(unsafe.Pointer(&cChildren[0])),
+		(*C.uint8_t)(unsafe.Pointer(&stemBytes[0])),
 	)
 
 	if ret != C.METAL_IPA_SUCCESS {
@@ -309,18 +331,7 @@ func VerkleCommitNode(children []banderwagon.Element) (*banderwagon.Element, err
 		return &result, err
 	}
 
-	// Convert result
-	var resultBytes [32]byte
-	for i := 0; i < 32; i++ {
-		resultBytes[i] = byte(cResult.x.bytes[i])
-	}
-
-	var result banderwagon.Element
-	if err := result.SetBytes(resultBytes[:]); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
+	return affineToPoint(&cResult)
 }
 
 // Destroy releases the Metal IPA context.

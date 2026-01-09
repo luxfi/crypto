@@ -13,9 +13,9 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../luxcpp/crypto/include
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
-#cgo linux LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto
+#cgo pkg-config: lux-crypto-only
+#cgo darwin LDFLAGS: -framework Metal -framework Foundation
+#cgo linux LDFLAGS: 
 
 #include <stdint.h>
 #include <stdlib.h>
