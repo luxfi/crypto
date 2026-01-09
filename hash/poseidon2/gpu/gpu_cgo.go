@@ -10,13 +10,14 @@
 package gpu
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../luxcpp/crypto/include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../../luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo CFLAGS: -I/Users/z/work/luxcpp/crypto/include
+#cgo darwin LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+#cgo linux LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "lux/crypto/metal_zk.h"
+#include "lux/crypto/metal_poseidon2.h"
 */
 import "C"
 
@@ -32,20 +33,23 @@ const ElementSize = 32
 // Stored as 4 x 64-bit limbs in little-endian order.
 type Element [ElementSize]byte
 
-// context is the global Metal ZK context (initialized on first use).
+// Threshold for GPU batch operations
+const GPUThreshold = 64
+
+// context is the global Metal Poseidon2 context (initialized on first use).
 var (
-	ctx      *C.MetalZKContext
+	ctx      *C.MetalPoseidon2Context
 	ctxReady bool
 )
 
-// initContext lazily initializes the Metal ZK context.
+// initContext lazily initializes the Metal Poseidon2 context.
 func initContext() error {
 	if ctxReady {
 		return nil
 	}
-	ctx = C.metal_zk_init()
+	ctx = C.metal_poseidon2_init()
 	if ctx == nil {
-		return errors.New("Metal ZK initialization failed")
+		return errors.New("Metal Poseidon2 initialization failed")
 	}
 	ctxReady = true
 	return nil
@@ -53,12 +57,12 @@ func initContext() error {
 
 // Available returns true if Metal GPU acceleration is available.
 func Available() bool {
-	return bool(C.metal_zk_available())
+	return bool(C.metal_poseidon2_available())
 }
 
 // Threshold returns the recommended batch size for GPU offload.
 func Threshold() uint32 {
-	return uint32(C.metal_zk_get_threshold(C.METAL_ZK_OP_POSEIDON2_HASH))
+	return GPUThreshold
 }
 
 // HashPair computes Poseidon2 hash of two elements (2-to-1 compression).
@@ -69,12 +73,14 @@ func HashPair(left, right Element) (Element, error) {
 		return out, err
 	}
 
-	leftFr := (*C.Fr256)(unsafe.Pointer(&left[0]))
-	rightFr := (*C.Fr256)(unsafe.Pointer(&right[0]))
-	outFr := (*C.Fr256)(unsafe.Pointer(&out[0]))
-
-	ret := C.metal_zk_poseidon2_hash_pair(ctx, outFr, leftFr, rightFr, 1)
-	if ret != C.METAL_ZK_SUCCESS {
+	ret := C.metal_poseidon2_compress(
+		ctx,
+		C.POSEIDON2_BN254,
+		unsafe.Pointer(&out[0]),
+		unsafe.Pointer(&left[0]),
+		unsafe.Pointer(&right[0]),
+	)
+	if ret != C.METAL_POSEIDON2_SUCCESS {
 		return out, errors.New("Poseidon2 hash pair failed")
 	}
 	return out, nil
@@ -94,12 +100,15 @@ func BatchHashPair(left, right []Element) ([]Element, error) {
 	outputs := make([]Element, n)
 
 	// GPU batch processing
-	leftFr := (*C.Fr256)(unsafe.Pointer(&left[0]))
-	rightFr := (*C.Fr256)(unsafe.Pointer(&right[0]))
-	outFr := (*C.Fr256)(unsafe.Pointer(&outputs[0]))
-
-	ret := C.metal_zk_poseidon2_hash_pair(ctx, outFr, leftFr, rightFr, C.uint32_t(n))
-	if ret != C.METAL_ZK_SUCCESS {
+	ret := C.metal_poseidon2_batch_compress(
+		ctx,
+		C.POSEIDON2_BN254,
+		unsafe.Pointer(&outputs[0]),
+		unsafe.Pointer(&left[0]),
+		unsafe.Pointer(&right[0]),
+		C.uint32_t(n),
+	)
+	if ret != C.METAL_POSEIDON2_SUCCESS {
 		return nil, errors.New("Poseidon2 batch hash pair failed")
 	}
 	return outputs, nil
@@ -116,15 +125,16 @@ func MerkleLayer(current []Element) ([]Element, error) {
 		return nil, err
 	}
 
-	output := make([]Element, n/2)
-	currentFr := (*C.Fr256)(unsafe.Pointer(&current[0]))
-	outFr := (*C.Fr256)(unsafe.Pointer(&output[0]))
-
-	ret := C.metal_zk_poseidon2_merkle_layer(ctx, outFr, currentFr, C.uint32_t(n))
-	if ret != C.METAL_ZK_SUCCESS {
-		return nil, errors.New("Poseidon2 Merkle layer failed")
+	// Split into left and right halves for batch compress
+	numPairs := n / 2
+	lefts := make([]Element, numPairs)
+	rights := make([]Element, numPairs)
+	for i := 0; i < numPairs; i++ {
+		lefts[i] = current[i*2]
+		rights[i] = current[i*2+1]
 	}
-	return output, nil
+
+	return BatchHashPair(lefts, rights)
 }
 
 // MerkleTree builds a complete Merkle tree from leaves using GPU.
@@ -141,11 +151,15 @@ func MerkleTree(leaves []Element) ([]Element, error) {
 
 	// Tree has n-1 internal nodes
 	tree := make([]Element, n-1)
-	leavesFr := (*C.Fr256)(unsafe.Pointer(&leaves[0]))
-	treeFr := (*C.Fr256)(unsafe.Pointer(&tree[0]))
 
-	ret := C.metal_zk_poseidon2_merkle_tree(ctx, treeFr, leavesFr, C.uint32_t(n))
-	if ret != C.METAL_ZK_SUCCESS {
+	ret := C.metal_poseidon2_merkle_tree(
+		ctx,
+		C.POSEIDON2_BN254,
+		unsafe.Pointer(&tree[0]),
+		unsafe.Pointer(&leaves[0]),
+		C.uint32_t(n),
+	)
+	if ret != C.METAL_POSEIDON2_SUCCESS {
 		return nil, errors.New("Poseidon2 Merkle tree failed")
 	}
 	return tree, nil
@@ -154,12 +168,19 @@ func MerkleTree(leaves []Element) ([]Element, error) {
 // MerkleRoot computes just the Merkle root from leaves.
 func MerkleRoot(leaves []Element) (Element, error) {
 	var root Element
-	tree, err := MerkleTree(leaves)
-	if err != nil {
+	if err := initContext(); err != nil {
 		return root, err
 	}
-	if len(tree) > 0 {
-		root = tree[0]
+
+	ret := C.metal_poseidon2_merkle_root(
+		ctx,
+		C.POSEIDON2_BN254,
+		unsafe.Pointer(&root[0]),
+		unsafe.Pointer(&leaves[0]),
+		C.uint32_t(len(leaves)),
+	)
+	if ret != C.METAL_POSEIDON2_SUCCESS {
+		return root, errors.New("Poseidon2 Merkle root failed")
 	}
 	return root, nil
 }
@@ -167,72 +188,62 @@ func MerkleRoot(leaves []Element) (Element, error) {
 // VerifyProof verifies a single Merkle proof.
 // Returns true if the proof is valid.
 func VerifyProof(leaf, root Element, path []Element, indices []uint32) (bool, error) {
-	results, err := BatchVerifyProofs([]Element{leaf}, []Element{root}, [][]Element{path}, [][]uint32{indices})
-	if err != nil {
+	if len(path) != len(indices) {
+		return false, errors.New("path length mismatch")
+	}
+	if err := initContext(); err != nil {
 		return false, err
 	}
-	return results[0], nil
+
+	depth := len(path)
+	if depth == 0 {
+		// Single node tree
+		return leaf == root, nil
+	}
+
+	ret := C.metal_poseidon2_merkle_verify(
+		ctx,
+		C.POSEIDON2_BN254,
+		unsafe.Pointer(&root[0]),
+		unsafe.Pointer(&leaf[0]),
+		unsafe.Pointer(&path[0]),
+		C.uint32_t(indices[0]), // leaf index
+		C.uint32_t(depth),
+	)
+
+	return ret == C.METAL_POSEIDON2_SUCCESS, nil
 }
 
 // BatchVerifyProofs verifies multiple Merkle proofs in parallel on GPU.
+// Note: This implementation falls back to sequential verification as
+// the metal_poseidon2 API doesn't have a batch verify function.
 func BatchVerifyProofs(leaves, roots []Element, paths [][]Element, indices [][]uint32) ([]bool, error) {
 	n := len(leaves)
 	if n == 0 || n != len(roots) || n != len(paths) || n != len(indices) {
 		return nil, errors.New("invalid input lengths")
 	}
-	if n > 0 && len(paths[0]) != len(indices[0]) {
-		return nil, errors.New("path length mismatch")
-	}
-	if err := initContext(); err != nil {
-		return nil, err
-	}
 
-	pathLen := len(paths[0])
-	results := make([]C.int, n)
-
-	// Flatten paths and indices
-	flatPaths := make([]Element, n*pathLen)
-	flatIndices := make([]uint32, n*pathLen)
+	results := make([]bool, n)
 	for i := 0; i < n; i++ {
-		copy(flatPaths[i*pathLen:], paths[i])
-		copy(flatIndices[i*pathLen:], indices[i])
+		valid, err := VerifyProof(leaves[i], roots[i], paths[i], indices[i])
+		if err != nil {
+			return nil, err
+		}
+		results[i] = valid
 	}
-
-	leavesFr := (*C.Fr256)(unsafe.Pointer(&leaves[0]))
-	rootsFr := (*C.Fr256)(unsafe.Pointer(&roots[0]))
-	pathsFr := (*C.Fr256)(unsafe.Pointer(&flatPaths[0]))
-	indicesPtr := (*C.uint32_t)(unsafe.Pointer(&flatIndices[0]))
-	resultsPtr := (*C.int)(unsafe.Pointer(&results[0]))
-
-	ret := C.metal_zk_poseidon2_verify_proofs(
-		ctx,
-		resultsPtr,
-		leavesFr,
-		pathsFr,
-		indicesPtr,
-		rootsFr,
-		C.uint32_t(n),
-		C.uint32_t(pathLen),
-	)
-	if ret != C.METAL_ZK_SUCCESS {
-		return nil, errors.New("Poseidon2 batch verify proofs failed")
-	}
-
-	boolResults := make([]bool, n)
-	for i := 0; i < n; i++ {
-		boolResults[i] = results[i] != 0
-	}
-	return boolResults, nil
+	return results, nil
 }
 
 // Commitment computes a Pedersen-style commitment using Poseidon2.
 // commitment = Poseidon2(value, blinding, salt)
 func Commitment(value, blinding, salt Element) (Element, error) {
-	commitments, err := BatchCommitment([]Element{value}, []Element{blinding}, []Element{salt})
+	// First hash value and blinding
+	temp, err := HashPair(value, blinding)
 	if err != nil {
 		return Element{}, err
 	}
-	return commitments[0], nil
+	// Then hash result with salt
+	return HashPair(temp, salt)
 }
 
 // BatchCommitment computes multiple commitments in parallel on GPU.
@@ -241,31 +252,26 @@ func BatchCommitment(values, blindings, salts []Element) ([]Element, error) {
 	if n == 0 || n != len(blindings) || n != len(salts) {
 		return nil, errors.New("invalid input lengths")
 	}
-	if err := initContext(); err != nil {
+
+	// First hash values and blindings
+	temps, err := BatchHashPair(values, blindings)
+	if err != nil {
 		return nil, err
 	}
-
-	outputs := make([]Element, n)
-	valuesFr := (*C.Fr256)(unsafe.Pointer(&values[0]))
-	blindingsFr := (*C.Fr256)(unsafe.Pointer(&blindings[0]))
-	saltsFr := (*C.Fr256)(unsafe.Pointer(&salts[0]))
-	outFr := (*C.Fr256)(unsafe.Pointer(&outputs[0]))
-
-	ret := C.metal_zk_batch_commitment(ctx, outFr, valuesFr, blindingsFr, saltsFr, C.uint32_t(n))
-	if ret != C.METAL_ZK_SUCCESS {
-		return nil, errors.New("Poseidon2 batch commitment failed")
-	}
-	return outputs, nil
+	// Then hash results with salts
+	return BatchHashPair(temps, salts)
 }
 
 // Nullifier computes a nullifier for spending a note.
 // nullifier = Poseidon2(key, commitment, index)
 func Nullifier(key, commitment, index Element) (Element, error) {
-	nullifiers, err := BatchNullifier([]Element{key}, []Element{commitment}, []Element{index})
+	// First hash key and commitment
+	temp, err := HashPair(key, commitment)
 	if err != nil {
 		return Element{}, err
 	}
-	return nullifiers[0], nil
+	// Then hash result with index
+	return HashPair(temp, index)
 }
 
 // BatchNullifier computes multiple nullifiers in parallel on GPU.
@@ -274,28 +280,21 @@ func BatchNullifier(keys, commitments, indices []Element) ([]Element, error) {
 	if n == 0 || n != len(commitments) || n != len(indices) {
 		return nil, errors.New("invalid input lengths")
 	}
-	if err := initContext(); err != nil {
+
+	// First hash keys and commitments
+	temps, err := BatchHashPair(keys, commitments)
+	if err != nil {
 		return nil, err
 	}
-
-	outputs := make([]Element, n)
-	keysFr := (*C.Fr256)(unsafe.Pointer(&keys[0]))
-	commitmentsFr := (*C.Fr256)(unsafe.Pointer(&commitments[0]))
-	indicesFr := (*C.Fr256)(unsafe.Pointer(&indices[0]))
-	outFr := (*C.Fr256)(unsafe.Pointer(&outputs[0]))
-
-	ret := C.metal_zk_batch_nullifier(ctx, outFr, keysFr, commitmentsFr, indicesFr, C.uint32_t(n))
-	if ret != C.METAL_ZK_SUCCESS {
-		return nil, errors.New("Poseidon2 batch nullifier failed")
-	}
-	return outputs, nil
+	// Then hash results with indices
+	return BatchHashPair(temps, indices)
 }
 
-// Destroy releases the Metal ZK context.
+// Destroy releases the Metal Poseidon2 context.
 // Should be called when done with GPU operations.
 func Destroy() {
 	if ctxReady && ctx != nil {
-		C.metal_zk_destroy(ctx)
+		C.metal_poseidon2_destroy(ctx)
 		ctx = nil
 		ctxReady = false
 	}
