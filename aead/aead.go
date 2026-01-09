@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"golang.org/x/crypto/chacha20poly1305"
+	"crypto/chacha20poly1305"
 )
 
 // AeadID identifies an AEAD algorithm
