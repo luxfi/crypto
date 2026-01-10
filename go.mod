@@ -1,6 +1,6 @@
 module github.com/luxfi/crypto
 
-go 1.25.5
+go 1.22
 
 exclude github.com/luxfi/geth v1.16.1
 
