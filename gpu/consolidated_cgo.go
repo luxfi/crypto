@@ -1,5 +1,5 @@
-//go:build cgo
-// +build cgo
+//go:build cgo && gpu
+// +build cgo,gpu
 
 // Consolidated cgo wrapper to avoid duplicate linking
 package gpu
