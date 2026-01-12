@@ -1,5 +1,4 @@
 //go:build cgo
-// +build cgo
 
 // Centralized cgo wrapper to avoid duplicate linking
 // All other packages should import this instead of having their own cgo directives

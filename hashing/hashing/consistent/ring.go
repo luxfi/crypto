@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/btree"
 
-	"github.com/luxfi/crypto/hash"
+	"github.com/luxfi/crypto/hashing/hashing"
 )
 
 var (
@@ -149,7 +149,7 @@ type ringMutator interface {
 // hashRing is an implementation of Ring
 type hashRing struct {
 	// Hashing algorithm to use when hashing keys.
-	hasher hash.Hasher
+	hasher hashing.Hasher
 
 	// Replication factor for nodes; must be greater than zero.
 	virtualNodes int
@@ -163,7 +163,7 @@ type RingConfig struct {
 	// Replication factor for nodes in the ring.
 	VirtualNodes int
 	// Hashing implementation to use.
-	Hasher hash.Hasher
+	Hasher hashing.Hasher
 	// Degree represents the degree of the b-tree
 	Degree int
 }
