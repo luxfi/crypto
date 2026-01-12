@@ -10,7 +10,7 @@ import (
 	"github.com/luxfi/crypto/bls"
 	"github.com/luxfi/crypto/cggmp21"
 	"github.com/luxfi/ids"
-	"github.com/luxfi/log"
+	log "github.com/luxfi/log"
 )
 
 // BLSManager manages BLS signature operations
