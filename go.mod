@@ -1,6 +1,6 @@
 module github.com/luxfi/crypto
 
-go 1.22
+go 1.25.5
 
 exclude github.com/luxfi/geth v1.16.1
 
@@ -20,9 +20,8 @@ require (
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
 	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/cache v1.1.0
-	github.com/luxfi/gpu v0.30.0
 	github.com/luxfi/ids v1.2.9
-	github.com/luxfi/log v1.2.1
+	github.com/luxfi/log v1.3.0
 	github.com/luxfi/mock v0.1.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.11.1
@@ -38,14 +37,13 @@ require (
 require (
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/luxfi/utils v1.1.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/zeebo/assert v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
-	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
