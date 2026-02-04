@@ -322,7 +322,7 @@ func TestVerifyRejectsIdentityKey(t *testing.T) {
 	// Create a zero/identity public key by constructing all-zero bytes
 	// This represents the identity point (point at infinity) in G1
 	zeroKeyBytes := make([]byte, PublicKeyLen)
-	
+
 	// Attempt to parse the zero key
 	zeroPk, err := PublicKeyFromCompressedBytes(zeroKeyBytes)
 	// If parsing fails (which is expected for identity point), the test passes
