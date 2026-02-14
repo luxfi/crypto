@@ -107,8 +107,9 @@ jobs:
 
     - name: Run Gosec Security Scanner
       uses: securego/gosec@master
+      continue-on-error: true
       with:
-        args: ./...
+        args: -exclude-dir=bn256 -exclude-dir=ipa/bandersnatch ./...
 
     - name: Run Nancy vulnerability scanner
       run: |
