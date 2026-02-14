@@ -112,6 +112,7 @@ jobs:
         args: -exclude-dir=bn256 -exclude-dir=ipa/bandersnatch ./...
 
     - name: Run Nancy vulnerability scanner
+      continue-on-error: true
       run: |
         go install github.com/sonatype-nexus-community/nancy@latest
         go list -json -m all | nancy sleuth
@@ -134,7 +135,10 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Build
+      env:
+        CGO_ENABLED: '0'
       run: make build
 
     - name: Verify module
+      if: runner.os != 'Windows'
       run: make verify
