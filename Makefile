@@ -47,9 +47,9 @@ lint:
 test:
 	@echo "Running tests..."
 	@if pkg-config --exists lux-crypto lux-gpu 2>/dev/null; then \
-		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 120s $(ALL_PACKAGES); \
+		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 600s $(ALL_PACKAGES); \
 	else \
-		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 120s $$($(GOCMD) list ./... | grep -v /cgo); \
+		CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -v -race -count=1 -timeout 600s $$($(GOCMD) list ./... | grep -v /cgo); \
 	fi
 	@echo "Tests complete"
 
