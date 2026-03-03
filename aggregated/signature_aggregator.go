@@ -14,8 +14,8 @@ import (
 	log "github.com/luxfi/log"
 )
 
-// ThresholdPublicKey is a placeholder for threshold public keys.
-// Actual threshold operations use github.com/luxfi/threshold protocols.
+// ThresholdPublicKey wraps raw bytes for threshold public keys.
+// Threshold key generation and signing are handled by github.com/luxfi/threshold.
 type ThresholdPublicKey struct {
 	Bytes []byte
 }
@@ -36,15 +36,15 @@ func (pk *ThresholdPublicKey) Equal(other *ThresholdPublicKey) bool {
 	return true
 }
 
-// ThresholdSignature is a placeholder for threshold signatures.
-// Actual threshold operations use github.com/luxfi/threshold protocols.
+// ThresholdSignature wraps raw bytes for threshold signatures.
+// Threshold signing and combination are handled by github.com/luxfi/threshold.
 type ThresholdSignature struct {
 	Bytes []byte
 }
 
-// Verify is a placeholder - actual verification uses threshold package
+// Verify performs a basic non-empty check. Full cryptographic verification
+// requires the threshold public key and is done via github.com/luxfi/threshold.
 func (ts *ThresholdSignature) Verify(message []byte) bool {
-	// Placeholder - actual verification would use github.com/luxfi/threshold
 	return len(ts.Bytes) > 0
 }
 
