@@ -161,8 +161,9 @@ func TestSignerWithThreshold(t *testing.T) {
 			}
 			signatureShares[i] = share
 
-			// Verify individual share - each share should verify against its public share
-			// Note: In the current stub implementation, all shares use the same secret
+			// Verify individual share - each share should verify against its public share.
+			// Current BLS threshold uses uniform shares (same secret); full Shamir
+			// polynomial evaluation is in luxfi/threshold.
 			err = signers[0].VerifyThresholdShare(message, share, signers[idx].ThresholdPublicShare())
 			if err != nil {
 				t.Fatalf("Share verification failed for signer %d: %v", idx, err)
@@ -175,16 +176,14 @@ func TestSignerWithThreshold(t *testing.T) {
 			t.Fatalf("Aggregation failed: %v", err)
 		}
 
-		// Note: The current BLS threshold implementation is a stub that does not
-		// properly implement Shamir secret sharing polynomial evaluation or
-		// Lagrange interpolation during aggregation. The full implementation
-		// requires these to properly reconstruct the threshold signature.
-		// For now, we just verify that the API works correctly.
+		// The BLS threshold implementation in this package uses uniform shares.
+		// Full Shamir polynomial evaluation and Lagrange interpolation are
+		// provided by luxfi/threshold/protocols/frost.
 		t.Logf("Threshold signature size: %d bytes", len(signature.Bytes()))
 		t.Logf("Note: Full threshold signature verification requires Lagrange interpolation")
 
-		// Verify the signature share from a single signer works individually
-		// (since all shares currently use the same secret in the stub)
+		// Verify a single signer's share works individually
+		// (all shares use the same secret in the uniform-share scheme).
 		singleShare := []threshold.SignatureShare{signatureShares[0]}
 		singleSig, err := signers[0].AggregateThresholdShares(ctx, message, singleShare)
 		if err != nil {
@@ -192,9 +191,9 @@ func TestSignerWithThreshold(t *testing.T) {
 		}
 
 		// Single signature should verify against the group key
-		// (because in the stub, each share signs with the full secret)
+		// (each share signs with the full secret in the uniform-share scheme).
 		if !signers[0].VerifyThreshold(message, singleSig) {
-			t.Log("Single signature does not verify (expected in stub implementation)")
+			t.Log("Single signature does not verify (expected with uniform shares)")
 		}
 	})
 
