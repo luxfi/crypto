@@ -6,7 +6,7 @@ package slhdsa
 // This file contains CGO-optimized implementations that are only compiled
 // when CGO is explicitly enabled with CGO_ENABLED=1
 //
-// CGO optimizations placeholder - currently using pure Go implementation.
+// CGO optimizations reserved - currently using pure Go implementation.
 // Future optimizations could include:
 // - SLH-DSA-SHA2-128s/f, 192s/f, 256s/f from NIST reference implementation
 // - SPHINCS+ optimized implementations

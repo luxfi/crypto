@@ -235,8 +235,7 @@ func TestCRSGeneration(t *testing.T) {
 		t.Fatal("points contained duplicates")
 	}
 
-	// Now check against the test vectors here: https://hackmd.io/1RcGSMQgT4uREaq1CCx_cg#Methodology
-	// TODO: This hackmd document needs to be updated
+	// Check against Verkle trie test vectors (see hackmd.io/1RcGSMQgT4uREaq1CCx_cg).
 	bytes := points[0].Bytes()
 	got := hex.EncodeToString(bytes[:])
 	expected := "01587ad1336675eb912550ec2a28eb8923b824b490dd2ba82e48f14590a298a0"
