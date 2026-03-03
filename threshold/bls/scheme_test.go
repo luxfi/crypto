@@ -334,36 +334,17 @@ func TestVerifier(t *testing.T) {
 func TestDKGConfig(t *testing.T) {
 	scheme := &Scheme{}
 
-	validConfig := threshold.DKGConfig{
+	// NewDKG is intentionally unimplemented — it must return an error
+	// directing callers to threshold/protocols/frost for production DKG.
+	config := threshold.DKGConfig{
 		Threshold:    1,
 		TotalParties: 3,
 		PartyIndex:   0,
 	}
 
-	dkg, err := scheme.NewDKG(validConfig)
-	if err != nil {
-		t.Fatalf("NewDKG failed: %v", err)
-	}
-
-	if dkg.NumRounds() != 3 {
-		t.Errorf("NumRounds = %d, want 3", dkg.NumRounds())
-	}
-
-	// Initially no group key
-	if dkg.GroupKey() != nil {
-		t.Error("GroupKey should be nil before DKG completes")
-	}
-
-	// Test invalid config
-	invalidConfig := threshold.DKGConfig{
-		Threshold:    3,
-		TotalParties: 3,
-		PartyIndex:   0,
-	}
-
-	_, err = scheme.NewDKG(invalidConfig)
+	_, err := scheme.NewDKG(config)
 	if err == nil {
-		t.Error("NewDKG should fail with invalid config")
+		t.Fatal("NewDKG should return an error (not implemented)")
 	}
 }
 
