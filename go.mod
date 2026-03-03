@@ -1,6 +1,6 @@
 module github.com/luxfi/crypto
 
-go 1.25.5
+go 1.26
 
 exclude github.com/luxfi/geth v1.16.1
 
@@ -19,7 +19,7 @@ require (
 	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/cache v1.1.0
 	github.com/luxfi/ids v1.2.9
-	github.com/luxfi/log v1.3.1
+	github.com/luxfi/log v1.4.1
 	github.com/luxfi/mock v0.1.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.11.1
