@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025, Lux Industries Inc. All rights reserved.
+// Copyright (C) 2020-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
 package crypto
@@ -7,10 +7,10 @@ import (
 	"crypto/rand"
 )
 
-// RandomBytes returns a slice of n random bytes
+// RandomBytes returns a slice of n random bytes from crypto/rand.
+// In Go 1.26+, crypto/rand.Read always succeeds or panics.
 func RandomBytes(n int) []byte {
 	bytes := make([]byte, n)
-	// #nosec G404 - we don't need cryptographic randomness for test data
-	_, _ = rand.Read(bytes)
+	rand.Read(bytes)
 	return bytes
 }
