@@ -8,6 +8,7 @@ package precompile
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
@@ -28,6 +29,9 @@ var (
 	// BLS key operations
 	BLSPublicKeyAggregateAddress = HexToAddress("0x0000000000000000000000000000000000000165")
 	BLSHashToPointAddress        = HexToAddress("0x0000000000000000000000000000000000000166")
+
+	// Proof-of-possession
+	BLSVerifyPoPAddress = HexToAddress("0x0000000000000000000000000000000000000167")
 )
 
 // Gas costs for BLS operations
@@ -39,6 +43,7 @@ const (
 	blsThresholdCombineGas   = 180000
 	blsPublicKeyAggregateGas = 50000
 	blsHashToPointGas        = 80000
+	blsVerifyPoPGas          = 150000
 
 	// Per-item costs for aggregation
 	blsPerSignatureGas = 30000
@@ -47,6 +52,11 @@ const (
 	// Point sizes
 	g1Size = 48
 	g2Size = 96
+
+	// maxAggregateSigs caps the number of signatures in fast aggregate verify
+	// to bound gas consumption and prevent abuse. 64 covers any reasonable
+	// consensus committee size.
+	maxAggregateSigs = 64
 )
 
 // BLSVerify implements single BLS signature verification
@@ -128,6 +138,9 @@ func (b *BLSAggregateVerify) Run(input []byte) ([]byte, error) {
 	if numSigs == 0 {
 		return nil, errors.New("no signatures")
 	}
+	if numSigs > maxAggregateSigs {
+		return nil, fmt.Errorf("too many signatures: %d > %d", numSigs, maxAggregateSigs)
+	}
 
 	// Parse aggregate signature
 	var aggSig bls12381.G2Affine
@@ -201,7 +214,13 @@ func (b *BLSAggregateVerify) Run(input []byte) ([]byte, error) {
 	return result, nil
 }
 
-// BLSFastAggregate verifies aggregate signature with same message
+// BLSFastAggregate verifies aggregate signature with same message.
+//
+// SECURITY: All public keys used in aggregation MUST have a verified
+// proof-of-possession (BLSVerifyPoP) before being included. Without PoP,
+// an attacker can perform a rogue key attack by choosing a crafted public
+// key that cancels out honest participants' keys. Verify PoP on-chain
+// before calling this precompile.
 type BLSFastAggregate struct{}
 
 func (b *BLSFastAggregate) RequiredGas(input []byte) uint64 {
@@ -221,6 +240,9 @@ func (b *BLSFastAggregate) Run(input []byte) ([]byte, error) {
 	numKeys := int(input[0])
 	if numKeys == 0 {
 		return nil, errors.New("no public keys")
+	}
+	if numKeys > maxAggregateSigs {
+		return nil, fmt.Errorf("too many keys: %d > %d", numKeys, maxAggregateSigs)
 	}
 
 	// Parse aggregate signature
@@ -540,6 +562,65 @@ func (b *BLSHashToPoint) Run(input []byte) ([]byte, error) {
 	return bytes[:], nil
 }
 
+// BLSVerifyPoP verifies proof-of-possession for a BLS public key.
+// A PoP is a BLS signature over the serialized public key itself, proving the
+// holder knows the corresponding secret key. This MUST be verified before any
+// key is used in aggregation (BLSFastAggregate, BLSPublicKeyAggregate) to
+// prevent rogue key attacks.
+type BLSVerifyPoP struct{}
+
+func (b *BLSVerifyPoP) RequiredGas(input []byte) uint64 {
+	return blsVerifyPoPGas
+}
+
+func (b *BLSVerifyPoP) Run(input []byte) ([]byte, error) {
+	// Input: [48 bytes public_key (G1)][96 bytes pop_signature (G2)]
+	if len(input) < g1Size+g2Size {
+		return nil, fmt.Errorf("input too short: need %d bytes, got %d", g1Size+g2Size, len(input))
+	}
+
+	pubKeyBytes := input[:g1Size]
+	popBytes := input[g1Size : g1Size+g2Size]
+
+	// Parse public key (G1 point)
+	var pubKey bls12381.G1Affine
+	if _, err := pubKey.SetBytes(pubKeyBytes); err != nil {
+		return nil, errors.New("invalid public key point")
+	}
+
+	// Parse PoP signature (G2 point)
+	var popSig bls12381.G2Affine
+	if _, err := popSig.SetBytes(popBytes); err != nil {
+		return nil, errors.New("invalid PoP signature point")
+	}
+
+	// PoP = Sign(sk, pubkey_bytes). Verify by checking the BLS signature
+	// over the raw public key bytes using that same public key.
+	msgPoint, err := bls12381.HashToG2(pubKeyBytes, nil)
+	if err != nil {
+		return nil, errors.New("hash to curve failed")
+	}
+
+	// Verify: e(pubKey, H(pubKeyBytes)) == e(G1, popSig)
+	_, _, g1Gen, _ := bls12381.Generators()
+	var negG1 bls12381.G1Affine
+	negG1.Neg(&g1Gen)
+
+	valid, err := bls12381.PairingCheck(
+		[]bls12381.G1Affine{pubKey, negG1},
+		[]bls12381.G2Affine{msgPoint, popSig},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]byte, 32)
+	if valid {
+		result[31] = 0x01
+	}
+	return result, nil
+}
+
 // RegisterBLS registers all BLS precompiles
 func RegisterBLS(registry *Registry) {
 	registry.Register(BLSVerifyAddress, &BLSVerify{})
@@ -549,6 +630,7 @@ func RegisterBLS(registry *Registry) {
 	registry.Register(BLSThresholdCombineAddress, &BLSThresholdCombine{})
 	registry.Register(BLSPublicKeyAggregateAddress, &BLSPublicKeyAggregate{})
 	registry.Register(BLSHashToPointAddress, &BLSHashToPoint{})
+	registry.Register(BLSVerifyPoPAddress, &BLSVerifyPoP{})
 }
 
 func init() {
