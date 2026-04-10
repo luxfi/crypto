@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"testing"
 
-	"filippo.io/age"
+	"github.com/luxfi/age"
 )
 
 func TestXWingGenerateIdentity(t *testing.T) {
