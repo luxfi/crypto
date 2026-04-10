@@ -3,6 +3,7 @@ package kem
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/hkdf"
@@ -157,6 +158,32 @@ func (h *HybridKEMImpl) CiphertextSize() int {
 
 func (h *HybridKEMImpl) SharedSecretSize() int {
 	return 32 // HKDF output size
+}
+
+// ParseHybridPublicKey reconstructs a HybridPublicKey from concatenated bytes
+// (X25519 32 bytes || ML-KEM-768 encapsulation key).
+func ParseHybridPublicKey(data []byte) (*HybridPublicKey, error) {
+	x25519Size := 32
+	mlkemSize := mlkem768PublicKeySize
+	expected := x25519Size + mlkemSize
+	if len(data) != expected {
+		return nil, fmt.Errorf("invalid hybrid public key size: got %d, expected %d", len(data), expected)
+	}
+
+	x25519PK, err := ParseX25519PublicKey(data[:x25519Size])
+	if err != nil {
+		return nil, fmt.Errorf("invalid X25519 component: %w", err)
+	}
+
+	mlkemPK, err := ParseMLKEM768PublicKey(data[x25519Size:])
+	if err != nil {
+		return nil, fmt.Errorf("invalid ML-KEM-768 component: %w", err)
+	}
+
+	return &HybridPublicKey{
+		X25519PK: x25519PK,
+		MLKEMPK:  mlkemPK,
+	}, nil
 }
 
 // Bytes returns the concatenated public key bytes
