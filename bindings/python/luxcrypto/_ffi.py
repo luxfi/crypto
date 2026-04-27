@@ -6,16 +6,33 @@ import ctypes
 import ctypes.util
 import os
 import sys
+import warnings
 from pathlib import Path
 
 _LIB: ctypes.CDLL | None = None
-LUX_CRYPTO_AVAILABLE = False
+crypto_available = False
+
+
+def _env_lib() -> str | None:
+    """Read CRYPTO_LIB; fall back to deprecated LUX_CRYPTO_LIB for one release."""
+    v = os.environ.get("CRYPTO_LIB")
+    if v:
+        return v
+    v = os.environ.get("LUX_CRYPTO_LIB")
+    if v:
+        warnings.warn(
+            "LUX_CRYPTO_LIB is deprecated; use CRYPTO_LIB",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return v
+    return None
 
 
 def _find_lib() -> str | None:
     """Find libluxcrypto on the system."""
     # 1. Env var override
-    env = os.environ.get("LUX_CRYPTO_LIB")
+    env = _env_lib()
     if env and os.path.isfile(env):
         return env
 
@@ -49,7 +66,7 @@ def _load() -> ctypes.CDLL | None:
 
 
 _LIB = _load()
-LUX_CRYPTO_AVAILABLE = _LIB is not None
+crypto_available = _LIB is not None
 
 
 def get_lib() -> ctypes.CDLL:
