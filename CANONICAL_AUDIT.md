@@ -30,7 +30,7 @@ Legend: OK = compliant; MISSING = not present; STDLIB = stdlib/established Go cr
 | blake2b         | OK (cpp/blake2b.cpp) | OK (metal)                | OK (real vanilla + AVX2/AVX asm)                | none                      | MISSING                               |
 | blake3          | OK (cpp/blake3.cpp)  | OK (metal/cuda/wgsl)      | MISSING (`lux/crypto/blake3` directory absent)  | n/a                       | OK (`lux-crypto-blake3`)              |
 | poseidon        | MISSING              | OK (metal)                | OK (`gnark-crypto/.../poseidon2`)               | none                      | MISSING                               |
-| secp256k1       | OK (cpp/curve.hpp+)  | OK (metal/cuda/wgsl)      | PARTIAL (`scalar_mult.go` !cgo only; bulk cgo)  | primary path is cgo (libsecp256k1 inline) | OK (`lux-crypto-secp256k1`) |
+| secp256k1       | OK (cpp/curve.hpp+)  | OK (metal/cuda/wgsl)      | OK (`!cgo` -> `decred/dcrd/dcrec/secp256k1/v4`) | optional cgo libsecp256k1 accelerator | OK (`lux-crypto-secp256k1`) |
 | ed25519         | OK (cpp/ed25519.cpp) | OK (metal/cuda/wgsl)      | OK (`crypto/ed25519` stdlib)                    | optional GPU batch only   | OK (`lux-crypto-ed25519`)             |
 | bls (BLS12-381 sig API) | OK (cpp/bls_*.cpp) | OK (metal/cuda/wgsl) | OK (`!cgo` -> `cloudflare/circl/sign/bls`; `cgo` -> blst) | blst optional via `cgo` build tag | MISSING |
 | bls12381 (low-level) | OK (cpp/bls)    | OK                        | OK (`!cgo` gnark-crypto; `cgo` blst)             | blst optional             | (covered by `lux-crypto-bls` placeholder; no crate yet) |
@@ -55,7 +55,8 @@ Hard violations (vanilla Go canonical missing or itself a re-export/wrapper):
 1. **blake3** — `lux/crypto/blake3/` directory does not exist. C++ + Rust crate exist, but no Go canonical at all.
 2. **verkle** — `lux/crypto/verkle/verkle.go` is a pure re-export of `github.com/ethereum/go-verkle` (`type X = upstream.X`, `var Fn = upstream.Fn`). Violates "luxfi only" + "no wrapper" rules.
 3. **banderwagon** — `lux/crypto/banderwagon/` directory empty. No Go canonical, no C++, no Rust.
-4. **secp256k1** — `lux/crypto/secp256k1/secp256k1_c.go` is the de facto canonical (cgo `#include "./libsecp256k1/src/secp256k1.c"`). Only a partial vanilla Go path (`scalar_mult.go`, `dummy.go`) exists behind `!cgo`, which is incomplete relative to the cgo surface. Does not have a complete vanilla Go fallback for the full API (sign / verify / recover / pubkey).
+
+(Earlier draft listed `secp256k1` as a hard violation; that was a misread. `secp256k1.go` is a complete `!cgo` vanilla Go canonical via `decred/dcrd/dcrec/secp256k1/v4` (Sign/Verify/RecoverPubkey/CompressPubkey/DecompressPubkey). Cgo libsecp256k1 is the opt-in accelerator. Cross-backend KAT 2026-04-27 confirms byte-for-byte parity.)
 
 Soft violations (luxcpp C++/CPU body missing for an algo that has a Go canonical):
 
@@ -72,7 +73,7 @@ Rust gaps (algos with C++/CPU + Go vanilla but no Rust crate yet):
 
 ## Total
 
-- Hard violations: **4** (blake3 missing, verkle wrapper, banderwagon empty, secp256k1 cgo-primary)
+- Hard violations: **3** (blake3 missing, verkle wrapper, banderwagon empty)
 - Soft violations (C++/CPU body missing): **6**
 - Rust binder gaps: **14**
 
@@ -81,9 +82,8 @@ Rust gaps (algos with C++/CPU + Go vanilla but no Rust crate yet):
 P0 — Hard violations (block "one way" claim):
 
 1. **verkle** — author real luxfi vanilla Go canonical. Source to port: `github.com/ethereum/go-verkle` MIT, port the trie + proof logic into `lux/crypto/verkle/verkle.go` under luxfi copyright. Drop the `upstream` re-export.
-2. **secp256k1** — author full vanilla Go canonical (key gen, sign, verify, recover) at `lux/crypto/secp256k1/secp256k1.go` behind `!cgo`. Reference: `decred/dcrd/dcrec/secp256k1/v4` (ISC, pure Go) or `btcsuite/btcd/btcec/v2`. Keep `secp256k1_c.go` as opt-in cgo accelerator.
-3. **blake3** — create `lux/crypto/blake3/blake3.go` using `github.com/zeebo/blake3` (BSD-3, pure Go, AVX2/NEON). Mirror the keccak/sha256 batch-with-GPU-fallback pattern.
-4. **banderwagon** — create `lux/crypto/banderwagon/banderwagon.go`. Source: `github.com/crate-crypto/go-ipa/banderwagon` (Apache-2/MIT) — port directly, luxfi copyright.
+2. **blake3** — create `lux/crypto/blake3/blake3.go` using `github.com/zeebo/blake3` (BSD-3, pure Go, AVX2/NEON). Mirror the keccak/sha256 batch-with-GPU-fallback pattern.
+3. **banderwagon** — create `lux/crypto/banderwagon/banderwagon.go`. Source: `github.com/crate-crypto/go-ipa/banderwagon` (Apache-2/MIT) — port directly, luxfi copyright.
 
 P1 — luxcpp C++/CPU bodies for algos that already have Go canonical (so the canonical pattern is symmetric across languages):
 
@@ -104,7 +104,6 @@ P2 — Rust binder coverage (one crate per algo with luxcpp `lib<alg>_cpu.a`):
 | File to author                                          | Source to port from                                                        |
 |---------------------------------------------------------|-----------------------------------------------------------------------------|
 | `/Users/z/work/lux/crypto/verkle/verkle.go`             | `github.com/ethereum/go-verkle` (MIT) — full reimpl, luxfi copyright        |
-| `/Users/z/work/lux/crypto/secp256k1/secp256k1.go`       | `github.com/decred/dcrd/dcrec/secp256k1/v4` (ISC, pure Go)                  |
 | `/Users/z/work/lux/crypto/blake3/blake3.go`             | wrap `github.com/zeebo/blake3` (BSD-3) — counts as vanilla per directive    |
 | `/Users/z/work/lux/crypto/banderwagon/banderwagon.go`   | `github.com/crate-crypto/go-ipa/banderwagon` (Apache-2/MIT)                 |
 
