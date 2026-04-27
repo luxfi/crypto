@@ -1,0 +1,17 @@
+[package]
+name = "lux-crypto-blake3"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical Rust binding for Lux BLAKE3. Calls into luxcpp/crypto/blake3 (vendored BLAKE3 reference v1.5.0) via the C-ABI."
+repository = "https://github.com/luxfi/crypto"
+readme = "README.md"
+keywords = ["blake3", "hash", "xof", "ffi"]
+categories = ["cryptography"]
+
+[lib]
+name = "lux_crypto_blake3"
+
+[lints]
+workspace = true
