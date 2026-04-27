@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/luxfi/crypto/banderwagon"
 	"github.com/luxfi/crypto/ipa/bandersnatch/fr"
-	"github.com/luxfi/crypto/ipa/banderwagon"
 )
 
 // VectorLength is the number of elements in the vector. This value is fixed.
