@@ -1,11 +1,12 @@
 [package]
-name = "lux-crypto-sys"
+name = "lux-crypto"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-3-Clause"
-description = "Raw FFI bindings to luxcpp/crypto. Used by Hanzo/Lux/Zoo Rust nodes."
+description = "Canonical Rust crate for Lux crypto. Calls into luxcpp/crypto via the lux_crypto C-ABI."
 
-# This crate exposes C ABI bindings to luxcpp/crypto.
+# This crate is the canonical Rust entry point for Lux crypto.
+# Mirrors github.com/luxfi/gpu (canonical Rust binding to luxfi/accel).
 #
 # Phase 1 surface:
 #   * secp256k1: secp256k1_ecrecover, secp256k1_ecrecover_batch
@@ -17,10 +18,11 @@ description = "Raw FFI bindings to luxcpp/crypto. Used by Hanzo/Lux/Zoo Rust nod
 #   - Deprecated names `LUX_CRYPTO_DIR` / `LUX_CRYPTO_BUILD_DIR` are read for
 #     one release with a deprecation warning.
 #
-# This is intentionally a `-sys` crate: no Rust types, just `extern "C"`
-# declarations. Higher-level safe wrappers belong in `lux-crypto`.
+# Brand-neutral naming: NO -sys suffix. We author the C/C++ ourselves at
+# luxcpp/crypto; this is not a wrapper around third-party FFI. One crate
+# per first-party FFI surface; safe wrappers (if needed) live as a `pub mod safe`.
 
 [lib]
-name = "lux_crypto_sys"
+name = "lux_crypto"
 
 [build-dependencies]
