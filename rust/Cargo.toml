@@ -32,6 +32,7 @@ members = [
     "lux-crypto-verkle",
     "lux-crypto-evm256",
     "lux-crypto-kzg",
+    "lux-crypto-poseidon",
 ]
 
 [workspace.package]
