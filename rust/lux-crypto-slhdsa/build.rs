@@ -1,14 +1,3 @@
-// Build script for lux-crypto-keccak.
-//
-// Discovers `keccak/libkeccak_cpu.a` produced by `luxcpp/crypto` and emits the
-// link directives. Resolution order (first hit wins):
-//   1. CRYPTO_DIR        - install prefix; archive at $CRYPTO_DIR/lib/keccak/libkeccak_cpu.a
-//   2. CRYPTO_BUILD_DIR  - cmake build directory; archive at $CRYPTO_BUILD_DIR/keccak/libkeccak_cpu.a
-//   3. Default fallback to ../../../../luxcpp/crypto/build-canonical
-//
-// We link the C++ runtime (libc++ on macOS, libstdc++ elsewhere) because the
-// archive contains C++ object code from the canonical implementation.
-
 use std::env;
 use std::path::PathBuf;
 
@@ -33,9 +22,10 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
 
-    let lib_path = base.join("keccak");
+    let lib_path = base.join("slhdsa");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-    println!("cargo:rustc-link-lib=static=keccak_cpu");
+    println!("cargo:rustc-link-lib=static=slhdsa");
+    println!("cargo:rustc-link-lib=static=slhdsa_cpu");
 
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=c++");
