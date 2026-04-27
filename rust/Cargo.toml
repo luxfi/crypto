@@ -17,6 +17,7 @@ members = [
     "lux-crypto",
     "lux-crypto-keccak",
     "lux-crypto-secp256k1",
+    "lux-crypto-ed25519",
 ]
 
 [workspace.package]
