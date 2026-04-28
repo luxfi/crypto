@@ -14,6 +14,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/c-kzg-4844/v2 v2.1.5
 	github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab
+	github.com/ethereum/go-verkle v0.0.0-00010101000000-000000000000
 	github.com/google/btree v1.1.3
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
@@ -37,6 +38,7 @@ require (
 require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/luxfi/utils v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
