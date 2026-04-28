@@ -81,13 +81,13 @@ func DeterministicGenerators(seed []byte) (*Generators, error) {
 		digest := h.Sum(nil)
 		return bn254.HashToG1(digest, dst)
 	}
-	g, err := deriveOne(0, []byte("LUX_PEDERSEN_G"))
+	g, err := deriveOne(0, []byte("PEDERSEN_G_V1"))
 	if err != nil {
 		return nil, err
 	}
 	var h bn254.G1Affine
 	for c := uint32(1); c < 1024; c++ {
-		hp, err := deriveOne(c, []byte("LUX_PEDERSEN_H"))
+		hp, err := deriveOne(c, []byte("PEDERSEN_H_V1"))
 		if err != nil {
 			return nil, err
 		}
