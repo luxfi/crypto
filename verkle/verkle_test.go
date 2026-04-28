@@ -8,8 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"testing"
-
-	upstream "github.com/ethereum/go-verkle"
 )
 
 // makeSingleLeafProof builds a (preStateRoot=empty, postStateRoot=after-insert)
@@ -24,11 +22,11 @@ func makeSingleLeafProof(t *testing.T, seed uint64) BatchProof {
 	keyDigest := sha256.Sum256(append([]byte("verkle-kat-key"), seedBuf[:]...))
 	valDigest := sha256.Sum256(append([]byte("verkle-kat-val"), seedBuf[:]...))
 
-	preroot := upstream.New()
+	preroot := New()
 	preroot.Commit()
 	preCommit := preroot.Commit().Bytes()
 
-	postroot := upstream.New()
+	postroot := New()
 	if err := postroot.Insert(keyDigest[:], valDigest[:], nil); err != nil {
 		t.Fatalf("seed=%d insert: %v", seed, err)
 	}
@@ -36,11 +34,11 @@ func makeSingleLeafProof(t *testing.T, seed uint64) BatchProof {
 	postCommit := postroot.Commit().Bytes()
 
 	// Generate the proof using the pre/post pair.
-	proof, _, _, _, err := upstream.MakeVerkleMultiProof(preroot, postroot, [][]byte{keyDigest[:]}, nil)
+	proof, _, _, _, err := MakeVerkleMultiProof(preroot, postroot, [][]byte{keyDigest[:]}, nil)
 	if err != nil {
 		t.Fatalf("seed=%d MakeVerkleMultiProof: %v", seed, err)
 	}
-	vp, sd, err := upstream.SerializeProof(proof)
+	vp, sd, err := SerializeProof(proof)
 	if err != nil {
 		t.Fatalf("seed=%d SerializeProof: %v", seed, err)
 	}
