@@ -21,6 +21,7 @@ require (
 	github.com/luxfi/accel v1.0.7
 	github.com/luxfi/age v1.4.0
 	github.com/luxfi/cache v1.1.0
+	github.com/luxfi/go-verkle v0.2.3-luxfi
 	github.com/luxfi/ids v1.2.9
 	github.com/luxfi/log v1.4.1
 	github.com/luxfi/mock v0.1.0
@@ -37,7 +38,9 @@ require (
 require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/luxfi/crypto/ipa v1.2.4 // indirect
 	github.com/luxfi/utils v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -50,7 +53,4 @@ require (
 // Route upstream crypto modules through luxfi-maintained mirrors so that
 // downstream Lux services consume a single canonical source. See
 // LUXFI-FORK.md in each fork for pin SHAs and sync policy.
-replace (
-	github.com/crate-crypto/go-ipa => github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6
-	github.com/ethereum/go-verkle => github.com/luxfi/go-verkle v0.2.2
-)
+replace github.com/crate-crypto/go-ipa => github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6
