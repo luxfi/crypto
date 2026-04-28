@@ -61,34 +61,6 @@ name = "lux-crypto-ipa"
 version = "0.1.0"
 
 [[package]]
-name = "lux-crypto-aead"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-blake2b"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-blake3"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-bls"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-ed25519"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-evm256"
-version = "0.1.0"
-
-[[package]]
-name = "lux-crypto-ipa"
-version = "0.1.0"
-
-[[package]]
 name = "lux-crypto-keccak"
 version = "0.1.0"
 
