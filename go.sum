@@ -255,8 +255,8 @@ github.com/luxfi/crypto/ipa v1.2.4 h1:6xfwhI9/HrcDkF3Ti5/NxsNQIWbwYDJmRSNIHRQ/xf
 github.com/luxfi/crypto/ipa v1.2.4/go.mod h1:43J6f6rcfUMrZt4cQectMOZb6Ps+fAEj8ZTPC3Kk+gE=
 github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6 h1:exMiW/migoBg2agMYbBkN8sREAhIavZ+DQx10Kd8PPI=
 github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6/go.mod h1:sTwzHBvIzm2RfVCGNEBZgRyjwK40bVoun3ZnGOCafNM=
-github.com/luxfi/go-verkle v0.2.3-luxfi h1:VS69OicG7B3pGARItC7wBtbXUPo2ZeDfxXT25fn4TJc=
-github.com/luxfi/go-verkle v0.2.3-luxfi/go.mod h1:fnxo4/EUuPCvRNoxaWVdnaZ2Zg4GGsJNyX+hPktiNq4=
+github.com/luxfi/go-verkle v0.3.0 h1:CGq8/hukGC21ov8rf6VCG3P40Kjrhr0T7HSPfTSomIY=
+github.com/luxfi/go-verkle v0.3.0/go.mod h1:fnxo4/EUuPCvRNoxaWVdnaZ2Zg4GGsJNyX+hPktiNq4=
 github.com/luxfi/ids v1.2.9 h1:+yjdhXW99drnd2Zlp1u/p8k3G23W3/1btJQ4ogHawUI=
 github.com/luxfi/ids v1.2.9/go.mod h1:khJOEdOPxd22yn0jcVrnbX1ADa0GHn5Y74gvCzN5BYc=
 github.com/luxfi/log v1.4.1 h1:rIfFRodb9jrD/w7KayaUk0Oc+37PaQQdKEEMJCjR8gw=

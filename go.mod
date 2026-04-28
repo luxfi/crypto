@@ -21,7 +21,7 @@ require (
 	github.com/luxfi/accel v1.0.7
 	github.com/luxfi/age v1.4.0
 	github.com/luxfi/cache v1.1.0
-	github.com/luxfi/go-verkle v0.2.3-luxfi
+	github.com/luxfi/go-verkle v0.3.0
 	github.com/luxfi/ids v1.2.9
 	github.com/luxfi/log v1.4.1
 	github.com/luxfi/mock v0.1.0
