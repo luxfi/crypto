@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/luxfi/crypto/ipa/banderwagon"
+	"github.com/luxfi/crypto/banderwagon"
 	"github.com/luxfi/crypto/ipa/bandersnatch/fr"
 	"github.com/luxfi/crypto/ipa/common"
 	"github.com/luxfi/crypto/ipa/ipa"
