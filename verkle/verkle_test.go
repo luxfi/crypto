@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"testing"
 
+	// Imported via go.mod replace -> github.com/luxfi/go-verkle v0.2.2.
+	// luxfi/go-verkle still declares module github.com/ethereum/go-verkle,
+	// so the import literal must match that declaration. The replace directive
+	// in go.mod ensures only luxfi-maintained code is compiled. See LUXFI-FORK.md.
 	upstream "github.com/ethereum/go-verkle"
 )
 
