@@ -6,6 +6,17 @@ This document narrates the original Dec 2025 implementation timeline. All work w
 
 ---
 
+## Published tags
+
+### v1.18.3 — 2026-04-28
+- pedersen: canonicalize DST to PEDERSEN_{G,H}_V1 in DeterministicGenerators (N3)
+- ipa: scalar-blinded MSM for prover side (#205 follow-up)
+- verkle: implement BatchProof / VerifyBatch / ErrBatchLengthMismatch (#237)
+- banderwagon import path sweep (ipa, verkle, go-verkle module bump)
+- verkle: route through luxfi/go-verkle via go.mod replace
+
+---
+
 ## 2025-12-23 — Brand-neutral sweep
 
 Removed org-prefixed identifiers from domain-separation tags, env vars, and Rust extern link names. The Rust C-ABI declarations were aligned with the bare symbol convention so that one `lux-crypto-*` crate per primitive can dlsym a single uniformly-prefixed surface.
