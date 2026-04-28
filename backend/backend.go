@@ -15,7 +15,6 @@
 package backend
 
 import (
-	"log"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -69,17 +68,9 @@ func Parse(s string) (Backend, bool) {
 
 var current uint32 // atomic Backend
 
-// envBackend reads CRYPTO_BACKEND, falling back to deprecated LUX_CRYPTO_BACKEND
-// for one transition release. The deprecated read is removed in v2.
+// envBackend reads CRYPTO_BACKEND from the environment.
 func envBackend() (string, bool) {
-	if v, ok := os.LookupEnv("CRYPTO_BACKEND"); ok {
-		return v, true
-	}
-	if v, ok := os.LookupEnv("LUX_CRYPTO_BACKEND"); ok {
-		log.Println("LUX_CRYPTO_BACKEND is deprecated; use CRYPTO_BACKEND")
-		return v, true
-	}
-	return "", false
+	return os.LookupEnv("CRYPTO_BACKEND")
 }
 
 func init() {
