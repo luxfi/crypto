@@ -3,7 +3,7 @@
 //
 // Banderwagon spec-vector integration test.
 //
-// Vectors are taken from luxfi/crypto/ipa/banderwagon/element_test.go
+// Vectors are taken from luxfi/crypto/banderwagon/element_test.go
 // (originally from crate-crypto/go-ipa, Apache-2.0). Each entry is the
 // canonical 32-byte compressed encoding of `2^i * G` for i in 0..15.
 // Reference output is byte-equal across go-ipa, gnark-crypto, and
