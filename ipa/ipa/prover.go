@@ -106,20 +106,24 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 			return IPAProof{}, fmt.Errorf("could not compute a_L*b_R inner product: %w", err)
 		}
 
-		C_L_1, err := commit(G_L, a_R)
+		// All four MSMs below operate on secret prover-side scalars
+		// (witness halves a_L/a_R and the blinding-style scalars z_L/z_R),
+		// so we route through commitBlinded which masks the scalars from
+		// cache-timing side channels. See banderwagon.MultiExpBlinded.
+		C_L_1, err := commitBlinded(G_L, a_R)
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do G_L*a_R MSM: %w", err)
 		}
-		C_L, err := commit([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		C_L, err := commitBlinded([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do C_L_1+z_L*q MSM: %w", err)
 		}
 
-		C_R_1, err := commit(G_R, a_L)
+		C_R_1, err := commitBlinded(G_R, a_L)
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do G_R*a_L MSM: %w", err)
 		}
-		C_R, err := commit([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		C_R, err := commitBlinded([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do C_R_1+z_R*q MSM: %w", err)
 		}
