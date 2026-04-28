@@ -9,11 +9,9 @@ import (
 	"fmt"
 	"testing"
 
-	// Imported via go.mod replace -> github.com/luxfi/go-verkle v0.2.2.
-	// luxfi/go-verkle still declares module github.com/ethereum/go-verkle,
-	// so the import literal must match that declaration. The replace directive
-	// in go.mod ensures only luxfi-maintained code is compiled. See LUXFI-FORK.md.
-	upstream "github.com/ethereum/go-verkle"
+	// luxfi/go-verkle declares module github.com/luxfi/go-verkle as of
+	// v0.2.3-luxfi (refs luxfi/go-verkle#233). No go.mod replace required.
+	upstream "github.com/luxfi/go-verkle"
 )
 
 // makeSingleLeafProof builds a (preStateRoot=empty, postStateRoot=after-insert)
