@@ -46,6 +46,9 @@ func NewIPASettings() (*IPAConfig, error) {
 }
 
 // MultiScalar computes the multi scalar multiplication of points and scalars.
+// This is the variable-time path; it MUST only be called with public scalars
+// (verifier challenges, public commitments). Prover-side callers operating on
+// secret witness data MUST use MultiScalarBlinded instead.
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) (banderwagon.Element, error) {
 	var result banderwagon.Element
 	result.SetIdentity()
@@ -58,18 +61,57 @@ func MultiScalar(points []banderwagon.Element, scalars []fr.Element) (banderwago
 	return *res, nil
 }
 
-// Commit calculates the Pedersen Commitment of a polynomial polynomial
-// in evaluation form using the SRS.
-func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
-	return ic.PrecompMSM.MSM(polynomial)
+// MultiScalarBlinded computes the multi scalar multiplication of points and
+// scalars while masking the scalars from cache-timing side channels. Use this
+// for any prover-side call where the scalars are secret (witness halves,
+// blinding factors, polynomial openings). See banderwagon.MultiExpBlinded for
+// the construction.
+func MultiScalarBlinded(points []banderwagon.Element, scalars []fr.Element) (banderwagon.Element, error) {
+	var result banderwagon.Element
+	result.SetIdentity()
+
+	res, err := result.MultiExpBlinded(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	if err != nil {
+		return banderwagon.Element{}, fmt.Errorf("blinded mult exponentiation was not successful: %w", err)
+	}
+
+	return *res, nil
 }
 
-// commit commits to a polynomial using the input group elements
+// Commit calculates the Pedersen Commitment of a polynomial in evaluation
+// form using the SRS. The polynomial coefficients are part of the prover's
+// witness, so we route through the blinded MSM path. This sacrifices the
+// PrecompMSM precomputed-table speedup in exchange for protection against
+// cache-timing recovery of witness scalars.
+func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
+	res, err := MultiScalarBlinded(ic.SRS, polynomial)
+	if err != nil {
+		// SRS length and polynomial length are both common.VectorLength by
+		// construction; a length mismatch here is a programmer error and the
+		// only other failure mode is crypto/rand exhaustion which is fatal.
+		panic(fmt.Sprintf("commit: blinded MSM failed: %v", err))
+	}
+	return res
+}
+
+// commit commits to a polynomial using the input group elements with the
+// variable-time MSM path. ONLY use this when scalars are public (verifier
+// side). Prover-side callers MUST use commitBlinded.
 func commit(groupElements []banderwagon.Element, polynomial []fr.Element) (banderwagon.Element, error) {
 	if len(groupElements) != len(polynomial) {
 		return banderwagon.Element{}, fmt.Errorf("group elements and polynomial are different sizes, %d != %d", len(groupElements), len(polynomial))
 	}
 	return MultiScalar(groupElements, polynomial)
+}
+
+// commitBlinded commits to a polynomial using the input group elements via
+// the blinded (cache-timing-masked) MSM path. Use this for every prover-side
+// call site that operates on secret scalars.
+func commitBlinded(groupElements []banderwagon.Element, polynomial []fr.Element) (banderwagon.Element, error) {
+	if len(groupElements) != len(polynomial) {
+		return banderwagon.Element{}, fmt.Errorf("group elements and polynomial are different sizes, %d != %d", len(groupElements), len(polynomial))
+	}
+	return MultiScalarBlinded(groupElements, polynomial)
 }
 
 // InnerProd computes the inner product of a and b.
