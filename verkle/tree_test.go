@@ -496,32 +496,10 @@ func TestDeletePrune(t *testing.T) { // skipcq: GO-R1005
 	}
 }
 
-// A test that inserts 3 keys in a tree, and then replaces two of them with
-// their hashed values. It then tries to delete the hashed values, which should
-// fail.
-func TestDeleteHash(t *testing.T) {
-	//TODO: fix this test when we take a final decision about FlushAtDepth API.
-	t.SkipNow()
-
-	key1, _ := hex.DecodeString("0105000000000000000000000000000000000000000000000000000000000000")
-	key2, _ := hex.DecodeString("0107000000000000000000000000000000000000000000000000000000000000")
-	key3, _ := hex.DecodeString("0405000000000000000000000000000000000000000000000000000000000000")
-	tree := New()
-	if err := tree.Insert(key1, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key1 failed: %v", err)
-	}
-	if err := tree.Insert(key2, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key2 failed: %v", err)
-	}
-	if err := tree.Insert(key3, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key3 failed: %v", err)
-	}
-	tree.(*InternalNode).FlushAtDepth(0, func(path []byte, vn VerkleNode) {})
-	tree.Commit()
-	if _, err := tree.Delete(key2, nil); err != errDeleteHash {
-		t.Fatalf("did not report the correct error while deleting from a hash: %v", err)
-	}
-}
+// TestDeleteHash, TestDeleteResolve, TestGetResolveFromHash and
+// TestInsertIntoHashedNode were upstream-fork tests gated on a final decision
+// about the FlushAtDepth API that never came. They have been removed: a test
+// that t.SkipNow()s before any assertion is dead weight.
 
 func TestDeleteUnequalPath(t *testing.T) {
 	t.Parallel()
@@ -540,49 +518,6 @@ func TestDeleteUnequalPath(t *testing.T) {
 
 	if _, err := tree.Delete(key2, nil); err != nil {
 		t.Fatalf("errored during the deletion of non-existing key, err =%v", err)
-	}
-}
-
-func TestDeleteResolve(t *testing.T) {
-	//TODO: fix this test when we take a final decision about FlushAtDepth API.
-	t.SkipNow()
-
-	key1, _ := hex.DecodeString("0105000000000000000000000000000000000000000000000000000000000000")
-	key2, _ := hex.DecodeString("0107000000000000000000000000000000000000000000000000000000000000")
-	key3, _ := hex.DecodeString("0405000000000000000000000000000000000000000000000000000000000000")
-	tree := New()
-	savedNodes := make(map[string]VerkleNode)
-	saveNode := func(path []byte, node VerkleNode) {
-		savedNodes[string(path)] = node
-	}
-	if err := tree.Insert(key1, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key1 failed: %v", err)
-	}
-	if err := tree.Insert(key2, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key2 failed: %v", err)
-	}
-	if err := tree.Insert(key3, fourtyKeyTest, nil); err != nil {
-		t.Fatalf("inserting into key3 failed: %v", err)
-	}
-	tree.(*InternalNode).FlushAtDepth(0, saveNode)
-	tree.Commit()
-
-	var called bool
-	_, err := tree.Delete(key2, func(path []byte) ([]byte, error) {
-		called = true
-
-		if node, ok := savedNodes[string(path)]; ok {
-			return node.Serialize()
-		}
-
-		t.Fatal("could not find node")
-		return nil, fmt.Errorf("node not found")
-	})
-	if !called {
-		t.Fatal("should have called the resolve function")
-	}
-	if err != nil {
-		t.Fatalf("error deleting key: %v", err)
 	}
 }
 
@@ -850,66 +785,6 @@ func isLeafEqual(a, b *LeafNode) bool {
 	return true
 }
 
-func TestGetResolveFromHash(t *testing.T) {
-	//TODO: fix this test when we take a final decision about FlushAtDepth API.
-	t.SkipNow()
-
-	var count uint
-	dummyError := errors.New("dummy")
-	var serialized []byte
-	getter := func([]byte) ([]byte, error) {
-		count++
-
-		return serialized, nil
-	}
-	failingGetter := func([]byte) ([]byte, error) {
-		return nil, dummyError
-	}
-	flush := func(_ []byte, n VerkleNode) {
-		s, err := n.Serialize()
-		if err != nil {
-			panic(err)
-		}
-		serialized = append(serialized, s...)
-	}
-	root := New()
-	if err := root.Insert(zeroKeyTest, zeroKeyTest, nil); err != nil {
-		t.Fatalf("inserting into the original failed: %v", err)
-	}
-	if err := root.Insert(fourtyKeyTest, zeroKeyTest, nil); err != nil {
-		t.Fatalf("inserting into the original failed: %v", err)
-	}
-	root.(*InternalNode).FlushAtDepth(0, flush)
-	if err := root.Insert(oneKeyTest, zeroKeyTest, nil); err != errInsertIntoHash {
-		t.Fatal(err)
-	}
-
-	data, err := root.Get(zeroKeyTest, nil)
-	if !errors.Is(err, errReadFromInvalid) || len(data) != 0 {
-		t.Fatal(err)
-	}
-
-	data, err = root.Get(zeroKeyTest, failingGetter)
-	if !errors.Is(err, dummyError) || len(data) != 0 {
-		t.Fatal(err)
-	}
-
-	data, err = root.Get(zeroKeyTest, getter)
-	if err != nil {
-		t.Fatalf("error resolving hash: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("error getting the correct number of nodes: 1 != %d", count)
-	}
-	if !bytes.Equal(data, zeroKeyTest) {
-		t.Fatalf("invalid result: %x != %x", zeroKeyTest, len(data))
-	}
-
-	if hsh := root.Hash(); hsh == nil {
-		t.Fatalf("root hash can't be nil")
-	}
-}
-
 func TestGetKey(t *testing.T) {
 	t.Parallel()
 
@@ -922,58 +797,6 @@ func TestGetKey(t *testing.T) {
 		if int(k[StemSize]) != i {
 			t.Fatal("invalid selector")
 		}
-	}
-}
-
-func TestInsertIntoHashedNode(t *testing.T) {
-	//TODO: fix this test when we take a final decision about FlushAtDepth API.
-	t.SkipNow()
-
-	root := New()
-	if err := root.Insert(zeroKeyTest, zeroKeyTest, nil); err != nil {
-		t.Fatalf("inserting into the original failed: %v", err)
-	}
-	root.(*InternalNode).FlushAtDepth(0, func(_ []byte, n VerkleNode) {})
-	if err := root.Insert(fourtyKeyTest, zeroKeyTest, nil); err != nil {
-		t.Fatalf("inserting into the original failed: %v", err)
-	}
-
-	if err := root.Insert(zeroKeyTest, zeroKeyTest, nil); err != errInsertIntoHash {
-		t.Fatalf("incorrect error type: %v", err)
-	}
-
-	resolver := func(h []byte) ([]byte, error) {
-		values := make([][]byte, NodeWidth)
-		values[0] = zeroKeyTest
-		node, _ := NewLeafNode(KeyToStem(zeroKeyTest), values)
-
-		return node.Serialize()
-	}
-	if err := root.Copy().Insert(zeroKeyTest, zeroKeyTest, resolver); err != nil {
-		t.Fatalf("error in node resolution: %v", err)
-	}
-
-	// Check that the proper error is raised if the RLP data is invalid and the
-	// node can not be parsed.
-	invalidRLPResolver := func(h []byte) ([]byte, error) {
-		values := make([][]byte, NodeWidth)
-		values[0] = zeroKeyTest
-		node, _ := NewLeafNode(KeyToStem(zeroKeyTest), values)
-
-		rlp, _ := node.Serialize()
-		return rlp[:len(rlp)-10], nil
-	}
-	if err := root.Copy().Insert(zeroKeyTest, zeroKeyTest, invalidRLPResolver); !errors.Is(err, errSerializedPayloadTooShort) {
-		t.Fatalf("error detecting a decoding error after resolution: %v", err)
-	}
-
-	randomResolverError := errors.New("'clef' was mispronounced")
-	// Check that the proper error is raised if the resolver returns an error
-	erroringResolver := func(h []byte) ([]byte, error) {
-		return nil, randomResolverError
-	}
-	if err := root.Copy().Insert(zeroKeyTest, zeroKeyTest, erroringResolver); !errors.Is(err, randomResolverError) {
-		t.Fatalf("error detecting a resolution error: %v", err)
 	}
 }
 
