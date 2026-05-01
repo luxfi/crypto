@@ -6,7 +6,6 @@ package pedersen
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 	"io"
 	"math/big"
@@ -33,76 +32,40 @@ var ErrIdenticalGenerators = errors.New("pedersen: G and H must be independent g
 var ErrLength = errors.New("pedersen: slice length mismatch")
 
 // NewGenerators samples two independent G1 generators. rng may be nil to use
-// crypto/rand. The two generators are derived from independent hashes-to-curve
-// of fresh randomness, ensuring no known relation between them.
+// crypto/rand. A 32-byte random seed is drawn from rng and passed through
+// NewGeneratorsFromSeed, so production callers and KAT generators traverse the
+// same canonical derivation (single SeededGenDST + counter index 0/1) — no
+// brand-specific or per-generator DST.
 func NewGenerators(rng io.Reader) (*Generators, error) {
 	if rng == nil {
 		rng = rand.Reader
 	}
-	gBytes := make([]byte, 64)
-	if _, err := rng.Read(gBytes); err != nil {
+	var seed [32]byte
+	if _, err := io.ReadFull(rng, seed[:]); err != nil {
 		return nil, err
 	}
-	hBytes := make([]byte, 64)
-	if _, err := rng.Read(hBytes); err != nil {
-		return nil, err
-	}
-	g, err := bn254.HashToG1(gBytes, []byte("PEDERSEN_G_V1"))
-	if err != nil {
-		return nil, err
-	}
-	h, err := bn254.HashToG1(hBytes, []byte("PEDERSEN_H_V1"))
-	if err != nil {
-		return nil, err
-	}
-	if g.Equal(&h) {
-		return nil, ErrIdenticalGenerators
-	}
-	gen := &Generators{}
-	gen.G.FromAffine(&g)
-	gen.H.FromAffine(&h)
-	return gen, nil
+	return NewGeneratorsFromSeed(seed)
 }
 
-// DeterministicGenerators returns generators derived from a published seed.
-// Two callers passing the same seed get the same (G, H). Used for KAT
-// vectors that must be reproducible across implementations and machines.
+// DeterministicGenerators returns generators derived from a published seed of
+// arbitrary length. Two callers passing the same seed get the same (G, H).
+// Used for KAT vectors that must be reproducible across implementations and
+// machines.
 //
-// Encoding: counter || seed -> SHA-256 -> hash-to-curve. Counter starts at 0
-// for G; the first counter that produces a valid G1 point is taken; H uses
-// the next counter that produces a *distinct* point.
+// The arbitrary-length input is compressed to a fixed 32-byte key with
+// SHA-256 and then dispatched to NewGeneratorsFromSeed, so the actual on-curve
+// derivation is identical to the C++/Metal/CUDA/WGSL canonical:
+//
+//   key = SHA-256(seed)
+//   G   = HashToG1(key || u64_le(0), DST=PEDERSEN_SEEDED_GEN_V1)
+//   H   = HashToG1(key || u64_le(1), DST=PEDERSEN_SEEDED_GEN_V1)
+//
+// This collapses LP-137 issue N3 (RED-FINAL §2.4): the legacy two-DST
+// PEDERSEN_G_V1 / PEDERSEN_H_V1 path is removed; everything now flows through
+// the single PEDERSEN_SEEDED_GEN_V1 DST that the C++ canonical uses.
 func DeterministicGenerators(seed []byte) (*Generators, error) {
-	deriveOne := func(counter uint32, dst []byte) (bn254.G1Affine, error) {
-		var buf [4]byte
-		binary.BigEndian.PutUint32(buf[:], counter)
-		h := sha256.New()
-		h.Write(buf[:])
-		h.Write(seed)
-		digest := h.Sum(nil)
-		return bn254.HashToG1(digest, dst)
-	}
-	g, err := deriveOne(0, []byte("PEDERSEN_G_V1"))
-	if err != nil {
-		return nil, err
-	}
-	var h bn254.G1Affine
-	for c := uint32(1); c < 1024; c++ {
-		hp, err := deriveOne(c, []byte("PEDERSEN_H_V1"))
-		if err != nil {
-			return nil, err
-		}
-		if !hp.Equal(&g) {
-			h = hp
-			break
-		}
-	}
-	if h.IsInfinity() {
-		return nil, ErrIdenticalGenerators
-	}
-	gen := &Generators{}
-	gen.G.FromAffine(&g)
-	gen.H.FromAffine(&h)
-	return gen, nil
+	key := sha256.Sum256(seed)
+	return NewGeneratorsFromSeed(key)
 }
 
 // Commit returns Commit(m, r) = m*G + r*H.
