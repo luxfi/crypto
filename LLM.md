@@ -642,9 +642,26 @@ func (q *BLS) generateBLSAggregate(blockID ids.ID, shares []threshold.SignatureS
 }
 ```
 
-#### 4. node/vms/thresholdvm (T-Chain MPC Service)
+#### 4. node/vms/thresholdvm — MPC mode (M-Chain) + FHE mode (F-Chain) per LP-134
 
 **File**: `/Users/z/work/lux/node/vms/thresholdvm/vm.go`
+
+Per LP-134 (Lux Chain Topology), the legacy T-Chain custody monolith
+is split into two operational chains, both served by this single VM:
+
+- `thresholdvm` in **MPC mode → M-Chain**: distributed key generation,
+  threshold signing (CGGMP21 / FROST / Corona-gen), key resharing.
+- `thresholdvm` in **FHE mode → F-Chain**: TFHE bootstrap-key generation,
+  encrypted-EVM compute. The TFHE keygen ceremony itself runs on M-Chain
+  via FROST DKG and is consumed by F-Chain via a CertLane handoff.
+
+Each runtime chooses one mode at boot via the `MChainAdapter` or
+`FChainAdapter` registration in `chains/thresholdvm/runtime/`. The
+substrate refuses cross-mode lane verifiers at boot, so a misconfigured
+chain fails fast rather than silently mixing ceremonies.
+
+The legacy "T-Chain" name is retained only for `teleportvm` (LP-6332),
+the cross-chain teleport message bus, which is unrelated to thresholdvm.
 
 **Current State**: Uses `github.com/luxfi/threshold/pkg/party` directly
 
