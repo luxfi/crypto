@@ -1,17 +1,17 @@
 ---
 title: Signer
-description: Hybrid BLS and Corona signing for Lux consensus
+description: Hybrid BLS and Pulsar signing for Lux consensus
 ---
 
 # Signer
 
-Hybrid signing combining BLS with Corona (lattice-based threshold signatures) for Lux consensus.
+Hybrid signing combining BLS with Pulsar (lattice-based threshold signatures) for Lux consensus.
 
 ## Overview
 
-- **Hybrid Signatures**: BLS + Corona threshold signing
+- **Hybrid Signatures**: BLS + Pulsar threshold signing
 - **Classical Security**: BLS provides efficient, aggregatable signatures
-- **Post-Quantum Ready**: Corona lattice-based threshold scheme
+- **Post-Quantum Ready**: Pulsar lattice-based threshold scheme
 - **Consensus Optimized**: Designed for Lux's Quasar consensus
 
 ## Architecture
@@ -21,7 +21,7 @@ Lux consensus uses two cryptographic layers:
 | Layer | Algorithm | Purpose |
 |-------|-----------|---------|
 | Classical | BLS12-381 | Efficient aggregatable signatures |
-| Threshold | Corona | Lattice-based threshold signatures |
+| Threshold | Pulsar | Lattice-based threshold signatures |
 
 ## Implementation
 
@@ -42,7 +42,7 @@ func main() {
     }
 
     fmt.Printf("BLS Public Key: %x\n", s.GetBLSPublicKey())
-    fmt.Printf("Corona Public Key: %x\n", s.GetCoronaPublicKey().Bytes())
+    fmt.Printf("Pulsar Public Key: %x\n", s.GetCoronaPublicKey().Bytes())
 }
 ```
 
@@ -60,12 +60,12 @@ func verify(s *signer.Signer, msg, sig []byte) bool {
 }
 ```
 
-### Corona Threshold Signing
+### Pulsar Threshold Signing
 
-Corona is a lattice-based threshold signature scheme used for post-quantum security in consensus:
+Pulsar is a lattice-based threshold signature scheme used for post-quantum security in consensus:
 
 ```go
-// Corona threshold signing requires coordination through consensus
+// Pulsar threshold signing requires coordination through consensus
 // The signer package provides key management
 pk := s.GetCoronaPublicKey()
 
@@ -77,7 +77,7 @@ pk := s.GetCoronaPublicKey()
 
 ### Quasar Consensus
 
-The Lux Quasar consensus uses both BLS and Corona:
+The Lux Quasar consensus uses both BLS and Pulsar:
 
 ```go
 type ConsensusMessage struct {
@@ -93,7 +93,7 @@ func aggregateBLS(sigs [][]byte) ([]byte, error) {
     return bls.AggregateSignatures(sigs)
 }
 
-// Corona uses threshold aggregation
+// Pulsar uses threshold aggregation
 // Requires t-of-n validators to create final signature
 ```
 
@@ -120,7 +120,7 @@ type FinalizedBlock struct {
 | Signature Size | 96 B | Constant |
 | Public Key Size | 48 B | Compressed |
 
-Corona threshold operations depend on the consensus layer.
+Pulsar threshold operations depend on the consensus layer.
 
 ## Key Management
 
@@ -149,8 +149,8 @@ coronaKey := s.CoronaPrivateKey()
 
 The hybrid approach provides security even if one algorithm is compromised:
 
-- **BLS only broken**: Corona threshold maintains security
-- **Corona only broken**: BLS maintains classical security
+- **BLS only broken**: Pulsar threshold maintains security
+- **Pulsar only broken**: BLS maintains classical security
 - **Both secure**: Defense in depth
 
 ### Key Generation
@@ -168,7 +168,7 @@ func secureKeyGeneration() (*signer.Signer, error) {
         return nil, errors.New("BLS key generation failed")
     }
     if s.GetCoronaPublicKey() == nil {
-        return nil, errors.New("Corona key generation failed")
+        return nil, errors.New("Pulsar key generation failed")
     }
 
     return s, nil
@@ -192,7 +192,7 @@ func TestSigner(t *testing.T) {
     // Wrong message should fail
     require.False(t, s.VerifyBLS([]byte("wrong"), blsSig))
 
-    // Corona key should exist
+    // Pulsar key should exist
     require.NotNil(t, s.GetCoronaPublicKey())
 }
 ```

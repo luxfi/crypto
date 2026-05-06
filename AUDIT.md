@@ -55,7 +55,7 @@ Legend: V = vanilla Go, C = cgo, G = GPU via lux/accel, T = tests.
 | kem          | Y | Y | - | - | circl ML-KEM + hybrid X-Wing |
 | kzg4844      | Y | Y | G* | Y | gokzg (`!ckzg`) + ckzg (`cgo,ckzg`). GPU added (batch verify). |
 | lamport      | Y | - | - | Y | Hash-based OTS — pure Go |
-| mldsa        | Y | - | G* | Y | circl FIPS-204. GPU added (batch sign/verify) when accel exposes Dilithium. |
+| mldsa        | Y | - | G* | Y | circl FIPS-204. GPU added (batch sign/verify) when accel exposes ML-DSA. |
 | mlkem        | Y | * | G* | Y | circl FIPS-203. cgo file is currently a placeholder (mlkem_c.go). GPU added (batch encaps/decaps). |
 | pq           | Y | - | - | - | Re-export aggregator over mldsa+mlkem+slhdsa |
 | precompile   | Y | - | - | Y | EVM precompile impls — pure Go |
@@ -65,7 +65,7 @@ Legend: V = vanilla Go, C = cgo, G = GPU via lux/accel, T = tests.
 | secp256r1    | Y | - | - | - | NIST P-256 verifier (RIP-7212) |
 | secret       | Y | - | - | Y | Go 1.26 runtime/secret wrapper |
 | sign         | - | - | - | - | Empty placeholder |
-| signer       | Y | - | - | Y | Hybrid BLS+Corona signer |
+| signer       | Y | - | - | Y | Hybrid BLS+Pulsar signer |
 | signify      | Y | - | - | Y | OpenBSD-style signify |
 | slhdsa       | Y | - | - | Y | circl FIPS-205 — pure Go |
 | threshold    | Y | - | - | Y | Threshold scheme registry + BLS impl |
@@ -138,7 +138,7 @@ alias `LUX_CRYPTO_BACKEND` is honored for one release.
 
 2. **GPU coverage**: `lux/accel` exposes batch kernels for
    SHA256, Keccak256, Poseidon, ECDSA, Ed25519, BLS verify+aggregate,
-   Merkle, plus Kyber and Dilithium. Algorithms without a kernel
+   Merkle, plus ML-KEM and ML-DSA. Algorithms without a kernel
    (slhdsa, verkle, kzg4844 single-blob path) keep vanilla/cgo only —
    gpu.go in those packages reports `accel.ErrNotSupported` and the
    public API transparently falls back to the next backend.

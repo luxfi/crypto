@@ -1,7 +1,7 @@
 # lux-crypto-slhdsa
 
 Canonical Rust binding for Lux SLH-DSA (FIPS 205, the final standardized form
-of SPHINCS+).
+of SLH-DSA (FIPS 205, formerly SPHINCS+)).
 
 **Status: stub — luxcpp/crypto/slhdsa/c-abi/c_slhdsa.cpp returns
 `CRYPTO_ERR_NOTIMPL`.** The Rust binding is shipped against the canonical
