@@ -1,7 +1,7 @@
 # lux-crypto-mlkem
 
 Canonical Rust binding for Lux ML-KEM (FIPS 203, final standardized form of
-CRYSTALS-Kyber).
+ML-KEM (FIPS 203, formerly CRYSTALS-Kyber)).
 
 | Mode        | NIST level | pk     | sk    | ct    | ss |
 |-------------|------------|--------|-------|-------|----|
