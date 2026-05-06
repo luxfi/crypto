@@ -1,6 +1,6 @@
 # ML-DSA (Module-Lattice Digital Signature Algorithm) for Lux
 
-FIPS 204 compliant implementation of ML-DSA (formerly known as CRYSTALS-Dilithium) post-quantum signatures.
+FIPS 204 compliant implementation of ML-DSA (formerly known as ML-DSA (FIPS 204, formerly CRYSTALS-Dilithium)) post-quantum signatures.
 
 ## Overview
 

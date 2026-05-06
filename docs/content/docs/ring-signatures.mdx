@@ -1,15 +1,15 @@
 ---
-title: Corona (Lattice Threshold Signatures)
+title: Pulsar (Lattice Threshold Signatures)
 description: Lattice-based threshold signature scheme for post-quantum consensus
 ---
 
-# Corona
+# Pulsar
 
-Corona is a lattice-based threshold signature scheme used in Lux consensus for post-quantum security. It enables t-of-n validators to collaboratively create signatures without any single party controlling the signing key.
+Pulsar is a lattice-based threshold signature scheme used in Lux consensus for post-quantum security. It enables t-of-n validators to collaboratively create signatures without any single party controlling the signing key.
 
 ## Overview
 
-Corona provides:
+Pulsar provides:
 
 - **Threshold Security**: Requires t-of-n participants to sign
 - **Post-Quantum Resistance**: Based on lattice hard problems
@@ -65,7 +65,7 @@ import (
 )
 
 func main() {
-    // Get the threshold scheme (BLS for now, Corona when available)
+    // Get the threshold scheme (BLS for now, Pulsar when available)
     scheme, err := threshold.GetScheme(threshold.SchemeBLS)
     if err != nil {
         panic(err)
@@ -95,7 +95,7 @@ func main() {
 
 ### Threshold Operations
 
-Corona threshold operations are coordinated through the consensus layer:
+Pulsar threshold operations are coordinated through the consensus layer:
 
 ```go
 // In consensus layer (github.com/luxfi/consensus)
@@ -150,12 +150,12 @@ type FinalizedBlock struct {
 
 ### Dual-Layer Security
 
-Lux uses both BLS and Corona:
+Lux uses both BLS and Pulsar:
 
 | Layer | Purpose | Security |
 |-------|---------|----------|
 | BLS | Fast aggregation, classical | 128-bit classical |
-| Corona | Threshold, post-quantum | Lattice hard problems |
+| Pulsar | Threshold, post-quantum | Lattice hard problems |
 
 Both must be valid for block finalization.
 
@@ -197,7 +197,7 @@ Precomputed shares enable:
 | ECDSA | Classical | No | With MPC |
 | BLS | Classical | No | Native |
 | ML-DSA | Post-Quantum | Yes | No |
-| Corona | Post-Quantum | Yes | Yes |
+| Pulsar | Post-Quantum | Yes | Yes |
 
 ## Integration with Signer Package
 
