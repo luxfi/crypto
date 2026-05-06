@@ -9,7 +9,7 @@ Wraps the C-ABI exposed by `luxcpp/crypto/poly_mul`.
 
 - **Polynomial multiplication** in `Z_Q[X] / (X^n + 1)` (negacyclic ring)
 - Built on top of `lux-crypto-ntt`
-- Used as a primitive for lattice-based schemes (ML-DSA, ML-KEM, Ringtail)
+- Used as a primitive for lattice-based schemes (ML-DSA, ML-KEM, Pulsar)
 
 ## Build
 

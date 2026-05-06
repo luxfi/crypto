@@ -14,9 +14,9 @@ go get github.com/luxfi/crypto
 
 | Package | Algorithm | Standard | Security | Key Sizes |
 |---------|-----------|----------|----------|-----------|
-| `mldsa/` | ML-DSA (Dilithium) | FIPS 204 | 128/192/256-bit (Levels 2/3/5) | 44: 1312/2560 B, 65: 1952/4032 B, 87: 2592/4896 B |
-| `mlkem/` | ML-KEM (Kyber) | FIPS 203 | 128/192/256-bit | 512: 800/1632 B, 768: 1184/2400 B, 1024: 1568/3168 B |
-| `slhdsa/` | SLH-DSA (SPHINCS+) | FIPS 205 | 128/192/256-bit (12 variants) | SHA2/SHAKE, fast/small tradeoff |
+| `mldsa/` | ML-DSA | FIPS 204 | 128/192/256-bit (Levels 2/3/5) | 44: 1312/2560 B, 65: 1952/4032 B, 87: 2592/4896 B |
+| `mlkem/` | ML-KEM | FIPS 203 | 128/192/256-bit | 512: 800/1632 B, 768: 1184/2400 B, 1024: 1568/3168 B |
+| `slhdsa/` | SLH-DSA (FIPS 205, formerly SPHINCS+) | FIPS 205 | 128/192/256-bit (12 variants) | SHA2/SHAKE, fast/small tradeoff |
 | `pq/` | Unified PQ interface | -- | Wraps mldsa, mlkem, slhdsa | Mode selection at runtime |
 
 ML-DSA and ML-KEM wrap Cloudflare's circl with ergonomic key serialization. SLH-DSA provides hash-based signatures as a conservative fallback (no lattice assumptions).
@@ -136,7 +136,7 @@ Compiled test binaries are provided for quick verification:
 - [Lux PQ Crypto Suite](https://github.com/luxfi/papers/blob/main/lux-pq-crypto-suite.pdf) -- parameter selection and security analysis for ML-DSA, ML-KEM, SLH-DSA
 - [Lux Hybrid PQ Architecture](https://github.com/luxfi/papers/blob/main/lux-hybrid-pq-architecture.pdf) -- hybrid classical/PQ transition strategy
 - [Lux Crypto Agility](https://github.com/luxfi/papers/blob/main/lux-crypto-agility.pdf) -- algorithm negotiation and migration framework
-- [Lux Ringtail PQ](https://github.com/luxfi/papers/blob/main/lux-ringtail-pq.pdf) -- post-quantum ring signatures
+- [Lux Pulsar PQ](https://github.com/luxfi/papers/blob/main/lux-ringtail-pq.pdf) -- post-quantum ring signatures
 - [Lux Universal Threshold Signatures](https://github.com/luxfi/papers/blob/main/lux-universal-threshold-signatures.pdf) -- multi-curve threshold framework
 
 ## References
