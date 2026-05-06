@@ -1,7 +1,7 @@
 # lux-crypto-mldsa
 
 Canonical Rust binding for Lux ML-DSA (FIPS 204, final standardized form of
-CRYSTALS-Dilithium).
+ML-DSA (FIPS 204, formerly CRYSTALS-Dilithium)).
 
 | Mode        | NIST level | pk     | sk    | sig    |
 |-------------|------------|--------|-------|--------|
