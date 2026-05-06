@@ -27,7 +27,7 @@ cd docs && pnpm build    # Build static site
 ### Consensus Cryptography (Lux Quasar)
 | Package | Purpose | Notes |
 |---------|---------|-------|
-| **signer/** | Hybrid BLS + Corona signing | Lux consensus |
+| **signer/** | Hybrid BLS + Pulsar signing | Lux consensus |
 | **bls/** | BLS12-381 aggregatable signatures | Classical layer |
 | **corona/** | Lattice-based threshold signatures | Post-quantum layer |
 
@@ -81,12 +81,12 @@ Key changes:
 
 | Type | Example | Use Case |
 |------|---------|----------|
-| **Threshold** | Corona, BLS-Threshold, FROST, CGGMP21 | t-of-n validators sign collaboratively |
+| **Threshold** | Pulsar, BLS-Threshold, FROST, CGGMP21 | t-of-n validators sign collaboratively |
 | **Regular** | ML-DSA, BLS | Single party signs |
 
-Lux consensus uses **BLS + Corona**:
+Lux consensus uses **BLS + Pulsar**:
 - BLS: Classical, aggregatable signatures
-- Corona: Lattice-based threshold for post-quantum security
+- Pulsar: Lattice-based threshold for post-quantum security
 
 ML-DSA is a separate NIST standard (not used in consensus, potential future validator messages).
 
@@ -129,7 +129,7 @@ threshold/
 | `SchemeFROST` | FROST (Schnorr) | Interface only | No | No |
 | `SchemeCMP` | CGGMP21 (ECDSA) | Partial in cggmp21/ | No | No |
 | `SchemeBLS` | BLS Threshold | Skeleton impl | No | Yes |
-| `SchemeCorona` | Corona (Lattice) | Interface only | Yes | No |
+| `SchemeCorona` | Pulsar (Lattice) | Interface only | Yes | No |
 
 ### Usage Pattern
 
@@ -313,7 +313,7 @@ err := ring.VerifyAndRecord(sig, message, ringMembers, store)
 | TestLatticeSignatureInvalidMessage | Post-quantum wrong message |
 | TestLatticeSignatureInvalidRing | Post-quantum modified ring |
 
-### Distinction from Corona
+### Distinction from Pulsar
 
 | Package | Type | Purpose |
 |---------|------|---------|
@@ -336,7 +336,7 @@ lux key ring generate --size 5                            # Generate decoy keys
 ```
 
 **Scheme Flags:**
-- `--scheme lsag` (default) - Uses Corona keys from `~/.lux/keys/<name>/rt/`
+- `--scheme lsag` (default) - Uses Pulsar keys from `~/.lux/keys/<name>/rt/`
 - `--scheme lattice` - Uses ML-DSA keys from `~/.lux/keys/<name>/mldsa/`
 
 **File Locations:**
@@ -415,11 +415,11 @@ Static docs site at `docs/` using fumadocs:
 5. hash-functions - SHA, BLAKE, Keccak
 6. key-management - HD wallets, KDF
 7. security - Best practices
-8. ring-signatures - Corona (lattice threshold)
+8. ring-signatures - Pulsar (lattice threshold)
 9. lamport - One-time signatures
 10. kzg4844 - Polynomial commitments
 11. verkle-ipa - Inner product arguments
-12. signer - Hybrid BLS + Corona
+12. signer - Hybrid BLS + Pulsar
 13. precompiles - EVM contracts
 
 ## Key Technologies
@@ -433,7 +433,7 @@ Static docs site at `docs/` using fumadocs:
 
 | Algorithm | Security Level | Quantum Resistant | Type |
 |-----------|---------------|-------------------|------|
-| Corona | Lattice-based | Yes | Threshold |
+| Pulsar | Lattice-based | Yes | Threshold |
 | ML-DSA-65 | 192-bit (NIST Level 3) | Yes | Regular |
 | ML-KEM-768 | 192-bit (NIST Level 3) | Yes | KEM |
 | SLH-DSA-SHA2-128f | 128-bit (NIST Level 1) | Yes | Regular |
@@ -447,7 +447,7 @@ Static docs site at `docs/` using fumadocs:
 3. Follow Go coding standards
 4. Test all implementations before claiming completion
 5. Cross-reference LPs when discussing specifications
-6. Corona = lattice threshold (NOT ring signatures, NOT ML-DSA)
+6. Pulsar = lattice threshold (NOT ring signatures, NOT ML-DSA)
 7. ML-DSA = NIST FIPS 204 regular signatures (NOT threshold)
 
 ---
@@ -917,7 +917,7 @@ consensus/protocol/quasar/
 
 `crypto/threshold/corona/scheme.go` is an **adapter layer** that:
 1. Imports `github.com/luxfi/corona/sign` and `github.com/luxfi/corona/primitives`
-2. Creates wrapper types (KeyShare, PublicKey, Signer, etc.) that wrap real Corona types
+2. Creates wrapper types (KeyShare, PublicKey, Signer, etc.) that wrap real Pulsar types
 3. Translates between `threshold.*` interfaces and `corona.sign.*` types
 4. Duplicates type definitions with conversion logic
 
@@ -954,7 +954,7 @@ This violates the design goal of having implementations be **native** to the int
    └─────────────┘         └─────────────┘        └───────────────┘
                                   │
                     No more adapter layer!
-                    Corona implements threshold.Scheme
+                    Pulsar implements threshold.Scheme
                     directly in the corona repo
 ```
 
@@ -974,7 +974,7 @@ The entire `crypto/threshold/corona/` directory was removed.
 
 **Created:** `corona/threshold/threshold.go`
 
-The Corona package now implements threshold signatures natively (2-round protocol):
+The Pulsar package now implements threshold signatures natively (2-round protocol):
 
 ```go
 // corona/threshold/threshold.go
@@ -1032,9 +1032,9 @@ import (
 
 **Key additions:**
 - `HybridConfig` struct with `CoronaShares` and `CoronaGroupKey` fields
-- `DualSignRound1()` - Returns BLS share + Corona Round1 data in parallel
+- `DualSignRound1()` - Returns BLS share + Pulsar Round1 data in parallel
 - `CoronaRound1/Round2/Finalize()` - Exposes 2-round protocol methods
-- `GenerateDualKeys()` - Generates both BLS and Corona threshold keys
+- `GenerateDualKeys()` - Generates both BLS and Pulsar threshold keys
 
 ### ARCHITECTURE DIAGRAM (Clean State)
 
@@ -1121,12 +1121,12 @@ Move and adapt tests.
 
 Change:
 ```go
-_ "github.com/luxfi/crypto/threshold/corona" // Register Corona threshold scheme
+_ "github.com/luxfi/crypto/threshold/corona" // Register Pulsar threshold scheme
 ```
 
 To:
 ```go
-_ "github.com/luxfi/corona/threshold" // Register Corona threshold scheme
+_ "github.com/luxfi/corona/threshold" // Register Pulsar threshold scheme
 ```
 
 #### 4. MODIFY (corona repo go.mod)
@@ -1142,12 +1142,12 @@ require github.com/luxfi/crypto v1.x.x
 
 1. **No Duplication**: Types are defined once, in corona, implementing threshold interfaces
 2. **No Interpretation**: No translation layer between two type systems
-3. **Single Source**: Corona logic lives in corona repo
+3. **Single Source**: Pulsar logic lives in corona repo
 4. **Clean Dependencies**:
    - crypto/threshold -> defines interfaces
    - corona -> implements interfaces
    - consensus -> uses interfaces
-5. **Consistent Pattern**: Both BLS and Corona now follow same pattern
+5. **Consistent Pattern**: Both BLS and Pulsar now follow same pattern
 
 ### WHAT TO KEEP (Unchanged)
 
@@ -1179,7 +1179,7 @@ The `adapter.go` file is confusingly named but it's actually a **convenience wra
 
 ### TEST RESULTS (2025-12-19)
 
-**Corona Threshold Tests (4 tests):**
+**Pulsar Threshold Tests (4 tests):**
 - TestGenerateKeys ✅
 - TestThresholdSigningFlow ✅ (2-round protocol verified)
 - TestThresholdWrongMessage ✅
@@ -1190,15 +1190,15 @@ The `adapter.go` file is confusingly named but it's actually a **convenience wra
 - TestBLSThresholdInsufficientShares ✅
 - TestBLSThresholdWrongMessage ✅
 - TestDualThresholdKeyGeneration ✅
-- **TestDualSigningFlow ✅** - Full BLS + Corona 2-round protocol
+- **TestDualSigningFlow ✅** - Full BLS + Pulsar 2-round protocol
 
 ### KEY ACHIEVEMENT
 
 **Dual Threshold Signing Flow** - Validators can now sign blocks with both:
 1. **BLS** (1 round): Immediate aggregation for classical security
-2. **Corona** (2 rounds): Post-quantum security via lattice-based threshold signatures
+2. **Pulsar** (2 rounds): Post-quantum security via lattice-based threshold signatures
 
-Both run in parallel, with BLS completing in Round 1 while Corona completes after Round 2.
+Both run in parallel, with BLS completing in Round 1 while Pulsar completes after Round 2.
 
 ### PENDING WORK
 
@@ -1210,7 +1210,7 @@ Both run in parallel, with BLS completing in Round 1 while Corona completes afte
 
 ### Overview
 
-The `EpochManager` in `consensus/protocol/quasar/epoch.go` manages Corona key epochs for validator sets with rate limiting to prevent excessive key churn while still rotating frequently enough to frustrate quantum attacks.
+The `EpochManager` in `consensus/protocol/quasar/epoch.go` manages Pulsar key epochs for validator sets with rate limiting to prevent excessive key churn while still rotating frequently enough to frustrate quantum attacks.
 
 ### Key Constants
 
@@ -1230,7 +1230,7 @@ The epoch uses `uint64` which supports values up to 18,446,744,073,709,551,615. 
 ### Core Types
 
 ```go
-// EpochManager manages Corona key epochs for the validator set.
+// EpochManager manages Pulsar key epochs for the validator set.
 type EpochManager struct {
     mu              sync.RWMutex
     currentEpoch    uint64
@@ -1242,7 +1242,7 @@ type EpochManager struct {
     threshold         int
 }
 
-// EpochKeys holds the Corona keys for a specific epoch.
+// EpochKeys holds the Pulsar keys for a specific epoch.
 type EpochKeys struct {
     Epoch           uint64
     CreatedAt       time.Time
@@ -1314,9 +1314,9 @@ func (q *Quasar) AddValidator(validatorID string, coronaShare ...) error {
 }
 ```
 
-### Critical Bug Fix: Corona Verify Function
+### Critical Bug Fix: Pulsar Verify Function
 
-**Issue**: The Corona `Verify` function in `/Users/z/work/lux/corona/sign/sign.go:290` was **destructive** - it modified the input signature's `z` vector in-place with `utils.ConvertVectorFromNTT(r, z)`.
+**Issue**: The Pulsar `Verify` function in `/Users/z/work/lux/corona/sign/sign.go:290` was **destructive** - it modified the input signature's `z` vector in-place with `utils.ConvertVectorFromNTT(r, z)`.
 
 **Symptom**: Epoch 0 signatures failed to verify after rotation because the first verification call mutated the signature.
 
@@ -1336,7 +1336,7 @@ utils.MatrixVectorMul(r, A, zCopy, Az_bc)
 // ...
 ```
 
-### 3-Second Quantum Bundles (Parallel BLS + Corona)
+### 3-Second Quantum Bundles (Parallel BLS + Pulsar)
 
 **Architecture (parallel execution):**
 ```
@@ -1345,10 +1345,10 @@ BLS Layer:     [B1]--[B2]--[B3]--[B4]--[B5]--[B6]--[B7]--[B8]--...
                  |___________________________________|
                                   |
 Quantum Layer:              [QB1: Merkle(B1-B6)]--------[QB2: Merkle(B7-B12)]
-                                  |  3-second interval, async Corona signing
+                                  |  3-second interval, async Pulsar signing
 ```
 
-**NTT Corona benchmarks (IEEE S&P 2025):**
+**NTT Pulsar benchmarks (IEEE S&P 2025):**
 - 0.6s online signing phase (2-round protocol)
 - 2.5s total including offline prep across 5 continents
 - Our 3-second interval provides comfortable margin
@@ -1388,7 +1388,7 @@ valid := bs.VerifyBundle(bundle)
 **Async Signing (for production):**
 
 ```go
-// AsyncBundleSigner runs Corona signing in background
+// AsyncBundleSigner runs Pulsar signing in background
 signer := NewAsyncBundleSigner(epochManager)
 
 // BundleRunner automates the 3-second production loop
@@ -1405,7 +1405,7 @@ runner.Stop()
 
 **Key Features:**
 - BLS finality continues at 500ms - no latency impact
-- Corona signing runs async, doesn't block BLS
+- Pulsar signing runs async, doesn't block BLS
 - ~6 BLS blocks per quantum bundle (3s / 500ms)
 - Merkle root provides compact proof of all BLS blocks
 - Bundle chain via `PreviousHash` linkage
