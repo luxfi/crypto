@@ -10,7 +10,7 @@ A comprehensive cryptographic library providing BLS signatures, post-quantum alg
 ## Features
 
 - **BLS Signatures**: Efficient signature aggregation for consensus
-- **Post-Quantum Cryptography**: ML-DSA (Dilithium) signatures and ML-KEM (Kyber) key exchange
+- **Post-Quantum Cryptography**: ML-DSA signatures and ML-KEM key exchange
 - **Fully Homomorphic Encryption**: Compute on encrypted data (TFHE, CKKS, BGV)
 - **GPU Acceleration**: Metal (Apple Silicon) and CUDA (NVIDIA) backends
 - **Hash Functions**: SHA-256, SHA-3, BLAKE2b, Keccak
@@ -52,7 +52,7 @@ func main() {
 }
 ```
 
-### Post-Quantum Signatures (Dilithium)
+### Post-Quantum Signatures (ML-DSA)
 
 ```go
 package main
@@ -74,7 +74,7 @@ func main() {
 }
 ```
 
-### Key Exchange (Kyber)
+### Key Exchange (ML-KEM)
 
 ```go
 package main
@@ -99,9 +99,9 @@ func main() {
 
 ### Cryptographic Primitives
 
-1. **Signatures**: BLS, ECDSA, Ed25519, Dilithium
+1. **Signatures**: BLS, ECDSA, Ed25519, ML-DSA
 2. **Hash Functions**: SHA-256, SHA-3, BLAKE2b, Keccak
-3. **Key Exchange**: ECDH, Kyber
+3. **Key Exchange**: ECDH, ML-KEM
 4. **Encryption**: AES-GCM, ChaCha20-Poly1305
 5. **Random Number Generation**: CSPRNG
 
@@ -146,7 +146,7 @@ func AggregatePublicKeys(pks []PublicKey) (PublicKey, error)
 func VerifyAggregate(pks []PublicKey, message []byte, sig Signature) bool
 ```
 
-### Dilithium Package (Post-Quantum)
+### ML-DSA Package (Post-Quantum)
 
 ```go
 // Generate key pair
@@ -159,7 +159,7 @@ func Sign(sk PrivateKey, message []byte) ([]byte, error)
 func Verify(pk PublicKey, message []byte, sig []byte) bool
 ```
 
-### Kyber Package (Post-Quantum Key Exchange)
+### ML-KEM Package (Post-Quantum Key Exchange)
 
 ```go
 // Generate key pair
@@ -224,7 +224,7 @@ for _, pk := range publicKeys {
 // Use hybrid signatures during transition period
 type HybridSignature struct {
     BLS       bls.Signature
-    Dilithium []byte
+    ML-DSA []byte
 }
 
 func SignHybrid(message []byte, blsKey *bls.PrivateKey, pqKey dilithium.PrivateKey) (*HybridSignature, error) {
@@ -236,7 +236,7 @@ func SignHybrid(message []byte, blsKey *bls.PrivateKey, pqKey dilithium.PrivateK
     
     return &HybridSignature{
         BLS:       blsSig,
-        Dilithium: pqSig,
+        ML-DSA: pqSig,
     }, nil
 }
 ```
@@ -256,10 +256,10 @@ func SignHybrid(message []byte, blsKey *bls.PrivateKey, pqKey dilithium.PrivateK
 
 | Operation | Time | Size |
 |-----------|------|------|
-| Dilithium Sign | 0.8 ms | 2.4 KB |
-| Dilithium Verify | 0.3 ms | - |
-| Kyber Encapsulate | 0.1 ms | 1.1 KB |
-| Kyber Decapsulate | 0.1 ms | - |
+| ML-DSA Sign | 0.8 ms | 2.4 KB |
+| ML-DSA Verify | 0.3 ms | - |
+| ML-KEM Encapsulate | 0.1 ms | 1.1 KB |
+| ML-KEM Decapsulate | 0.1 ms | - |
 
 ## Testing
 
