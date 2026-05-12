@@ -16,7 +16,7 @@ func TestSchemeIDString(t *testing.T) {
 		{SchemeFROST, "FROST"},
 		{SchemeCMP, "CMP"},
 		{SchemeBLS, "BLS"},
-		{SchemeRingtail, "Ringtail"},
+		{SchemeCorona, "Corona"},
 	}
 
 	for _, tc := range tests {
@@ -37,7 +37,7 @@ func TestSchemeIDPostQuantum(t *testing.T) {
 		{SchemeFROST, false},
 		{SchemeCMP, false},
 		{SchemeBLS, false},
-		{SchemeRingtail, true},
+		{SchemeCorona, true},
 	}
 
 	for _, tc := range tests {
@@ -58,7 +58,7 @@ func TestSchemeIDNonInteractive(t *testing.T) {
 		{SchemeFROST, false},
 		{SchemeCMP, false},
 		{SchemeBLS, true},
-		{SchemeRingtail, false},
+		{SchemeCorona, false},
 	}
 
 	for _, tc := range tests {

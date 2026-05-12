@@ -8,7 +8,7 @@
 //
 //   - Schoolbook   O(n^2)  -- always correct, fastest below n=64
 //   - NTT-based    O(n log n) for the negacyclic convolution that lattice
-//                  cryptography (ML-KEM, ML-DSA, Ringtail) uses
+//                  cryptography (ML-KEM, ML-DSA, Corona) uses
 //
 // Q = 998244353 is the canonical FFT-friendly prime used by AtCoder, Cyclone-FFT,
 // the SPOJ POLYMUL reference, and most competitive-programming NTT references.
@@ -38,7 +38,7 @@ const PrimitiveRoot uint64 = 629671588
 
 // MaxLogN is the largest log2(n) supported by the NTT path.
 // Q's 2-adicity is 23 so technically up to 23 is supported; we cap at 16
-// (n=65536) which is far above ML-KEM (256), ML-DSA (256), Ringtail's typical
+// (n=65536) which is far above ML-KEM (256), ML-DSA (256), Corona's typical
 // dimensions.
 const MaxLogN = 16
 

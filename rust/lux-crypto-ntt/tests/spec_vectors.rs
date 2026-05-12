@@ -29,12 +29,17 @@ fn binding_returns_error_when_c_abi_unimpl() {
 }
 
 #[test]
-fn poly_multiply_returns_error_when_c_abi_unimpl() {
+fn poly_multiply_rejects_non_cyclone_params() {
+    // The poly_mul C-ABI is specialized to the Cyclone-FFT prime (see
+    // luxcpp/crypto/poly_mul/c-abi/c_poly_mul.cpp). Calling it with Goldilocks
+    // params is a domain mismatch and must return CRYPTO_ERR_INPUT (-1), not
+    // CRYPTO_ERR_NOTIMPL. The generic NTT path (forward/inverse) covers
+    // arbitrary NTT-friendly primes.
     let a = [1u64; 4];
     let b = [1u64; 4];
     let mut out = [0u64; 4];
-    let res = poly_multiply(&a, &b, MODULUS, ROOT, &mut out);
-    if let Err(Error::InternalError(rc)) = res {
-        assert_eq!(rc, -5);
+    match poly_multiply(&a, &b, MODULUS, ROOT, &mut out) {
+        Err(Error::InternalError(-1)) => {}
+        other => panic!("expected InternalError(-1) for non-Cyclone params, got {:?}", other),
     }
 }
