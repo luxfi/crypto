@@ -187,7 +187,7 @@ threshold/
 | `SchemeFROST` | FROST (Schnorr) | Interface only | No | No |
 | `SchemeCMP` | CGGMP21 (ECDSA) | Partial in cggmp21/ | No | No |
 | `SchemeBLS` | BLS Threshold | Skeleton impl | No | Yes |
-| `SchemeRingtail` | Pulsar (Lattice) | Interface only | Yes | No |
+| `SchemeCorona` | Pulsar (Lattice) | Interface only | Yes | No |
 
 ### Usage Pattern
 
@@ -909,7 +909,7 @@ bridge/pkg/threshold <- TypeScript (calls node via RPC)
    - 6 new tests for threshold mode
 
 3. **Node Warp Signatures** (`/Users/z/work/lux/node/vms/platformvm/warp/signature.go`):
-   - Updated `AggregateCoronaPublicKeys()` to check for `SchemeRingtail` availability
+   - Updated `AggregateCoronaPublicKeys()` to check for `SchemeCorona` availability
    - Updated `VerifyCoronaSignature()` to use `threshold.Verifier` when available
    - Added fallback to structural validation for testing
 
@@ -1084,14 +1084,14 @@ func Verify(groupKey *GroupKey, message string, sig *Signature) bool
 import (
     "github.com/luxfi/crypto/threshold"
     _ "github.com/luxfi/crypto/threshold/bls"
-    ringtailThreshold "github.com/luxfi/corona/threshold"  // Direct import
+    coronaThreshold "github.com/luxfi/corona/threshold"  // Direct import
 )
 ```
 
 **Key additions:**
-- `HybridConfig` struct with `RingtailShares` and `RingtailGroupKey` fields
+- `HybridConfig` struct with `CoronaShares` and `CoronaGroupKey` fields
 - `DualSignRound1()` - Returns BLS share + Pulsar Round1 data in parallel
-- `RingtailRound1/Round2/Finalize()` - Exposes 2-round protocol methods
+- `CoronaRound1/Round2/Finalize()` - Exposes 2-round protocol methods
 - `GenerateDualKeys()` - Generates both BLS and Pulsar threshold keys
 
 ### ARCHITECTURE DIAGRAM (Clean State)
@@ -1308,9 +1308,9 @@ type EpochKeys struct {
     ValidatorSet    []string
     Threshold       int
     TotalParties    int
-    GroupKey        *ringtailThreshold.GroupKey
-    Shares          map[string]*ringtailThreshold.KeyShare
-    Signers         map[string]*ringtailThreshold.Signer
+    GroupKey        *coronaThreshold.GroupKey
+    Shares          map[string]*coronaThreshold.KeyShare
+    Signers         map[string]*coronaThreshold.Signer
 }
 ```
 
@@ -1426,7 +1426,7 @@ type QuantumBundle struct {
     BlockHashes  [][32]byte // Individual block hashes (for Merkle proof)
     PreviousHash [32]byte   // Previous bundle hash (chain linkage)
     Timestamp    int64      // Unix timestamp
-    Signature    *ringtailThreshold.Signature
+    Signature    *coronaThreshold.Signature
 }
 
 // BundleSigner handles creating and verifying quantum bundles.
