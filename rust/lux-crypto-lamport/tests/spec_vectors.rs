@@ -1,38 +1,33 @@
 // Copyright (c) 2024-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 
-use lux_crypto_lamport::{keygen, sign, verify, Error};
+use lux_crypto_lamport::{keygen, sign, verify, PK_LEN, SIG_LEN, SK_LEN};
 
 #[test]
-#[ignore = "luxcpp lamport c-abi NOTIMPL — tracked at #lamport-c-abi-impl"]
 fn keygen_sign_verify_roundtrip() {
-    // FIXME: the exact Lamport parameter set (pk_len, sk_len, sig_len) is
-    // implementation-defined and will be encoded as constants once the C-ABI
-    // body lands. Until then this test is a placeholder that asserts the
-    // contract round-trips end-to-end.
+    // Canonical Lamport-OTS round-trip against the luxcpp body
+    // (luxcpp/crypto/lamport/cpp/lamport.cpp). Parameter sizes are exported by
+    // the binding as PK_LEN / SK_LEN / SIG_LEN.
     let seed = [0u8; 32];
-    // Generous sizing for a 32-byte-message Lamport.
-    let mut pk = vec![0u8; 32 * 256 * 2 / 8];
-    let mut sk = vec![0u8; 32 * 256 * 2 / 8];
+    let mut pk = vec![0u8; PK_LEN];
+    let mut sk = vec![0u8; SK_LEN];
     keygen(&seed, &mut pk, &mut sk).expect("keygen");
     let msg = [0xAA_u8; 32];
-    let mut sig = vec![0u8; 32 * 256 / 8];
+    let mut sig = vec![0u8; SIG_LEN];
     sign(&sk, &msg, &mut sig).expect("sign");
     verify(&pk, &msg, &sig).expect("verify");
 }
 
 #[test]
-fn binding_returns_error_when_c_abi_unimpl() {
-    // While the C-ABI body is unwired every call returns -5. This is the
-    // only check we can run today that does not silently pass.
-    let seed = [0u8; 32];
-    let mut pk = [0u8; 16];
-    let mut sk = [0u8; 16];
-    match keygen(&seed, &mut pk, &mut sk) {
-        Ok(_) => {}
-        Err(Error::InternalError(rc)) => {
-            assert_eq!(rc, -5, "expected NOTIMPL while C-ABI body is unwired");
-        }
-        Err(other) => panic!("unexpected error: {:?}", other),
-    }
+fn verify_rejects_tampered_signature() {
+    let seed = [0x11u8; 32];
+    let mut pk = vec![0u8; PK_LEN];
+    let mut sk = vec![0u8; SK_LEN];
+    keygen(&seed, &mut pk, &mut sk).expect("keygen");
+    let msg = [0x55_u8; 32];
+    let mut sig = vec![0u8; SIG_LEN];
+    sign(&sk, &msg, &mut sig).expect("sign");
+    // Flip a byte in the signature; verify must reject.
+    sig[0] ^= 0x01;
+    assert!(verify(&pk, &msg, &sig).is_err());
 }

@@ -9,14 +9,20 @@ fn main() {
         PathBuf::from(d)
     } else {
         manifest_dir.join("..").join("..").join("..").join("..")
-            .join("luxcpp").join("crypto").join("build-cto")
+            .join("luxcpp").join("crypto").join("build")
     };
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
-    let lib_path = base.join("ntt");
-    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    // `_poly_mul` is exported from libpoly_mul, not libntt — both ship under
+    // their own subdir in the luxcpp/crypto build tree.
+    let ntt_path = base.join("ntt");
+    let poly_mul_path = base.join("poly_mul");
+    println!("cargo:rustc-link-search=native={}", ntt_path.display());
+    println!("cargo:rustc-link-search=native={}", poly_mul_path.display());
     println!("cargo:rustc-link-lib=static=ntt");
     println!("cargo:rustc-link-lib=static=ntt_cpu");
+    println!("cargo:rustc-link-lib=static=poly_mul");
+    println!("cargo:rustc-link-lib=static=poly_mul_cpu");
     if cfg!(target_os = "macos") { println!("cargo:rustc-link-lib=c++"); } else { println!("cargo:rustc-link-lib=stdc++"); }
 }

@@ -21,6 +21,21 @@ extern "C" {
     fn lamport_verify(pk: *const u8, msg32: *const u8, sig: *const u8) -> c_int;
 }
 
+/// Length in bytes of the deterministic key-derivation seed.
+pub const SEED_LEN: usize = 32;
+/// Length in bytes of the message digest signed (SHA-256 width).
+pub const MSG_LEN: usize = 32;
+/// SHA-256 output width — the per-bit preimage size.
+const HASH_SIZE: usize = 32;
+/// Number of message bits (also the number of preimage pairs in sk).
+const MSG_BITS: usize = MSG_LEN * 8;
+/// Lamport secret-key length: 2 preimages × MSG_BITS × HASH_SIZE = 16384.
+pub const SK_LEN: usize = MSG_BITS * 2 * HASH_SIZE;
+/// Lamport public-key length: 2 sha256 commitments × MSG_BITS × HASH_SIZE = 16384.
+pub const PK_LEN: usize = MSG_BITS * 2 * HASH_SIZE;
+/// Lamport signature length: 1 preimage per message bit × HASH_SIZE = 8192.
+pub const SIG_LEN: usize = MSG_BITS * HASH_SIZE;
+
 /// Errors returned by the Lamport binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
