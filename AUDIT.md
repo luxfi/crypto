@@ -110,7 +110,7 @@ algorithm did not already exist:
     `github.com/luxfi/crypto/threshold` (SchemeFROST) with the adapter
     living in `github.com/luxfi/mpc/pkg/threshold`. A separate `frost/`
     dir would duplicate that surface.
-  * `ringtail/` — implemented natively in `github.com/luxfi/ringtail/threshold`
+  * `corona/` — implemented natively in `github.com/luxfi/corona/threshold`
     which registers itself with `crypto/threshold`. Same reason as frost.
 
 ## Backend selection
