@@ -708,7 +708,7 @@ Per LP-134 (Lux Chain Topology), the legacy T-Chain custody monolith
 is split into two operational chains, both served by this single VM:
 
 - `thresholdvm` in **MPC mode → M-Chain**: distributed key generation,
-  threshold signing (CGGMP21 / FROST / Corona-gen), key resharing.
+  threshold signing (CGGMP21 / FROST / Corona-DKG), key resharing.
 - `thresholdvm` in **FHE mode → F-Chain**: TFHE bootstrap-key generation,
   encrypted-EVM compute. The TFHE keygen ceremony itself runs on M-Chain
   via FROST DKG and is consumed by F-Chain via a CertLane handoff.
