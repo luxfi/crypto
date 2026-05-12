@@ -1361,7 +1361,7 @@ type Quasar struct {
 }
 
 // AddValidator rotates keys when validator set changes
-func (q *Quasar) AddValidator(validatorID string, ringtailShare ...) error {
+func (q *Quasar) AddValidator(validatorID string, coronaShare ...) error {
     keys, err := q.epochManager.RotateEpoch(validators, false)
     if errors.Is(err, ErrEpochRateLimited) || errors.Is(err, ErrNoValidatorChange) {
         // Not an error - just rate limited or no change
