@@ -27,6 +27,19 @@ extern "C" {
     ) -> c_int;
 }
 
+/// Cyclone NTT prime: 998244353 = 119·2²³ + 1, a 30-bit NTT-friendly prime
+/// used by the Lux Cyclone polynomial backend (see luxcpp/crypto/ntt).
+pub const CYCLONE_Q: u64 = 998_244_353;
+/// Generator of the multiplicative group (Z/CYCLONE_Q)* used to derive
+/// primitive roots of unity for any power-of-two transform size.
+pub const CYCLONE_G: u64 = 3;
+/// Primitive 16th root of unity (primitive 2n-th root for n = 8) over
+/// `Z_{CYCLONE_Q}`. Equals `CYCLONE_G^((CYCLONE_Q-1)/16) mod CYCLONE_Q`,
+/// satisfying `CYCLONE_ROOT^16 ≡ 1` and `CYCLONE_ROOT^8 ≡ −1 (mod CYCLONE_Q)`.
+/// Suitable for the n=8 KAT in `tests/kat.rs`; for other n the root must be
+/// derived from `CYCLONE_G` at runtime.
+pub const CYCLONE_ROOT: u64 = 929_031_873;
+
 /// Errors returned by the NTT binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {

@@ -8,7 +8,7 @@
 //   - FROST (Flexible Round-Optimized Schnorr Threshold)
 //   - CMP/CGGMP21 (Threshold ECDSA)
 //   - BLS Threshold (Boneh-Lynn-Shacham)
-//   - Ringtail (Lattice-based threshold, post-quantum)
+//   - Corona (Lattice-based threshold, post-quantum)
 //
 // The interfaces are designed to support both interactive (multi-round) and
 // non-interactive threshold signing protocols.
@@ -57,9 +57,9 @@ const (
 	// Supports non-interactive aggregation.
 	SchemeBLS
 
-	// SchemeRingtail is the lattice-based threshold signature scheme.
+	// SchemeCorona is the lattice-based threshold signature scheme.
 	// Provides post-quantum security.
-	SchemeRingtail
+	SchemeCorona
 )
 
 // String returns the string representation of the scheme ID.
@@ -71,8 +71,8 @@ func (s SchemeID) String() string {
 		return "CMP"
 	case SchemeBLS:
 		return "BLS"
-	case SchemeRingtail:
-		return "Ringtail"
+	case SchemeCorona:
+		return "Corona"
 	default:
 		return "Unknown"
 	}
@@ -80,7 +80,7 @@ func (s SchemeID) String() string {
 
 // IsPostQuantum returns true if the scheme provides post-quantum security.
 func (s SchemeID) IsPostQuantum() bool {
-	return s == SchemeRingtail
+	return s == SchemeCorona
 }
 
 // SupportsNonInteractive returns true if shares can be aggregated without

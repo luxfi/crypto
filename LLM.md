@@ -3,11 +3,69 @@
 **Project**: crypto
 **Organization**: luxfi
 **Repo**: github.com/luxfi/crypto
+**Latest Tag**: v1.18.5
 
 ## Project Overview
 
 Lux cryptography library implementing post-quantum standards and consensus primitives.
 TLS certificate utilities live in the top-level `github.com/luxfi/tls` module.
+
+## Post-E2E-PQ State (current)
+
+ML-DSA is now the canonical PQ identity primitive across the Lux stack.
+This repo owns the FIPS 204 / 203 / 205 implementations and KAT vectors;
+downstream consumers (consensus, node, bridge, sdk, contracts) bind their
+strict-PQ profiles to these exact wrappers.
+
+### Recent significant commits
+| SHA | Tag | Impact |
+|-----|-----|--------|
+| `ad20ed8` | v1.18.5 | `pq/mldsa`: KAT vectors + expanded-key form + ethdilithium-compat. Closes F92 (ETHDILITHIUM precompile compat). |
+| `5afe516` | v1.18.4 | `pq/mldsa`: export `NewKeyFromSeed` for mldsa44 / mldsa65 / mldsa87. Needed by Z-Chain key registry. |
+| `f5ff040` | v1.18.4 | PQ canonical terminology (FIPS 203/204/205 + Pulsar + Lamport). |
+| `4bf9585` | v1.18.4 | thresholdvm M/F-Chain modes per LP-134. |
+| `a94eee3` | — | LLM.md: drop dated 'Last Updated' line. |
+
+### Active versions
+- Repo: `v1.18.5` (next bump: `v1.18.6`).
+- Critical consumers: `consensus v1.23.6+` pulls `crypto v1.18.4`,
+  `consensus v1.23.7` pulls `v1.18.5`. `sdk feat/pq-wallet-account` pulls
+  `v1.18.5` for the HD wallet path.
+
+### Canonical PQ packages
+| Package | Standard | Notes |
+|---------|----------|-------|
+| `pq/mldsa/mldsa44` | FIPS 204 | Compat tier (CLASSICAL_COMPAT_UNSAFE only) |
+| `pq/mldsa/mldsa65` | FIPS 204 | **Canonical strict-PQ identity** |
+| `pq/mldsa/mldsa87` | FIPS 204 | High-value (root keys, M-Chain custody) |
+| `pq/mlkem/mlkem768` | FIPS 203 | Canonical KEM for peer handshakes + Z-Wing |
+| `pq/mlkem/mlkem1024` | FIPS 203 | High-value tier |
+| `pq/slhdsa` | FIPS 205 | Recovery path (SLH-DSA-SHA2-192f) |
+
+### Cross-repo dependencies (consumers)
+- `luxfi/consensus` → mldsa{44,65,87}, slhdsa, mlkem768
+- `luxfi/node` → all of the above + bls
+- `luxfi/sdk` (feat/pq-wallet-account) → mldsa65 + slhdsa192
+- `luxfi/genesis` → mldsa65 keygen (swapped off cloudflare/circl)
+- `luxfi/bridge` → mldsa65 (LUX_STRICT_PQ_BRIDGE)
+- `luxfi/contracts` (PQAuth.sol) → on-chain calls to native precompiles
+  that wrap these (no in-Solidity reimplementation)
+
+### Where to look for X
+- ML-DSA-65 sign / verify entrypoints: `pq/mldsa/mldsa65/mldsa.go`
+- KAT vector files: `pq/mldsa/*/testdata/kat/`
+- `NewKeyFromSeed` (Z-Chain key registry use): `pq/mldsa/*/mldsa.go`
+- Expanded-key (ETHDILITHIUM compat) form: `pq/mldsa/mldsa65/expanded.go`
+- HPKE (Go 1.26 stdlib + ML-KEM hybrid): `encryption/hpke.go`
+- `secret.Do()` BLS / ECDSA wrappers: `secret/secret.go`
+
+### Open follow-ups
+- ML-DSA-44 retained for `CLASSICAL_COMPAT_UNSAFE` only; new code MUST
+  default to ML-DSA-65.
+- `circl` HPKE wrapper in `hpke/` kept for back-compat; stdlib
+  `crypto/hpke` is canonical going forward (Go 1.26).
+
+---
 
 ## Essential Commands
 
