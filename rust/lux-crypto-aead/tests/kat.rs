@@ -23,12 +23,12 @@ fn seal_open_roundtrip_or_notimpl() {
                 .expect("open must accept honest seal output");
             assert_eq!(&decrypted[..], &pt[..]);
         }
-        Err(Error::Internal(-5)) => {
+        Err(Error::InternalError(-5)) => {
             // CRYPTO_ERR_NOTIMPL; open must agree.
             let mut decrypted = vec![0u8; ct.len()];
             assert!(matches!(
                 open(&key, &nonce, aad, &ct, &tag, &mut decrypted),
-                Err(Error::Internal(-5))
+                Err(Error::InternalError(-5))
             ));
         }
         Err(other) => panic!("unexpected seal error: {:?}", other),
