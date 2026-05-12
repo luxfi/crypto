@@ -61,7 +61,7 @@ type SignatureType uint8
 
 const (
 	SignatureTypeBLS SignatureType = iota
-	SignatureTypeRingtail
+	SignatureTypeCorona
 	SignatureTypeCGGMP21
 )
 
@@ -72,12 +72,12 @@ type SignatureConfig struct {
 
 	// Enable specific signature types
 	EnableBLS      bool `json:"enableBLS"`
-	EnableRingtail bool `json:"enableRingtail"`
+	EnableCorona bool `json:"enableCorona"`
 	EnableCGGMP21  bool `json:"enableCGGMP21"`
 
 	// Fee configuration (in nLUX - nano LUX)
 	BLSFee      uint64 `json:"blsFee"`      // 0 = free
-	RingtailFee uint64 `json:"ringtailFee"` // Premium for enhanced privacy
+	CoronaFee uint64 `json:"coronaFee"` // Premium for enhanced privacy
 	CGGMP21Fee  uint64 `json:"cggmp21Fee"`  // Premium for threshold signatures
 
 	// Performance settings
@@ -95,7 +95,7 @@ type AggregatedSignature struct {
 	Signature         []byte                `json:"signature"`
 	SignerIDs         []ids.NodeID          `json:"signerIds,omitempty"`
 	SignerCount       int                   `json:"signerCount"`
-	ThresholdPubKeys  []*ThresholdPublicKey `json:"thresholdPubKeys,omitempty"` // For Ringtail threshold
+	ThresholdPubKeys  []*ThresholdPublicKey `json:"thresholdPubKeys,omitempty"` // For Corona threshold
 	AggregateKey      []byte                `json:"aggregateKey,omitempty"`     // For BLS
 	ThresholdRequired int                   `json:"threshold,omitempty"`        // For threshold schemes
 	TotalFee          uint64                `json:"totalFee"`
@@ -155,7 +155,7 @@ func NewSignatureAggregator(config SignatureConfig, log log.Logger) (*SignatureA
 		sa.blsManager = NewBLSManager(log)
 	}
 
-	if config.EnableRingtail {
+	if config.EnableCorona {
 		sa.thresholdManager = NewThresholdManager(log)
 	}
 
@@ -168,10 +168,10 @@ func NewSignatureAggregator(config SignatureConfig, log log.Logger) (*SignatureA
 	log.Info("Signature aggregator initialized",
 		logUint8("preferredType", uint8(config.PreferredType)),
 		logBool("blsEnabled", config.EnableBLS),
-		logBool("ringtailEnabled", config.EnableRingtail),
+		logBool("coronaEnabled", config.EnableCorona),
 		logBool("cggmp21Enabled", config.EnableCGGMP21),
 		logUint64("blsFee", config.BLSFee),
-		logUint64("ringtailFee", config.RingtailFee),
+		logUint64("coronaFee", config.CoronaFee),
 	)
 
 	return sa, nil
@@ -197,9 +197,9 @@ func (sa *SignatureAggregator) StartAggregation(
 		if !sa.config.EnableBLS {
 			return errors.New("BLS signatures not enabled")
 		}
-	case SignatureTypeRingtail:
-		if !sa.config.EnableRingtail {
-			return errors.New("Ringtail signatures not enabled")
+	case SignatureTypeCorona:
+		if !sa.config.EnableCorona {
+			return errors.New("Corona signatures not enabled")
 		}
 	case SignatureTypeCGGMP21:
 		if !sa.config.EnableCGGMP21 {
@@ -257,8 +257,8 @@ func (sa *SignatureAggregator) AddSignature(
 	case SignatureTypeBLS:
 		return sa.addBLSSignature(session, signerID, signature, publicKey)
 
-	case SignatureTypeRingtail:
-		return sa.addRingtailSignature(session, signerID, signature, publicKey)
+	case SignatureTypeCorona:
+		return sa.addCoronaSignature(session, signerID, signature, publicKey)
 
 	case SignatureTypeCGGMP21:
 		return errors.New("CGGMP21 uses different protocol flow")
@@ -301,9 +301,9 @@ func (sa *SignatureAggregator) addBLSSignature(
 	return nil
 }
 
-// addRingtailSignature adds a Ringtail threshold signature share to the session
+// addCoronaSignature adds a Corona threshold signature share to the session
 // Actual threshold operations are coordinated through github.com/luxfi/threshold
-func (sa *SignatureAggregator) addRingtailSignature(
+func (sa *SignatureAggregator) addCoronaSignature(
 	session *AggregationSession,
 	signerID ids.NodeID,
 	signature []byte,
@@ -369,8 +369,8 @@ func (sa *SignatureAggregator) FinalizeAggregation(
 	case SignatureTypeBLS:
 		result, err = sa.finalizeBLS(session)
 
-	case SignatureTypeRingtail:
-		result, err = sa.finalizeRingtail(session)
+	case SignatureTypeCorona:
+		result, err = sa.finalizeCorona(session)
 
 	default:
 		return nil, errors.New("unknown signature type")
@@ -439,9 +439,9 @@ func (sa *SignatureAggregator) finalizeBLS(session *AggregationSession) (*Aggreg
 	}, nil
 }
 
-// finalizeRingtail aggregates threshold signature shares
+// finalizeCorona aggregates threshold signature shares
 // Actual threshold aggregation uses github.com/luxfi/threshold protocols
-func (sa *SignatureAggregator) finalizeRingtail(session *AggregationSession) (*AggregatedSignature, error) {
+func (sa *SignatureAggregator) finalizeCorona(session *AggregationSession) (*AggregatedSignature, error) {
 	if len(session.ThresholdSignatures) == 0 {
 		return nil, errors.New("no threshold signatures collected")
 	}
@@ -461,7 +461,7 @@ func (sa *SignatureAggregator) finalizeRingtail(session *AggregationSession) (*A
 	}
 
 	return &AggregatedSignature{
-		Type:             SignatureTypeRingtail,
+		Type:             SignatureTypeCorona,
 		Signature:        sigBytes,
 		SignerCount:      session.SignerCount,
 		ThresholdPubKeys: session.ThresholdPubKeys,
@@ -475,8 +475,8 @@ func (sa *SignatureAggregator) calculateFee(sigType SignatureType, signerCount i
 	switch sigType {
 	case SignatureTypeBLS:
 		feePerSigner = sa.config.BLSFee // 0 for free
-	case SignatureTypeRingtail:
-		feePerSigner = sa.config.RingtailFee // Premium fee
+	case SignatureTypeCorona:
+		feePerSigner = sa.config.CoronaFee // Premium fee
 	case SignatureTypeCGGMP21:
 		feePerSigner = sa.config.CGGMP21Fee // Premium fee
 	default:
@@ -495,7 +495,7 @@ func (sa *SignatureAggregator) VerifyAggregatedSignature(
 	case SignatureTypeBLS:
 		return sa.verifyBLSAggregate(message, aggSig)
 
-	case SignatureTypeRingtail:
+	case SignatureTypeCorona:
 		return sa.verifyRingtailAggregate(message, aggSig)
 
 	case SignatureTypeCGGMP21:
@@ -526,7 +526,7 @@ func (sa *SignatureAggregator) verifyBLSAggregate(message []byte, aggSig *Aggreg
 	return nil
 }
 
-// verifyRingtailAggregate verifies a Ringtail ring signature
+// verifyRingtailAggregate verifies a Corona ring signature
 func (sa *SignatureAggregator) verifyRingtailAggregate(message []byte, aggSig *AggregatedSignature) error {
 	// For now, simplified verification
 	// In production, deserialize and verify properly
