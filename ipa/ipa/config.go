@@ -83,12 +83,21 @@ func MultiScalarBlinded(points []banderwagon.Element, scalars []fr.Element) (ban
 // witness, so we route through the blinded MSM path. This sacrifices the
 // PrecompMSM precomputed-table speedup in exchange for protection against
 // cache-timing recovery of witness scalars.
+//
+// The polynomial may be shorter than the SRS, in which case the trailing
+// coefficients are implicitly zero and we commit against the leading
+// len(polynomial) SRS generators. Callers in verkle/tree.go rely on this for
+// the [4]Fr "Cn-subtract" commitment in LeafNode.Delete (subtreeindex ∈
+// {2,3}); without short-poly support those sites trip the underlying
+// banderwagon length check.
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
-	res, err := MultiScalarBlinded(ic.SRS, polynomial)
+	if len(polynomial) > len(ic.SRS) {
+		panic(fmt.Sprintf("commit: polynomial length %d exceeds SRS length %d", len(polynomial), len(ic.SRS)))
+	}
+	res, err := MultiScalarBlinded(ic.SRS[:len(polynomial)], polynomial)
 	if err != nil {
-		// SRS length and polynomial length are both common.VectorLength by
-		// construction; a length mismatch here is a programmer error and the
-		// only other failure mode is crypto/rand exhaustion which is fatal.
+		// SRS length and polynomial length now match by construction; the only
+		// remaining failure mode is crypto/rand exhaustion which is fatal.
 		panic(fmt.Sprintf("commit: blinded MSM failed: %v", err))
 	}
 	return res
