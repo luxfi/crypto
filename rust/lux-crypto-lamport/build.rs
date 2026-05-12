@@ -9,14 +9,19 @@ fn main() {
         PathBuf::from(d)
     } else {
         manifest_dir.join("..").join("..").join("..").join("..")
-            .join("luxcpp").join("crypto").join("build-cto")
+            .join("luxcpp").join("crypto").join("build")
     };
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-env-changed=CRYPTO_DIR");
     println!("cargo:rerun-if-env-changed=CRYPTO_BUILD_DIR");
-    let lib_path = base.join("lamport");
-    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    let lamport_path = base.join("lamport");
+    let sha256_path = base.join("sha256");
+    println!("cargo:rustc-link-search=native={}", lamport_path.display());
+    println!("cargo:rustc-link-search=native={}", sha256_path.display());
     println!("cargo:rustc-link-lib=static=lamport");
     println!("cargo:rustc-link-lib=static=lamport_cpu");
+    // lamport::keygen/verify call cevm::crypto::sha256, which lives in
+    // libsha256_cpu (see luxcpp/crypto/sha256). Link it explicitly.
+    println!("cargo:rustc-link-lib=static=sha256_cpu");
     if cfg!(target_os = "macos") { println!("cargo:rustc-link-lib=c++"); } else { println!("cargo:rustc-link-lib=stdc++"); }
 }

@@ -16,7 +16,7 @@ fn forward_then_inverse_is_identity_on_zero_vector() {
                 .expect("inverse NTT after successful forward");
             assert!(coeffs.iter().all(|&x| x == 0));
         }
-        Err(Error::Internal(-5)) => {
+        Err(Error::InternalError(-5)) => {
             // CRYPTO_ERR_NOTIMPL: cyclone path stubbed in current build.
         }
         Err(other) => panic!("unexpected forward NTT error: {:?}", other),
