@@ -496,7 +496,7 @@ func (sa *SignatureAggregator) VerifyAggregatedSignature(
 		return sa.verifyBLSAggregate(message, aggSig)
 
 	case SignatureTypeCorona:
-		return sa.verifyRingtailAggregate(message, aggSig)
+		return sa.verifyCoronaAggregate(message, aggSig)
 
 	case SignatureTypeCGGMP21:
 		return errors.New("CGGMP21 verification not implemented")
@@ -526,8 +526,8 @@ func (sa *SignatureAggregator) verifyBLSAggregate(message []byte, aggSig *Aggreg
 	return nil
 }
 
-// verifyRingtailAggregate verifies a Corona ring signature
-func (sa *SignatureAggregator) verifyRingtailAggregate(message []byte, aggSig *AggregatedSignature) error {
+// verifyCoronaAggregate verifies a Corona ring signature
+func (sa *SignatureAggregator) verifyCoronaAggregate(message []byte, aggSig *AggregatedSignature) error {
 	// For now, simplified verification
 	// In production, deserialize and verify properly
 	if len(aggSig.Signature) < 256 {
