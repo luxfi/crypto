@@ -136,7 +136,7 @@ Compiled test binaries are provided for quick verification:
 - [Lux PQ Crypto Suite](https://github.com/luxfi/papers/blob/main/lux-pq-crypto-suite.pdf) -- parameter selection and security analysis for ML-DSA, ML-KEM, SLH-DSA
 - [Lux Hybrid PQ Architecture](https://github.com/luxfi/papers/blob/main/lux-hybrid-pq-architecture.pdf) -- hybrid classical/PQ transition strategy
 - [Lux Crypto Agility](https://github.com/luxfi/papers/blob/main/lux-crypto-agility.pdf) -- algorithm negotiation and migration framework
-- [Lux Pulsar PQ](https://github.com/luxfi/papers/blob/main/lux-ringtail-pq.pdf) -- post-quantum ring signatures
+- [Lux Pulsar PQ](https://github.com/luxfi/papers/blob/main/lux-corona-pq.pdf) -- post-quantum ring signatures
 - [Lux Universal Threshold Signatures](https://github.com/luxfi/papers/blob/main/lux-universal-threshold-signatures.pdf) -- multi-curve threshold framework
 
 ## References

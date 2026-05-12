@@ -87,7 +87,7 @@ cd docs && pnpm build    # Build static site
 |---------|---------|-------|
 | **signer/** | Hybrid BLS + Pulsar signing | Lux consensus |
 | **bls/** | BLS12-381 aggregatable signatures | Classical layer |
-| **ringtail/** | Lattice-based threshold signatures | Post-quantum layer |
+| **corona/** | Lattice-based threshold signatures | Post-quantum layer |
 
 ### Post-Quantum Cryptography (NIST Standards)
 | Package | Standard | Purpose | LP Reference |
@@ -257,7 +257,7 @@ valid := signer.VerifyThreshold(message, signature)
 
 2. **External Packages**: Production implementations should integrate with:
    - `github.com/luxfi/threshold` - Full threshold protocols
-   - `github.com/luxfi/ringtail` - Lattice-based primitives
+   - `github.com/luxfi/corona` - Lattice-based primitives
 
 3. **Session Management**: Use `SigningSession` and `SessionManager` for
    coordinating multi-party signing with timeout and state tracking.
@@ -376,7 +376,7 @@ err := ring.VerifyAndRecord(sig, message, ringMembers, store)
 | Package | Type | Purpose |
 |---------|------|---------|
 | **ring/** | Ring Signatures | Anonymous single-party signing (Q-Chain privacy) |
-| **ringtail/** | Threshold Signatures | Multi-party collaborative signing (t-of-n) |
+| **corona/** | Threshold Signatures | Multi-party collaborative signing (t-of-n) |
 
 Ring signatures hide the signer among a group. Threshold signatures require multiple parties to sign together.
 
@@ -540,7 +540,7 @@ This section defines the canonical architecture for threshold signatures across 
          ▼                   ▼                   ▼
     IMPLEMENTATION      IMPLEMENTATION      BUILT-IN
    ┌────────────┐      ┌────────────┐    ┌────────────┐
-   │    mpc     │      │  ringtail  │    │crypto/bls  │
+   │    mpc     │      │  corona  │    │crypto/bls  │
    │ (CGGMP21,  │      │ (Lattice)  │    │(Raw BLS12) │
    │   FROST)   │      │            │    │            │
    └─────┬──────┘      └─────┬──────┘    └─────┬──────┘
@@ -708,7 +708,7 @@ Per LP-134 (Lux Chain Topology), the legacy T-Chain custody monolith
 is split into two operational chains, both served by this single VM:
 
 - `thresholdvm` in **MPC mode → M-Chain**: distributed key generation,
-  threshold signing (CGGMP21 / FROST / Ringtail-gen), key resharing.
+  threshold signing (CGGMP21 / FROST / Corona-DKG), key resharing.
 - `thresholdvm` in **FHE mode → F-Chain**: TFHE bootstrap-key generation,
   encrypted-EVM compute. The TFHE keygen ceremony itself runs on M-Chain
   via FROST DKG and is consumed by F-Chain via a CertLane handoff.
@@ -909,8 +909,8 @@ bridge/pkg/threshold <- TypeScript (calls node via RPC)
    - 6 new tests for threshold mode
 
 3. **Node Warp Signatures** (`/Users/z/work/lux/node/vms/platformvm/warp/signature.go`):
-   - Updated `AggregateRingtailPublicKeys()` to check for `SchemeRingtail` availability
-   - Updated `VerifyRingtailSignature()` to use `threshold.Verifier` when available
+   - Updated `AggregateCoronaPublicKeys()` to check for `SchemeRingtail` availability
+   - Updated `VerifyCoronaSignature()` to use `threshold.Verifier` when available
    - Added fallback to structural validation for testing
 
 4. **Bridge**: Already uses threshold signing via ThresholdClient SDK (2-of-3 MPC)
@@ -957,9 +957,9 @@ crypto/threshold/               <- Interface layer (GOOD)
     errors.go                   <- Error definitions (OK)
     bls/                        <- BLS implementation (GOOD - native)
         scheme.go               <- Implements threshold.Scheme directly
-    [DELETED: ringtail/]        <- Adapter removed!
+    [DELETED: corona/]        <- Adapter removed!
 
-ringtail/                       <- Native threshold implementation
+corona/                       <- Native threshold implementation
     threshold/                  <- NEW: Native threshold.Scheme implementation
         threshold.go            <- Params, GroupKey, KeyShare, Signer, Signature
         threshold_test.go       <- 4 tests all pass
@@ -968,15 +968,15 @@ ringtail/                       <- Native threshold implementation
         config.go               <- Constants
 
 consensus/protocol/quasar/
-    quasar.go                   <- Uses ringtail/threshold directly (renamed from hybrid.go)
+    quasar.go                   <- Uses corona/threshold directly (renamed from hybrid.go)
 ```
 
 **The Issue:**
 
-`crypto/threshold/ringtail/scheme.go` is an **adapter layer** that:
-1. Imports `github.com/luxfi/ringtail/sign` and `github.com/luxfi/ringtail/primitives`
+`crypto/threshold/corona/scheme.go` is an **adapter layer** that:
+1. Imports `github.com/luxfi/corona/sign` and `github.com/luxfi/corona/primitives`
 2. Creates wrapper types (KeyShare, PublicKey, Signer, etc.) that wrap real Pulsar types
-3. Translates between `threshold.*` interfaces and `ringtail.sign.*` types
+3. Translates between `threshold.*` interfaces and `corona.sign.*` types
 4. Duplicates type definitions with conversion logic
 
 This violates the design goal of having implementations be **native** to the interface.
@@ -1006,14 +1006,14 @@ This violates the design goal of having implementations be **native** to the int
           ┌───────────────────────┼───────────────────────┐
           │                       │                       │
    ┌──────▼──────┐         ┌──────▼──────┐        ┌───────▼───────┐
-   │ threshold/  │         │  ringtail/  │        │   mpc/pkg/    │
+   │ threshold/  │         │  corona/  │        │   mpc/pkg/    │
    │    bls/     │         │ threshold/  │        │   threshold/  │
    │ (Native)    │         │  (Native)   │        │   (Native)    │
    └─────────────┘         └─────────────┘        └───────────────┘
                                   │
                     No more adapter layer!
                     Pulsar implements threshold.Scheme
-                    directly in the ringtail repo
+                    directly in the corona repo
 ```
 
 ### COMPLETED ACTIONS
@@ -1022,26 +1022,26 @@ This violates the design goal of having implementations be **native** to the int
 
 **Files DELETED:**
 ```
-crypto/threshold/ringtail/scheme.go      <- DELETED
-crypto/threshold/ringtail/scheme_test.go <- DELETED
+crypto/threshold/corona/scheme.go      <- DELETED
+crypto/threshold/corona/scheme_test.go <- DELETED
 ```
 
-The entire `crypto/threshold/ringtail/` directory was removed.
+The entire `crypto/threshold/corona/` directory was removed.
 
-#### Phase 2: ADDED to ringtail repo ✅
+#### Phase 2: ADDED to corona repo ✅
 
-**Created:** `ringtail/threshold/threshold.go`
+**Created:** `corona/threshold/threshold.go`
 
 The Pulsar package now implements threshold signatures natively (2-round protocol):
 
 ```go
-// ringtail/threshold/threshold.go
+// corona/threshold/threshold.go
 package threshold
 
 import (
     "github.com/luxfi/lattice/v6/ring"
-    "github.com/luxfi/ringtail/sign"
-    "github.com/luxfi/ringtail/primitives"
+    "github.com/luxfi/corona/sign"
+    "github.com/luxfi/corona/primitives"
 )
 
 // GroupKey holds the public parameters for the threshold group.
@@ -1084,7 +1084,7 @@ func Verify(groupKey *GroupKey, message string, sig *Signature) bool
 import (
     "github.com/luxfi/crypto/threshold"
     _ "github.com/luxfi/crypto/threshold/bls"
-    ringtailThreshold "github.com/luxfi/ringtail/threshold"  // Direct import
+    ringtailThreshold "github.com/luxfi/corona/threshold"  // Direct import
 )
 ```
 
@@ -1115,7 +1115,7 @@ import (
 │  │   Uses: crypto/bls primitives                                     │
 │  └──────────────────┘                                                 │
 │                                                                       │
-│  [DELETED: ringtail/scheme.go - no longer exists here]               │
+│  [DELETED: corona/scheme.go - no longer exists here]               │
 └──────────────────────────────────────────────────────────────────────┘
                                     │
          ┌──────────────────────────┼──────────────────────────┐
@@ -1123,7 +1123,7 @@ import (
          ▼                          ▼                          ▼
 ┌─────────────────────┐  ┌─────────────────────┐  ┌──────────────────────┐
 │ github.com/luxfi/   │  │ github.com/luxfi/   │  │ github.com/luxfi/    │
-│     ringtail        │  │       mpc           │  │     consensus        │
+│     corona        │  │       mpc           │  │     consensus        │
 │                     │  │                     │  │                      │
 │ ┌─────────────────┐ │  │ ┌─────────────────┐ │  │ ┌──────────────────┐ │
 │ │ threshold/      │ │  │ │ pkg/threshold/  │ │  │ │ protocol/quasar/ │ │
@@ -1135,7 +1135,7 @@ import (
 │ │  natively       │ │  │ │  for CGGMP21    │ │  │ │                  │ │
 │ │                 │ │  │ │  and FROST      │ │  │ │ Imports:         │ │
 │ │ Uses sign/      │ │  │ │                 │ │  │ │  threshold/bls   │ │
-│ │ directly        │ │  │ │ Uses mpc.Node   │ │  │ │  ringtail/       │ │
+│ │ directly        │ │  │ │ Uses mpc.Node   │ │  │ │  corona/       │ │
 │ └─────────────────┘ │  │ └─────────────────┘ │  │ │  threshold       │ │
 │                     │  │                     │  │ └──────────────────┘ │
 │ ┌─────────────────┐ │  │                     │  │                      │
@@ -1151,25 +1151,25 @@ import (
 
 ```bash
 # In /Users/z/work/lux/crypto
-rm -rf threshold/ringtail/
+rm -rf threshold/corona/
 ```
 
 Files removed:
-- `/Users/z/work/lux/crypto/threshold/ringtail/scheme.go`
-- `/Users/z/work/lux/crypto/threshold/ringtail/scheme_test.go`
+- `/Users/z/work/lux/crypto/threshold/corona/scheme.go`
+- `/Users/z/work/lux/crypto/threshold/corona/scheme_test.go`
 
-#### 2. CREATE (ringtail repo)
+#### 2. CREATE (corona repo)
 
-**File:** `/Users/z/work/lux/ringtail/threshold/scheme.go`
+**File:** `/Users/z/work/lux/corona/threshold/scheme.go`
 
-This file moves the implementation from `crypto/threshold/ringtail/scheme.go` but refactors it to be native rather than a wrapper. Key changes:
+This file moves the implementation from `crypto/threshold/corona/scheme.go` but refactors it to be native rather than a wrapper. Key changes:
 
-1. Types defined in ringtail, not wrapping ringtail types
+1. Types defined in corona, not wrapping corona types
 2. Direct use of `sign.Party` methods, no translation
 3. Same init() registration pattern
 4. Imports `github.com/luxfi/crypto/threshold` for interfaces only
 
-**File:** `/Users/z/work/lux/ringtail/threshold/scheme_test.go`
+**File:** `/Users/z/work/lux/corona/threshold/scheme_test.go`
 
 Move and adapt tests.
 
@@ -1179,17 +1179,17 @@ Move and adapt tests.
 
 Change:
 ```go
-_ "github.com/luxfi/crypto/threshold/ringtail" // Register Pulsar threshold scheme
+_ "github.com/luxfi/crypto/threshold/corona" // Register Pulsar threshold scheme
 ```
 
 To:
 ```go
-_ "github.com/luxfi/ringtail/threshold" // Register Pulsar threshold scheme
+_ "github.com/luxfi/corona/threshold" // Register Pulsar threshold scheme
 ```
 
-#### 4. MODIFY (ringtail repo go.mod)
+#### 4. MODIFY (corona repo go.mod)
 
-**File:** `/Users/z/work/lux/ringtail/go.mod`
+**File:** `/Users/z/work/lux/corona/go.mod`
 
 Add:
 ```go
@@ -1198,12 +1198,12 @@ require github.com/luxfi/crypto v1.x.x
 
 ### BENEFITS OF THIS REFACTORING
 
-1. **No Duplication**: Types are defined once, in ringtail, implementing threshold interfaces
+1. **No Duplication**: Types are defined once, in corona, implementing threshold interfaces
 2. **No Interpretation**: No translation layer between two type systems
-3. **Single Source**: Pulsar logic lives in ringtail repo
+3. **Single Source**: Pulsar logic lives in corona repo
 4. **Clean Dependencies**:
    - crypto/threshold -> defines interfaces
-   - ringtail -> implements interfaces
+   - corona -> implements interfaces
    - consensus -> uses interfaces
 5. **Consistent Pattern**: Both BLS and Pulsar now follow same pattern
 
@@ -1228,10 +1228,10 @@ The `adapter.go` file is confusingly named but it's actually a **convenience wra
 
 | Action | Location | Status |
 |--------|----------|--------|
-| DELETE | `crypto/threshold/ringtail/` | ✅ Deleted |
-| CREATE | `ringtail/threshold/threshold.go` | ✅ Created |
-| CREATE | `ringtail/threshold/threshold_test.go` | ✅ Created (4 tests) |
-| MODIFY | `consensus/go.mod` | ✅ Added ringtail replace |
+| DELETE | `crypto/threshold/corona/` | ✅ Deleted |
+| CREATE | `corona/threshold/threshold.go` | ✅ Created |
+| CREATE | `corona/threshold/threshold_test.go` | ✅ Created (4 tests) |
+| MODIFY | `consensus/go.mod` | ✅ Added corona replace |
 | MODIFY | `consensus/protocol/quasar/hybrid.go` → `quasar.go` | ✅ Renamed, updated |
 | CREATE | `consensus/protocol/quasar/dual_threshold_test.go` | ✅ Created (5 tests) |
 
@@ -1374,14 +1374,14 @@ func (q *Quasar) AddValidator(validatorID string, ringtailShare ...) error {
 
 ### Critical Bug Fix: Pulsar Verify Function
 
-**Issue**: The Pulsar `Verify` function in `/Users/z/work/lux/ringtail/sign/sign.go:290` was **destructive** - it modified the input signature's `z` vector in-place with `utils.ConvertVectorFromNTT(r, z)`.
+**Issue**: The Pulsar `Verify` function in `/Users/z/work/lux/corona/sign/sign.go:290` was **destructive** - it modified the input signature's `z` vector in-place with `utils.ConvertVectorFromNTT(r, z)`.
 
 **Symptom**: Epoch 0 signatures failed to verify after rotation because the first verification call mutated the signature.
 
 **Fix**: Create a deep copy of the z vector before modification:
 
 ```go
-// In ringtail/sign/sign.go Verify function
+// In corona/sign/sign.go Verify function
 // Make a copy of z to avoid modifying the input signature
 zCopy := make(structs.Vector[ring.Poly], len(z))
 for i := range z {
@@ -1517,7 +1517,7 @@ All epoch tests pass (part of 174 total Quasar tests):
 | `consensus/protocol/quasar/epoch.go` | Created - EpochManager implementation |
 | `consensus/protocol/quasar/epoch_test.go` | Created - Epoch tests |
 | `consensus/protocol/quasar/core.go` | Modified - Epoch integration |
-| `ringtail/sign/sign.go` | Fixed - Non-destructive Verify |
+| `corona/sign/sign.go` | Fixed - Non-destructive Verify |
 
 ---
 
