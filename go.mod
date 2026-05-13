@@ -38,6 +38,7 @@ require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/luxfi/crypto/ipa v1.2.4 // indirect
 	github.com/luxfi/utils v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
