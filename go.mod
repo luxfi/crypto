@@ -5,7 +5,6 @@ go 1.26.3
 exclude github.com/luxfi/geth v1.16.1
 
 require (
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260215031811-a0ab0b218a81
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cloudflare/circl v1.6.3
 	github.com/consensys/gnark-crypto v0.19.2
@@ -17,10 +16,10 @@ require (
 	github.com/google/btree v1.1.3
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
-	github.com/leanovate/gopter v0.2.11
 	github.com/luxfi/accel v1.0.7
 	github.com/luxfi/age v1.4.0
 	github.com/luxfi/cache v1.1.0
+	github.com/luxfi/crypto/ipa v1.2.4
 	github.com/luxfi/ids v1.2.9
 	github.com/luxfi/log v1.4.1
 	github.com/luxfi/mock v0.1.0
@@ -38,7 +37,6 @@ require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/luxfi/crypto/ipa v1.2.4 // indirect
 	github.com/luxfi/utils v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
