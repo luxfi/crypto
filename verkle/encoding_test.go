@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/luxfi/crypto/banderwagon"
+	"github.com/luxfi/crypto/ipa/banderwagon"
 )
 
 func TestParseNodeEmptyPayload(t *testing.T) {
