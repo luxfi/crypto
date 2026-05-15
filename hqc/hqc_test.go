@@ -4,7 +4,6 @@
 package hqc
 
 import (
-	"crypto/rand"
 	"errors"
 	"testing"
 )
@@ -19,9 +18,12 @@ func TestParams_FixedSizes(t *testing.T) {
 		ct, ss  int
 		secBits int
 	}{
-		{HQC128, 2249, 2305, 4481, 64, 128},
-		{HQC192, 4522, 4586, 9026, 64, 192},
-		{HQC256, 7245, 7317, 14469, 64, 256},
+		// Sizes match the vendored PQClean reference
+		// (hqc-submission_2023-04-30): see
+		// crypto/hqc/pqclean/hqc-N/clean/api.h.
+		{HQC128, 2249, 2305, 4433, 64, 128},
+		{HQC192, 4522, 4586, 8978, 64, 192},
+		{HQC256, 7245, 7317, 14421, 64, 256},
 	}
 	for _, c := range cases {
 		p := MustParamsFor(c.mode)
@@ -40,36 +42,13 @@ func TestParams_FixedSizes(t *testing.T) {
 	}
 }
 
-// TestBackend_StubReturnsErrBackendNotWired confirms the default
-// (no-backend-tag) build cleanly surfaces ErrBackendNotWired rather
-// than silently returning garbage or nil-derefing.
-func TestBackend_StubReturnsErrBackendNotWired(t *testing.T) {
-	_, err := KeyGen(HQC128, rand.Reader)
-	if !errors.Is(err, ErrBackendNotWired) {
-		t.Fatalf("KeyGen with no backend: want ErrBackendNotWired, got %v", err)
-	}
-
-	_, _, err = Encapsulate(&PublicKey{Mode: HQC128, Bytes: make([]byte, 2249)}, rand.Reader)
-	if !errors.Is(err, ErrBackendNotWired) {
-		t.Fatalf("Encapsulate with no backend: want ErrBackendNotWired, got %v", err)
-	}
-
-	_, err = Decapsulate(
-		&PrivateKey{Mode: HQC128, Bytes: make([]byte, 2305)},
-		&Ciphertext{Mode: HQC128, Bytes: make([]byte, 4481)},
-	)
-	if !errors.Is(err, ErrBackendNotWired) {
-		t.Fatalf("Decapsulate with no backend: want ErrBackendNotWired, got %v", err)
-	}
-}
-
 // TestDecapsulate_ModeMismatch — a ciphertext from one parameter set
 // fed to a private key for another must return ErrModeMismatch, not
 // silently produce a bogus shared secret.
 func TestDecapsulate_ModeMismatch(t *testing.T) {
 	_, err := Decapsulate(
 		&PrivateKey{Mode: HQC128, Bytes: make([]byte, 2305)},
-		&Ciphertext{Mode: HQC256, Bytes: make([]byte, 14469)},
+		&Ciphertext{Mode: HQC256, Bytes: make([]byte, 14421)},
 	)
 	if !errors.Is(err, ErrModeMismatch) {
 		t.Errorf("mode mismatch: want ErrModeMismatch, got %v", err)
