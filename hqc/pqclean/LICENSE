@@ -1,0 +1,39 @@
+PQClean HQC vendored sources
+============================
+
+The C sources under crypto/hqc/pqclean/hqc-{128,192,256}/clean/ are
+copied verbatim from PQClean (https://github.com/PQClean/PQClean),
+specifically from crypto_kem/hqc-{128,192,256}/clean/ at the upstream
+state `hqc-submission_2023-04-30` (commit referenced in each scheme's
+META.yml under `implementations`).
+
+The HQC reference is licensed by its authors as Public Domain; see
+hqc-{128,192,256}/clean/LICENSE in each subdirectory.
+
+The shared SHAKE/SHA-3 implementation (pqclean/common/fips202.c,
+fips202.h) is taken from PQClean/common/, originally derived from the
+public-domain Keccak Team reference (https://keccak.team/).
+
+Modifications by Lux
+--------------------
+
+- Added pqclean/common/randombytes.h that declares only `randombytes(
+  uint8_t*, size_t)`. The HQC sources `#include "randombytes.h"` and
+  resolve the symbol at link time. The actual implementation lives in
+  crypto/hqc/randombytes_shim.c and forwards to a Go callback so that
+  the EVM precompile can drive HQC encapsulation from a caller-
+  supplied deterministic seed (see crypto/hqc/backend_pqclean.go).
+- No changes to algorithmic code in hqc-*/clean/ — the HQC sources
+  are byte-for-byte upstream so NIST KAT vectors verify unchanged
+  (crypto/hqc/backend_pqclean_test.go's TestKAT_HQC{128,192,256}
+  compare sha256 of the KAT transcript against the values from
+  PQClean's META.yml).
+
+Original PQClean license
+------------------------
+
+PQClean and its authors place the HQC reference into the public domain
+("Public Domain", see each hqc-*/clean/LICENSE file). The randombytes
+infrastructure file from PQClean/common/randombytes.c carries an MIT
+license (Daan Sprenkels) — we do not vendor that file; we ship our own
+shim instead.
