@@ -19,19 +19,19 @@
 // Post-Quantum Cryptography Standardization Process" (March 2025).
 // Reference: https://pqc-hqc.org/.
 //
-// Backend status: this package declares the KEM interface and parameter
-// sets. The compute body is satisfied by either of:
+// Backends:
 //
-//	1. cloudflare/circl HQC support (when CIRCL ships it — actively
-//	   tracked at https://github.com/cloudflare/circl).
-//	2. cgo binding to PQClean's HQC reference implementation
-//	   (https://github.com/PQClean/PQClean). Build tag `hqc_pqclean`
-//	   activates the cgo path; default builds use the CIRCL backend
-//	   once available.
-//
-// Until either backend is wired, every operation returns
-// ErrBackendNotWired. The wire format and parameter constants are
-// fixed by NIST IR 8528 §4.1 and are stable.
+//	1. PQClean cgo (default for non-stub builds). Build with
+//	   `-tags=hqc_pqclean`. Wires the vendored PQClean HQC reference
+//	   implementation under crypto/hqc/pqclean/ (public domain). NIST
+//	   KAT vectors verify byte-for-byte — see
+//	   crypto/hqc/backend_pqclean_test.go's TestKAT_HQC{128,192,256}.
+//	2. Cloudflare CIRCL Go (placeholder; build tag `hqc_circl`).
+//	   Activates once CIRCL ships HQC support.
+//	3. Stub (default). When no backend tag is set, every operation
+//	   returns ErrBackendNotWired so the package still compiles on
+//	   hosts without cgo. The wire format and parameter constants are
+//	   fixed by NIST IR 8528 §4.1 and remain stable across backends.
 package hqc
 
 import (
@@ -44,15 +44,15 @@ type Mode int
 
 const (
 	// HQC128 — NIST PQ Security Category 1 (≈ AES-128).
-	// Public key: 2,249 B, ciphertext: 4,481 B, shared secret: 64 B.
+	// Public key: 2,249 B, ciphertext: 4,433 B, shared secret: 64 B.
 	HQC128 Mode = iota
 
 	// HQC192 — NIST PQ Security Category 3 (≈ AES-192).
-	// Public key: 4,522 B, ciphertext: 9,026 B, shared secret: 64 B.
+	// Public key: 4,522 B, ciphertext: 8,978 B, shared secret: 64 B.
 	HQC192
 
 	// HQC256 — NIST PQ Security Category 5 (≈ AES-256).
-	// Public key: 7,245 B, ciphertext: 14,469 B, shared secret: 64 B.
+	// Public key: 7,245 B, ciphertext: 14,421 B, shared secret: 64 B.
 	HQC256
 )
 
@@ -67,8 +67,14 @@ type Params struct {
 }
 
 // MustParamsFor returns the canonical Params for `mode` or panics on
-// an unrecognised Mode. The values are NIST-fixed (HQC specification
-// 2023 round-4 + NIST IR 8528 §4.1).
+// an unrecognised Mode. The values are byte-for-byte the PQClean
+// HQC reference (https://github.com/PQClean/PQClean,
+// hqc-submission_2023-04-30): see crypto/hqc/pqclean/hqc-N/clean/api.h.
+//
+// The ciphertext is structured as `u || v || salt` where `u` and `v`
+// are the IND-CPA ciphertext halves and `salt` is a 16-byte value
+// absorbed into the FO-transform hash. NIST IR 8528 §4.1 references
+// this exact wire format.
 func MustParamsFor(mode Mode) *Params {
 	switch mode {
 	case HQC128:
@@ -76,7 +82,7 @@ func MustParamsFor(mode Mode) *Params {
 			Mode:              HQC128,
 			PublicKeySize:     2249,
 			PrivateKeySize:    2305,
-			CiphertextSize:    4481,
+			CiphertextSize:    4433,
 			SharedSecretSize:  64,
 			SecurityLevelBits: 128,
 		}
@@ -85,7 +91,7 @@ func MustParamsFor(mode Mode) *Params {
 			Mode:              HQC192,
 			PublicKeySize:     4522,
 			PrivateKeySize:    4586,
-			CiphertextSize:    9026,
+			CiphertextSize:    8978,
 			SharedSecretSize:  64,
 			SecurityLevelBits: 192,
 		}
@@ -94,7 +100,7 @@ func MustParamsFor(mode Mode) *Params {
 			Mode:              HQC256,
 			PublicKeySize:     7245,
 			PrivateKeySize:    7317,
-			CiphertextSize:    14469,
+			CiphertextSize:    14421,
 			SharedSecretSize:  64,
 			SecurityLevelBits: 256,
 		}
