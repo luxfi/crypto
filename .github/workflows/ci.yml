@@ -25,10 +25,53 @@ jobs:
       - name: Test
         env:
           CGO_ENABLED: ${{ matrix.cgo }}
-        run: go test -v -count=1 ./...
+        run: go test -v -count=1 -race -timeout=15m ./...
+      - name: Coverage (CGO build, amd64 only — single canonical baseline)
+        if: matrix.cgo == '1' && matrix.arch == 'amd64'
+        run: |
+          # Verkle has pre-existing encoding-test failures unrelated
+          # to coverage; exclude until the encoding type fix lands.
+          # All other packages run and contribute to the floor gate.
+          PKGS=$(go list ./... | grep -v '/verkle$')
+          go test -count=1 -coverprofile=coverage.txt -covermode=atomic \
+            -timeout=15m $PKGS
+          go tool cover -func=coverage.txt | tail -1
+      - name: Coverage floor gate (must stay ≥ 60%)
+        if: matrix.cgo == '1' && matrix.arch == 'amd64'
+        run: |
+          PCT=$(go tool cover -func=coverage.txt | tail -1 | awk '{print $3}' | tr -d '%')
+          # Use awk for float comparison (bash can't compare floats).
+          DROP=$(awk -v p="$PCT" 'BEGIN { print (p < 60.0) ? 1 : 0 }')
+          if [ "$DROP" = "1" ]; then
+            echo "::error::Coverage dropped to $PCT% (floor 60%)"
+            exit 2
+          fi
+          echo "Coverage: $PCT% (floor 60%)"
+      - name: Upload coverage to codecov
+        if: matrix.cgo == '1' && matrix.arch == 'amd64'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.txt
+          flags: crypto
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
       - name: Bench
         if: matrix.cgo == '1'
-        run: go test -bench=. -benchmem ./... || true
+        run: go test -bench=. -benchmem -benchtime=100ms ./... || true
+
+  hqc-pqclean-e2e:
+    name: HQC PQClean cgo e2e (NIST KAT roundtrip)
+    runs-on: hanzo-build-linux-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: HQC PQClean cgo build + test
+        env:
+          CGO_ENABLED: '1'
+        run: |
+          go test -count=1 -tags=hqc_pqclean -v ./hqc/
 
   build:
     needs: test
