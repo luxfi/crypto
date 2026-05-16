@@ -16,7 +16,7 @@ require (
 	github.com/google/btree v1.1.3
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
-	github.com/luxfi/accel v1.0.7
+	github.com/luxfi/accel v1.1.0
 	github.com/luxfi/age v1.4.0
 	github.com/luxfi/cache v1.1.0
 	github.com/luxfi/crypto/ipa v1.2.4
@@ -28,9 +28,9 @@ require (
 	github.com/supranational/blst v0.3.16
 	github.com/zeebo/blake3 v0.2.4
 	go.uber.org/mock v0.6.0
-	golang.org/x/crypto v0.48.0
+	golang.org/x/crypto v0.49.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 )
 
 require (
