@@ -29,12 +29,12 @@ jobs:
       - name: Coverage (CGO build, amd64 only — single canonical baseline)
         if: matrix.cgo == '1' && matrix.arch == 'amd64'
         run: |
-          # Verkle has pre-existing encoding-test failures unrelated
-          # to coverage; exclude until the encoding type fix lands.
-          # All other packages run and contribute to the floor gate.
-          PKGS=$(go list ./... | grep -v '/verkle$')
+          # Verkle's two encoding tests (TestParseNodeEoA +
+          # TestParseNodeSingleSlot) are t.Skip'd with documented
+          # spec-mismatch TODOs; the rest of verkle now runs and
+          # contributes to the coverage baseline.
           go test -count=1 -coverprofile=coverage.txt -covermode=atomic \
-            -timeout=15m $PKGS
+            -timeout=15m ./...
           go tool cover -func=coverage.txt | tail -1
       - name: Coverage floor gate (must stay ≥ 60%)
         if: matrix.cgo == '1' && matrix.arch == 'amd64'
