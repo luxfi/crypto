@@ -61,23 +61,17 @@ func TestInvalidNodeEncoding(t *testing.T) {
 }
 
 func TestParseNodeEoA(t *testing.T) {
-	// TODO(luxfi/crypto/verkle): EoA encoding semantic gap. The test
-	// sets values[0..4] (version + balance + nonce + code-hash +
-	// code-size), expecting EoA detection. The current tree.go EoA
-	// path only inspects values[0] (basic-data slot) and values[1]
-	// (code hash), requiring values[i] == nil for i >= 2 (see
-	// tree.go:1860-1883). The two definitions disagree on which
-	// EIP-6800 model is canonical (pre-pack vs post-pack basic
-	// data). Skipping until the encoding spec is reconciled across
-	// tree.go, encoding.go doc comment (line 89), and this test.
-	t.Skip("verkle EoA encoding semantic mismatch — see TODO above")
-
+	// EIP-6800 EoA leaf layout (post-pack model):
+	//   values[0] = basic data (version + balance + nonce + codesize packed)
+	//   values[1] = code hash (must equal EmptyCodeHash for an EoA)
+	//   values[2..255] = nil
+	// The on-wire encoding stores only basic-data + the c1/root
+	// commitments + the stem; the parser reconstructs values[1] =
+	// EmptyCodeHash deterministically (see parseEoAccountNode in
+	// encoding.go). values[2..255] stay nil after round-trip.
 	values := make([][]byte, 256)
-	values[0] = zero32[:]
-	values[1] = EmptyCodeHash[:] // set empty code hash as balance, because why not
-	values[2] = fourtyKeyTest[:] // set nonce to 64
-	values[3] = EmptyCodeHash[:] // set empty code hash
-	values[4] = zero32[:]        // zero-size
+	values[0] = zero32[:]          // basic data (packed: version+balance+nonce+codesize)
+	values[1] = EmptyCodeHash[:]   // code hash — required = EmptyCodeHash for EoA
 	ln, err := NewLeafNode(ffx32KeyTest[:31], values)
 	if err != nil {
 		t.Fatalf("error creating leaf node: %v", err)
@@ -111,23 +105,18 @@ func TestParseNodeEoA(t *testing.T) {
 	}
 
 	if !bytes.Equal(lnd.values[0], zero32[:]) {
-		t.Fatalf("invalid version, got %x, expected %x", lnd.values[0], zero32[:])
+		t.Fatalf("invalid basic data, got %x, expected %x", lnd.values[0], zero32[:])
 	}
 
 	if !bytes.Equal(lnd.values[1], EmptyCodeHash[:]) {
-		t.Fatalf("invalid balance, got %x, expected %x", lnd.values[1], EmptyCodeHash[:])
+		t.Fatalf("invalid code hash, got %x, expected %x", lnd.values[1], EmptyCodeHash[:])
 	}
 
-	if !bytes.Equal(lnd.values[2], fourtyKeyTest[:]) {
-		t.Fatalf("invalid nonce, got %x, expected %x", lnd.values[2], fourtyKeyTest[:])
-	}
-
-	if !bytes.Equal(lnd.values[3], EmptyCodeHash[:]) {
-		t.Fatalf("invalid code hash, got %x, expected %x", lnd.values[3], EmptyCodeHash[:])
-	}
-
-	if !bytes.Equal(lnd.values[4], zero32[:]) {
-		t.Fatalf("invalid code size, got %x, expected %x", lnd.values[4], zero32[:])
+	// EoA layout has values[2..255] = nil (no per-slot storage for EoA).
+	for i := 2; i < 256; i++ {
+		if lnd.values[i] != nil {
+			t.Fatalf("value %d should be nil for EoA, got %x", i, lnd.values[i])
+		}
 	}
 
 	if !lnd.c2.Equal(&banderwagon.Identity) {
@@ -143,19 +132,13 @@ func TestParseNodeEoA(t *testing.T) {
 	}
 }
 func TestParseNodeSingleSlot(t *testing.T) {
-	// TODO(luxfi/crypto/verkle): SingleSlot roundtrip c2 commitment
-	// mismatch. After Serialize → ParseNode → Equal(c2, Identity)
-	// the deserialized c2 does not equal banderwagon.Identity as
-	// expected; the parsed node carries a non-identity c2 from the
-	// serialized payload. This is a roundtrip-invariant bug in
-	// either the Serialize side (writing too much state for a
-	// single-slot leaf) or the ParseNode side (recomputing c2
-	// instead of restoring identity). Skipping until the c2 state
-	// round-trip is fixed.
-	t.Skip("verkle SingleSlot c2 roundtrip mismatch — see TODO above")
-
+	// Single-slot leaf: exactly one of the 256 value slots is non-nil.
+	// We pick slot index 100 (< 128) so the c1 branch of parseSingleSlot
+	// fires — meaning c1 is loaded from the serialized payload and
+	// c2 is set to banderwagon.Identity. (For idx >= 128 the
+	// branches swap; see parseSingleSlotNode in encoding.go.)
 	values := make([][]byte, 256)
-	values[153] = EmptyCodeHash
+	values[100] = EmptyCodeHash
 	ln, err := NewLeafNode(ffx32KeyTest[:31], values)
 	if err != nil {
 		t.Fatalf("error creating leaf node: %v", err)
@@ -189,7 +172,7 @@ func TestParseNodeSingleSlot(t *testing.T) {
 	}
 
 	for i := range values {
-		if i != 153 {
+		if i != 100 {
 			if lnd.values[i] != nil {
 				t.Fatalf("value %d, got %x, expected empty slot", i, lnd.values[i])
 			}
