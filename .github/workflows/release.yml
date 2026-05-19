@@ -14,9 +14,12 @@ jobs:
   test:
     strategy:
       fail-fast: false
+      # `hanzo-build-linux-arm64` does not exist. arm64 binaries cannot be
+      # EXECUTED on amd64 runners; tests run amd64 only. arm64 is verified
+      # via cross-compile in the `build` job below.
       matrix:
-        arch: [amd64, arm64]
-    runs-on: ${{ matrix.arch == 'arm64' && 'hanzo-build-linux-arm64' || 'hanzo-build-linux-amd64' }}
+        arch: [amd64]
+    runs-on: hanzo-build-linux-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -31,15 +34,19 @@ jobs:
       fail-fast: false
       matrix:
         arch: [amd64, arm64]
-    runs-on: ${{ matrix.arch == 'arm64' && 'hanzo-build-linux-arm64' || 'hanzo-build-linux-amd64' }}
+    # All builds run on the amd64 self-hosted runner. arm64 cross-compiles
+    # via GOARCH; CGO_ENABLED=0 keeps it pure-Go (no cross-compiler needed).
+    runs-on: hanzo-build-linux-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.3'
-      - name: Build
+      - name: Build (cross-compile via GOARCH)
         env:
           CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
         run: go build $(go list ./... | grep -v /cgo | grep -v /fuzzers)
 
   release:
