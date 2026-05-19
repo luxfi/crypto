@@ -13,7 +13,7 @@ jobs:
       matrix:
         arch: [amd64]
         cgo: ['0', '1']
-    runs-on: hanzo-build-linux-amd64
+    runs-on: lux-build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -29,7 +29,7 @@ jobs:
   # Slower than native (5-10x) but functional for arm64 regression catching.
   go-arm64-emulated:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: hanzo-build-linux-amd64
+    runs-on: lux-build
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
@@ -50,7 +50,7 @@ jobs:
       # Same constraint: cargo test must execute on the build host's arch.
       matrix:
         arch: [amd64]
-    runs-on: hanzo-build-linux-amd64
+    runs-on: lux-build
     defaults:
       run:
         working-directory: rust
