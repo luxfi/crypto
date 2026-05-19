@@ -10,8 +10,6 @@ jobs:
   go:
     strategy:
       fail-fast: false
-      # `hanzo-build-linux-arm64` does not exist. arm64 binaries cannot be
-      # EXECUTED on amd64 runners; tests run amd64 only.
       matrix:
         arch: [amd64]
         cgo: ['0', '1']
@@ -25,6 +23,26 @@ jobs:
         env:
           CGO_ENABLED: ${{ matrix.cgo }}
         run: go test -v -count=1 ./...
+
+  # arm64 test coverage via Docker buildx + QEMU emulation on
+  # hanzo-build-linux-amd64 (no GH-hosted arm runners; no hanzo-build-linux-arm64).
+  # Slower than native (5-10x) but functional for arm64 regression catching.
+  go-arm64-emulated:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: hanzo-build-linux-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Test arm64 (emulated)
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD":/work -w /work \
+            -e CGO_ENABLED=0 \
+            golang:1.26.3 \
+            sh -c 'go test -v -count=1 -short -timeout 900s ./...'
 
   rust:
     strategy:
