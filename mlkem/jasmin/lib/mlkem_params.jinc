@@ -1,0 +1,62 @@
+// Lux ML-KEM-768 -- shared Jasmin parameters
+//
+// ML-KEM-768 is the canonical Lux strict-PQ KEM (NIST Level 3,
+// 192-bit security). The single-party Jasmin core is libjade's
+// `crypto_kem/mlkem/mlkem768/` (Almeida-Barbosa-... IEEE S&P 2020).
+//
+// We import libjade's constants verbatim and add the Lux-side
+// integration constants (Pulsar identity-stage envelope wrappers,
+// X-Wing hybrid concatenation lengths).
+
+from Jade require "crypto_kem/mlkem/mlkem768/amd64/ref/params.jinc"
+
+// ML-KEM-768 standard sizes per FIPS 203 Table 1.
+// (These are re-stated here for documentation; libjade defines the
+// authoritative param ints in the file above.)
+param int MLKEM768_PK_BYTES        = 1184;
+param int MLKEM768_SK_BYTES        = 2400;
+param int MLKEM768_CT_BYTES        = 1088;
+param int MLKEM768_SS_BYTES        = 32;
+
+// Module rank k (FIPS 203 Table 1).
+param int MLKEM768_K               = 3;
+
+// Polynomial degree n.
+param int MLKEM768_N               = 256;
+
+// Modulus q.
+param int MLKEM768_Q               = 3329;
+
+// Noise distribution parameters (centered binomial).
+param int MLKEM768_ETA1            = 2;
+param int MLKEM768_ETA2            = 2;
+
+// Compression bit-widths (FIPS 203 Table 1).
+param int MLKEM768_DU              = 10;
+param int MLKEM768_DV              = 4;
+
+// Random tape sizes per FIPS 203.
+//   keygen: 64 bytes (d || z)
+//   encaps: 32 bytes (m)
+param int MLKEM768_KEYGEN_RAND     = 64;
+param int MLKEM768_ENCAPS_RAND     = 32;
+
+// X-Wing hybrid wire-format sizes.
+// Per draft-connolly-cfrg-xwing-kem, the X-Wing wire format is:
+//   ct_xwing = ct_mlkem768 || ct_x25519
+//   pk_xwing = pk_mlkem768 || pk_x25519
+//   ss_xwing = SHA3-256( ss_mlkem768 || ss_x25519 || ct_mlkem768 ||
+//                        ct_x25519 || x_wing_label )
+param int XWING_CT_BYTES           = MLKEM768_CT_BYTES + 32;   // 1088 + 32 = 1120
+param int XWING_PK_BYTES           = MLKEM768_PK_BYTES + 32;   // 1184 + 32 = 1216
+param int XWING_SS_BYTES           = 32;
+
+// Pulsar identity-stage envelope wire-format sizes.
+// Per `~/work/lux/pulsar/ref/go/pkg/pulsar/identity.go` `sealEnvelope`:
+//   wire = ct_mlkem768 || nonce(12) || AEAD(K = HKDF(ss, "PULSAR-IDENT")),
+//          plaintext) || mac(32)
+// where plaintext is width-agnostic (64 B for GF(257) shares, 128 B for
+// GF(q) shares). We carry only the protocol-level constants; the
+// per-instance plaintext length is a runtime parameter.
+param int PULSAR_ENV_NONCE_BYTES   = 12;
+param int PULSAR_ENV_MAC_BYTES     = 32;
