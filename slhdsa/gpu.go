@@ -1,7 +1,7 @@
 // Copyright (C) 2020-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// SLH-DSA / Comet (FIPS 205) GPU dispatch.
+// SLH-DSA / Magnetar (FIPS 205) GPU dispatch.
 //
 // Mirrors crypto/mldsa/gpu.go. The dispatch boundary is the same:
 //

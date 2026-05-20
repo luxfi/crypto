@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     dudect_config_t cfg = {
         .chunk_size          = g_chunk_size,
         .number_measurements = samples,
-        .max_number_batches  = batches,
+        
     };
     dudect_ctx_t ctx;
     dudect_init(&ctx, &cfg);
