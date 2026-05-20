@@ -10,9 +10,9 @@
 // ML-KEM-768) does NOT compromise HQC, and vice-versa.
 //
 // Wired to fill the family-disjoint gap on the KEM side, parallel to
-// the Pulsar / Corona / Comet trio on the signature side:
+// the Pulsar / Corona / Magnetar trio on the signature side:
 //
-//	Signature stack:    Pulsar (MLWE)   Corona (RLWE)   Comet (hash)
+//	Signature stack:    Pulsar (MLWE)   Corona (RLWE)   Magnetar (hash)
 //	KEM stack:          ML-KEM (MLWE)   —               HQC (code)
 //
 // Spec: NIST IR 8528 "Status Report on the Fourth Round of the NIST
