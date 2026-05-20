@@ -5,11 +5,16 @@
  * dudect_decaps.c -- dudect main loop driving mlkem.Decapsulate
  * through the cgo bridge in decaps_ct.go.
  *
- * DECAPS IS THE MOST CT-CRITICAL ML-KEM ROUTINE. We use a pool of
- * valid ciphertexts under the same secret key; both dudect classes
- * sample valid ciphertexts so any timing difference is a real
- * ciphertext-content signal in Decaps (i.e., a FO-K timing attack
- * surface).
+ * DECAPS IS THE MOST CT-CRITICAL ML-KEM ROUTINE.
+ *
+ * CT POPULATION (canonical FO-K framing):
+ *   class A: a fixed VALID ciphertext (accepts in Decaps's FO check)
+ *   class B: caller-random bytes (almost-always invalid → FO implicit
+ *            rejection branch via the rejection seed)
+ *
+ * The CT property is that valid and invalid ciphertexts must take
+ * indistinguishable time. Any class A vs class B timing difference
+ * is a textbook FO-K timing leak.
  */
 
 #define DUDECT_IMPLEMENTATION
@@ -19,32 +24,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern int    mlkem_decaps_ct_setup(void);
-extern size_t mlkem_decaps_ct_pool_size(void);
-extern size_t mlkem_decaps_ct_input_size(void);
-extern void   mlkem_decaps_ct(uint8_t *data);
+extern int       mlkem_decaps_ct_setup(void);
+extern size_t    mlkem_decaps_ct_pool_size(void);
+extern size_t    mlkem_decaps_ct_input_size(void);
+extern void      mlkem_decaps_ct(uint8_t *data);
+extern int       mlkem_decaps_ct_copy_valid_ct(uint8_t *dst);
 
-static size_t g_chunk_size = 0;
-static size_t g_pool_size  = 0;
+static size_t  g_chunk_size = 0;
+static uint8_t *g_valid_ct  = NULL;
 
 void prepare_inputs(dudect_config_t *cfg, uint8_t *input_data, uint8_t *classes) {
     for (size_t i = 0; i < cfg->number_measurements; i++) {
         classes[i] = randombit();
         uint8_t *slot = input_data + (size_t)i * cfg->chunk_size;
         if (classes[i] == 0) {
-            memset(slot, 0, cfg->chunk_size);
+            // class A: the canonical valid ciphertext
+            memcpy(slot, g_valid_ct, cfg->chunk_size);
         } else {
-            uint8_t pick_buf[8];
-            randombytes(pick_buf, sizeof pick_buf);
-            uint64_t pick = 0;
-            for (size_t k = 0; k < sizeof pick_buf; k++) {
-                pick = (pick << 8) | pick_buf[k];
-            }
-            uint32_t idx = (uint32_t)(pick % g_pool_size);
-            slot[0] = (uint8_t)(idx >> 24);
-            slot[1] = (uint8_t)(idx >> 16);
-            slot[2] = (uint8_t)(idx >> 8);
-            slot[3] = (uint8_t)(idx);
+            // class B: random bytes → exercises FO implicit-rejection
+            randombytes(slot, cfg->chunk_size);
         }
     }
 }
@@ -66,9 +64,17 @@ int main(int argc, char **argv) {
         return 1;
     }
     g_chunk_size = mlkem_decaps_ct_input_size();
-    g_pool_size  = mlkem_decaps_ct_pool_size();
-    if (g_pool_size == 0) {
-        fprintf(stderr, "mlkem_decaps_ct_pool_size returned 0\n");
+    if (g_chunk_size == 0) {
+        fprintf(stderr, "mlkem_decaps_ct: setup returned 0 ciphertext size\n");
+        return 1;
+    }
+    g_valid_ct = (uint8_t *)malloc(g_chunk_size);
+    if (g_valid_ct == NULL) {
+        fprintf(stderr, "mlkem_decaps_ct: out of memory\n");
+        return 1;
+    }
+    if (mlkem_decaps_ct_copy_valid_ct(g_valid_ct) != 0) {
+        fprintf(stderr, "mlkem_decaps_ct: failed to copy reference ciphertext\n");
         return 1;
     }
 
@@ -80,14 +86,18 @@ int main(int argc, char **argv) {
     dudect_config_t cfg = {
         .chunk_size          = g_chunk_size,
         .number_measurements = samples,
-        .max_number_batches  = batches,
     };
     dudect_ctx_t ctx;
     dudect_init(&ctx, &cfg);
 
     dudect_state_t state = DUDECT_NO_LEAKAGE_EVIDENCE_YET;
-    while (state == DUDECT_NO_LEAKAGE_EVIDENCE_YET) {
+    size_t batch_count = 0;
+    while (state == DUDECT_NO_LEAKAGE_EVIDENCE_YET && batch_count < batches) {
         state = dudect_main(&ctx);
+        batch_count++;
+        if (batch_count % 10 == 0) {
+            fprintf(stderr, "[batch %zu/%zu]\n", batch_count, batches);
+        }
     }
     dudect_free(&ctx);
 
