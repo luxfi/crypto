@@ -13,8 +13,8 @@ import (
 )
 
 // genBatch produces n SLH-DSA-192f keypairs + signs distinct messages with
-// each. SLH-DSA 192f is the canonical Comet cert-profile parameter set per
-// the PQ-naming-lock memory (NIST L3, hash-only verify, deterministic).
+// each. SLH-DSA 192f is the canonical Magnetar parameter set per the
+// PQ-naming-lock memory (NIST L3, hash-only verify, deterministic).
 func genBatch(t testing.TB, n int) (pubs []*PublicKey, msgs [][]byte, sigs [][]byte) {
 	t.Helper()
 	pubs = make([]*PublicKey, n)
@@ -25,7 +25,7 @@ func genBatch(t testing.TB, n int) (pubs []*PublicKey, msgs [][]byte, sigs [][]b
 		if err != nil {
 			t.Fatalf("GenerateKey[%d]: %v", i, err)
 		}
-		msg := []byte(fmt.Sprintf("comet-batch-msg-%d", i))
+		msg := []byte(fmt.Sprintf("magnetar-batch-msg-%d", i))
 		sig, err := priv.Sign(rand.Reader, msg, nil)
 		if err != nil {
 			t.Fatalf("Sign[%d]: %v", i, err)
