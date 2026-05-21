@@ -50,3 +50,13 @@ require (
 // downstream Lux services consume a single canonical source. See
 // LUXFI-FORK.md in each fork for pin SHAs and sync policy.
 replace github.com/crate-crypto/go-ipa => github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6
+
+// Local accel checkout — needed for ops/code (HQC code-based crypto
+// batch surface). Once accel ships v1.2.x with ops/code this replace
+// can be dropped.
+replace github.com/luxfi/accel => ../accel
+
+// Local gpu checkout — needed for hqc.go (single-shot GF(2)^N polymul
+// + RS/RM decode bindings used by crypto/hqc/gpu_cgo.go). Once gpu
+// ships a tag with hqc.go this replace can be dropped.
+replace github.com/luxfi/gpu => ../gpu
