@@ -260,6 +260,11 @@ func VerifyBatchGPU(pubs []*PublicKey, msgs, sigs [][]byte, out []bool) (bool, e
 	if err != nil {
 		return false, nil
 	}
+	// Successful C ABI dispatch — the plugin's strong override of
+	// lux_slhdsa_verify_batch is resolved. Record this so GetProvenance()
+	// can honestly report TierGPUSubstrate instead of the conservative
+	// TierAccelCPUFallback default.
+	recordPluginStrongSymbol(true)
 	for i, b := range bytes {
 		out[i] = b == 1
 	}
@@ -431,6 +436,9 @@ func SignBatchGPU(privs []*PrivateKey, msgs, sigs [][]byte) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
+	// See VerifyBatchGPU — record strong-symbol resolution so
+	// GetProvenance() reports the truth.
+	recordPluginStrongSymbol(true)
 	for i := 0; i < n; i++ {
 		sigs[i] = make([]byte, sigSize)
 		copy(sigs[i], sigBytes[i*sigSize:(i+1)*sigSize])
