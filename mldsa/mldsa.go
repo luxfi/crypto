@@ -90,6 +90,21 @@ func GetSignatureSize(mode Mode) int {
 	}
 }
 
+// GetPrivateKeySize returns the size of a private key for the given mode.
+// FIPS 204 §4 fixes these at 2560 / 4032 / 4896 bytes for ML-DSA-{44,65,87}.
+func GetPrivateKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PrivateKeySize
+	case MLDSA65:
+		return MLDSA65PrivateKeySize
+	case MLDSA87:
+		return MLDSA87PrivateKeySize
+	default:
+		return 0
+	}
+}
+
 // GenerateKey generates a new ML-DSA key pair using circl
 func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	var pubBytes, privBytes []byte

@@ -65,3 +65,37 @@ func InitError() error {
 	Init()
 	return initErr
 }
+
+// Provenance captures, at the moment of the call, exactly which
+// substrate the algorithm dispatchers will reach when they ask gpuhost
+// for a session. This is the auditable evidence a reviewer asks for
+// when they want to confirm a "GPU accelerated" claim is not vapor.
+//
+// The fields are intentionally narrow and observable:
+//
+//   - AccelInitialised: did accel.Init() return without error.
+//   - DeviceAvailable:  did accel report any device after init.
+//   - SessionLive:      did we actually allocate a session.
+//
+// Algorithm packages publish their own thin layer on top of this that
+// also reports whether the plugin's strong symbol for that algorithm
+// is resolved (e.g. whether lux_slhdsa_verify_batch is the LUX_NOT_SUPPORTED
+// stub or a strong override from a loaded plugin).
+type Provenance struct {
+	AccelInitialised bool
+	DeviceAvailable  bool
+	SessionLive      bool
+}
+
+// Snapshot returns the current Provenance. Side-effect-free except for
+// the lazy accel.Init() inside the underlying Init() — calling it before
+// any algorithm dispatch is the canonical way to print "what would
+// happen if I called Batch right now."
+func Snapshot() Provenance {
+	Init()
+	return Provenance{
+		AccelInitialised: initErr == nil,
+		DeviceAvailable:  available && sess != nil,
+		SessionLive:      sess != nil,
+	}
+}
