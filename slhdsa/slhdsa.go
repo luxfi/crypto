@@ -150,6 +150,24 @@ func GetSignatureSize(mode Mode) int {
 	}
 }
 
+// GetPrivateKeySize returns the size of a private key for the given mode.
+// FIPS 205 §10 catalogue: sk = 4n where n is the hash output width:
+//   128-bit security : n=16 -> sk=64
+//   192-bit security : n=24 -> sk=96
+//   256-bit security : n=32 -> sk=128
+func GetPrivateKeySize(mode Mode) int {
+	switch mode {
+	case SHA2_128s, SHAKE_128s, SHA2_128f, SHAKE_128f:
+		return 64
+	case SHA2_192s, SHAKE_192s, SHA2_192f, SHAKE_192f:
+		return 96
+	case SHA2_256s, SHAKE_256s, SHA2_256f, SHAKE_256f:
+		return 128
+	default:
+		return 0
+	}
+}
+
 // GenerateKey generates a new SLH-DSA key pair using circl
 func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	id := modeToID(mode)
