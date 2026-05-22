@@ -9,8 +9,29 @@
 package blake3
 
 /*
-#cgo CFLAGS: -I/Users/z/work/luxcpp/crypto/include
-#cgo LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
+// HEADER/SYMBOL SKEW WORKAROUND — verified still active as of luxcrypto
+// 1.0.0 install (2026-05-21).
+//
+// $LUXCPP_PREFIX/include/lux/crypto/crypto.h declares lux_crypto_* symbols,
+// but $LUXCPP_PREFIX/lib/libluxcrypto.dylib exports the brand-neutral
+// crypto_* names that the C++ body still uses
+// (`nm -D libluxcrypto.dylib | grep crypto_blake3` confirms). The lux-crypto
+// .pc bundle wires the install header against the dylib and a normal
+// `#cgo pkg-config: lux-crypto` build fails at link time with
+// "undefined symbols: _lux_crypto_blake3 _lux_crypto_gpu_available".
+//
+// Until the dylib re-prefixes its exports OR the install header drops the
+// lux_ prefix back to crypto_, we:
+//   * point CFLAGS at the source-tree header (which still spells the
+//     symbols `crypto_*` and matches the dylib)
+//   * emit LDFLAGS by hand against $LUXCPP_PREFIX/lib so the dylib is found
+//     where it was actually installed.
+//
+// Once the prefix mismatch is resolved upstream, replace this whole block
+// with `#cgo pkg-config: lux-crypto`.
+#cgo CFLAGS: -I${SRCDIR}/../../../../luxcpp/crypto/include
+#cgo LDFLAGS: -L${SRCDIR}/../../../../luxcpp/install/lib -Wl,-rpath,${SRCDIR}/../../../../luxcpp/install/lib -lluxcrypto
+#cgo darwin LDFLAGS: -framework Metal -framework Foundation
 
 #include <stdint.h>
 #include <stdlib.h>
