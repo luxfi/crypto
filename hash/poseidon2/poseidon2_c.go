@@ -8,9 +8,8 @@
 package poseidon2
 
 /*
-#cgo CFLAGS: -I/Users/z/work/luxcpp/crypto/include
-#cgo darwin LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto -framework Metal -framework Foundation
-#cgo linux LDFLAGS: -L/Users/z/work/luxcpp/crypto/build-local -lluxcrypto
+#cgo pkg-config: lux-crypto
+#cgo darwin LDFLAGS: -framework Metal -framework Foundation
 
 #include <stdint.h>
 #include <stdlib.h>
