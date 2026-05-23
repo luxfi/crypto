@@ -9,4 +9,4 @@
 //              exceed the BatchThreshold cutoff
 //
 // The dispatcher honours backend.Default(); see github.com/luxfi/crypto/backend.
-package keccak
+package keccak256

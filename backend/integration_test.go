@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/keccak"
+	"github.com/luxfi/crypto/keccak256"
 	"github.com/luxfi/crypto/sha256"
 )
 
@@ -27,10 +27,10 @@ func TestKeccak256BatchAcrossBackends(t *testing.T) {
 	t.Cleanup(func() { backend.SetDefault(prev) })
 
 	backend.SetDefault(backend.Vanilla)
-	vanilla := keccak.Sum256Batch(inputs)
+	vanilla := keccak256.SumBatch(inputs)
 
 	backend.SetDefault(backend.GPU)
-	gpu := keccak.Sum256Batch(inputs)
+	gpu := keccak256.SumBatch(inputs)
 
 	for i := range vanilla {
 		if vanilla[i] != gpu[i] {
