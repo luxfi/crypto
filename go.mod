@@ -7,41 +7,69 @@ exclude github.com/luxfi/geth v1.16.1
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cloudflare/circl v1.6.3
-	github.com/consensys/gnark-crypto v0.19.2
+	github.com/consensys/gnark-crypto v0.20.1
 	github.com/crate-crypto/go-eth-kzg v1.5.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
-	github.com/ethereum/c-kzg-4844/v2 v2.1.5
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
+	github.com/ethereum/c-kzg-4844/v2 v2.1.7
 	github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab
 	github.com/google/btree v1.1.3
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
-	github.com/luxfi/accel v1.1.0
+	github.com/luxfi/accel v1.1.4
 	github.com/luxfi/age v1.4.0
-	github.com/luxfi/cache v1.1.0
+	github.com/luxfi/cache v1.2.1
 	github.com/luxfi/crypto/ipa v1.2.4
+	github.com/luxfi/geth v1.16.98
 	github.com/luxfi/ids v1.2.9
 	github.com/luxfi/log v1.4.1
-	github.com/luxfi/mock v0.1.0
+	github.com/luxfi/mock v0.1.1
+	github.com/luxfi/precompile v0.5.27
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.11.1
 	github.com/supranational/blst v0.3.16
 	github.com/zeebo/blake3 v0.2.4
 	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.49.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.42.0
 )
 
 require (
 	filippo.io/hpke v0.4.0 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/gorilla/rpc v1.2.1 // indirect
+	github.com/holiman/uint256 v1.3.2 // indirect
+	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/luxfi/utils v1.1.0 // indirect
+	github.com/luxfi/atomic v1.0.0 // indirect
+	github.com/luxfi/codec v1.1.4 // indirect
+	github.com/luxfi/compress v0.0.5 // indirect
+	github.com/luxfi/concurrent v0.0.3 // indirect
+	github.com/luxfi/consensus v1.22.84 // indirect
+	github.com/luxfi/constants v1.4.7 // indirect
+	github.com/luxfi/container v0.0.4 // indirect
+	github.com/luxfi/database v1.17.44 // indirect
+	github.com/luxfi/math v1.4.0 // indirect
+	github.com/luxfi/math/big v0.1.0 // indirect
+	github.com/luxfi/metric v1.5.1 // indirect
+	github.com/luxfi/p2p v1.19.2 // indirect
+	github.com/luxfi/pq v1.0.1-0.20260512064747-3d4c9414e15e // indirect
+	github.com/luxfi/runtime v1.0.1 // indirect
+	github.com/luxfi/sampler v1.0.0 // indirect
+	github.com/luxfi/utils v1.1.4 // indirect
+	github.com/luxfi/validators v1.0.0 // indirect
+	github.com/luxfi/version v1.0.1 // indirect
+	github.com/luxfi/vm v1.0.40 // indirect
+	github.com/luxfi/warp v1.18.5 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/zeebo/assert v1.3.0 // indirect
+	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -50,4 +78,3 @@ require (
 // downstream Lux services consume a single canonical source. See
 // LUXFI-FORK.md in each fork for pin SHAs and sync policy.
 replace github.com/crate-crypto/go-ipa => github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6
-
