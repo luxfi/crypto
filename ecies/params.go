@@ -43,11 +43,17 @@ import (
 	"fmt"
 	"hash"
 
-	ethcrypto "github.com/luxfi/crypto"
+	"github.com/luxfi/crypto/secp256k1"
 )
 
+// DefaultCurve is secp256k1 — the value, not the brand. The fact that
+// EVM address derivation hashes secp256k1 pubkeys with Keccak does not
+// make secp256k1 an Ethereum primitive; it predates and is consumed by
+// many systems. Importing the curve via its primitive package keeps
+// the dependency name aligned with what the code does (secp256k1 curve
+// operations) rather than which downstream brand happens to use it.
 var (
-	DefaultCurve                  = ethcrypto.S256()
+	DefaultCurve                  = secp256k1.S256()
 	ErrUnsupportedECDHAlgorithm   = errors.New("ecies: unsupported ECDH algorithm")
 	ErrUnsupportedECIESParameters = errors.New("ecies: unsupported ECIES parameters")
 	ErrInvalidKeyLen              = fmt.Errorf("ecies: invalid key size (> %d) in ECIESParams", maxKeyLen)
@@ -115,7 +121,7 @@ var (
 )
 
 var paramsFromCurve = map[elliptic.Curve]*ECIESParams{
-	ethcrypto.S256(): ECIES_AES128_SHA256,
+	secp256k1.S256(): ECIES_AES128_SHA256,
 	elliptic.P256():  ECIES_AES128_SHA256,
 	elliptic.P384():  ECIES_AES192_SHA384,
 	elliptic.P521():  ECIES_AES256_SHA512,
