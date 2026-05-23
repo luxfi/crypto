@@ -196,10 +196,28 @@ func (k *PrivateKey) Address() ids.ShortID {
 	return k.PublicKey().Address()
 }
 
-// EthAddress returns the Ethereum address derived from the private key
-func (k *PrivateKey) EthAddress() [20]byte {
-	return k.PublicKey().EthAddress()
+// KeccakAddress returns the 20-byte address derived as the last 20
+// bytes of Keccak256(uncompressed_pubkey). This is the conventional
+// EVM-runtime address format — Lux C-Chain, Polygon, BSC, and any
+// EVM-compatible chain all consume this exact derivation.
+//
+// Naming note: the derivation is "20-byte Keccak hash of secp256k1
+// pubkey". That primitive predates the EVM and is not Ethereum-
+// specific; the EVM is one consumer. The method is named after the
+// VALUE (Keccak-derived 20-byte address) rather than the BRAND that
+// happens to consume it. See secp256k1/keys.go:Address() for the
+// Lux X-Chain / P-Chain native address format (SHA256+RIPEMD160).
+func (k *PrivateKey) KeccakAddress() [20]byte {
+	return k.PublicKey().KeccakAddress()
 }
+
+// EthAddress is the deprecated alias for KeccakAddress. The "Eth"
+// label braids the value (Keccak-derived address) with one brand
+// that consumes it. Use KeccakAddress; this alias will be removed
+// in a future major version once downstream callers migrate.
+//
+// Deprecated: use KeccakAddress.
+func (k *PrivateKey) EthAddress() [20]byte { return k.KeccakAddress() }
 
 // Address returns the address of the public key as an ids.ShortID
 func (k *PublicKey) Address() ids.ShortID {
@@ -211,9 +229,10 @@ func (k *PublicKey) Address() ids.ShortID {
 	return addr
 }
 
-// EthAddress returns the Ethereum address derived from the public key
-// This is computed as the last 20 bytes of the Keccak256 hash of the uncompressed public key
-func (k *PublicKey) EthAddress() [20]byte {
+// KeccakAddress returns the 20-byte address derived as the last 20
+// bytes of Keccak256(uncompressed_pubkey). See PrivateKey.KeccakAddress
+// docstring for the naming rationale (value over brand).
+func (k *PublicKey) KeccakAddress() [20]byte {
 	// Get uncompressed public key bytes (excluding the 0x04 prefix)
 	pkBytes := k.Bytes()
 
@@ -225,6 +244,11 @@ func (k *PublicKey) EthAddress() [20]byte {
 	copy(addr[:], hash[12:])
 	return addr
 }
+
+// EthAddress is the deprecated alias for KeccakAddress.
+//
+// Deprecated: use KeccakAddress.
+func (k *PublicKey) EthAddress() [20]byte { return k.KeccakAddress() }
 
 // Bytes returns the public key bytes
 func (k *PublicKey) Bytes() []byte {
