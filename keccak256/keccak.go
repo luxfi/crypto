@@ -1,7 +1,7 @@
 // Copyright (C) 2020-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package keccak
+package keccak256
 
 import (
 	"hash"
@@ -14,7 +14,7 @@ import (
 // Size is the output size of Keccak-256 in bytes.
 const Size = 32
 
-// BatchThreshold is the minimum batch length at which Sum256Batch will try to
+// BatchThreshold is the minimum batch length at which SumBatch will try to
 // route through GPU (lux/accel). Below this threshold the vanilla path is
 // always faster (PCIe round-trip dominates).
 //
@@ -27,7 +27,7 @@ var pool = sync.Pool{
 }
 
 // Sum256 returns the Keccak-256 hash of in. Allocations: 1.
-func Sum256(in []byte) [Size]byte {
+func Sum(in []byte) [Size]byte {
 	switch backend.Resolve(false, false) {
 	// Single-input keccak: GPU dispatch is uneconomic; cgo path identical to
 	// vanilla today (golang.org/x/crypto/sha3 is asm-accelerated). One path.
@@ -36,9 +36,9 @@ func Sum256(in []byte) [Size]byte {
 	}
 }
 
-// Sum256Hex is a convenience that returns a hex string.
-func Sum256Hex(in []byte) string {
-	h := Sum256(in)
+// SumHex is a convenience that returns a hex string.
+func SumHex(in []byte) string {
+	h := Sum(in)
 	const hex = "0123456789abcdef"
 	out := make([]byte, 2*Size)
 	for i, b := range h {
@@ -70,12 +70,12 @@ func Concat(inputs ...[]byte) [Size]byte {
 	return out
 }
 
-// Sum256Batch computes Keccak-256 for a batch of inputs.
+// SumBatch computes Keccak-256 for a batch of inputs.
 //
 // When the batch is large enough and the GPU backend is available the
 // computation runs on the GPU; otherwise it runs on the CPU. The output is
 // always byte-identical to repeated calls to Sum256.
-func Sum256Batch(inputs [][]byte) [][Size]byte {
+func SumBatch(inputs [][]byte) [][Size]byte {
 	out := make([][Size]byte, len(inputs))
 	if len(inputs) == 0 {
 		return out
