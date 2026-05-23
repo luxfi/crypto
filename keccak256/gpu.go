@@ -1,7 +1,7 @@
 // Copyright (C) 2020-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package keccak
+package keccak256
 
 import (
 	"github.com/luxfi/accel"
