@@ -1,35 +1,30 @@
 // Copyright (C) 2019-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package gpu exposes the runtime status of the GPU acceleration layer used
-// by luxfi/crypto.
+// Package gpu is the public probe surface for the GPU acceleration layer
+// used by luxfi/crypto.
 //
-// In normal use, callers should NOT call this package directly. Each
-// algorithm package (keccak, sha256, bls, mldsa, ...) decides at the call
-// site whether to dispatch to the GPU based on backend.Default() and the
-// batch threshold. This package is a single, narrow surface so consumers
-// can probe the status of the layer for diagnostics and monitoring.
+// It delegates every call to github.com/luxfi/crypto/backend — the canonical
+// runtime substrate selector. Callers writing new code should prefer
+// backend.Probe() / backend.GPUAvailable(); this package stays for back-compat
+// with consumers that already import "github.com/luxfi/crypto/gpu".
 package gpu
 
 import (
 	"github.com/luxfi/accel"
-	"github.com/luxfi/crypto/internal/gpuhost"
+	"github.com/luxfi/crypto/backend"
 )
 
-// Available returns true when an accel session was successfully created
-// and at least one backend is reporting available devices.
-func Available() bool { return gpuhost.Available() }
+// Available reports whether the GPU substrate is reachable. Equivalent to
+// backend.GPUAvailable().
+func Available() bool { return backend.GPUAvailable() }
 
-// Backend returns the name of the active backend ("metal", "cuda", "webgpu",
-// or "" when no GPU is available).
-func Backend() string {
-	if !Available() {
-		return ""
-	}
-	return gpuhost.Session().Backend().String()
-}
+// Backend names the active accel backend ("metal" | "cuda" | "webgpu") or
+// "" when no GPU is available. Equivalent to backend.Probe().GPUBackend.
+func Backend() string { return backend.Probe().GPUBackend }
 
-// Devices returns the list of devices visible to the accel layer.
+// Devices returns the list of devices visible to the accel layer, or nil
+// when no GPU is available.
 func Devices() []accel.DeviceInfo {
 	if !Available() {
 		return nil
@@ -37,5 +32,6 @@ func Devices() []accel.DeviceInfo {
 	return accel.Devices()
 }
 
-// Version returns the underlying accel library version string.
+// Version returns the underlying accel library version string. Equivalent
+// to backend.Probe().AccelVersion.
 func Version() string { return accel.GetVersion() }
