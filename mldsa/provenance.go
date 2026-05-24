@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
 )
 
 // DispatchTier identifies which path the ML-DSA batch dispatchers will
@@ -67,22 +66,18 @@ type Provenance struct {
 // at runtime. Once a real batch dispatch lands a strong-symbol
 // observation, follow-up calls report TierGPUSubstrate.
 func GetProvenance() Provenance {
-	snap := gpuhost.Snapshot()
+	bp := backend.Probe()
 	p := Provenance{
-		AccelInitialised:     snap.AccelInitialised,
-		DeviceAvailable:      snap.DeviceAvailable,
+		// backend.Probe.GPU is the conjunction the prior gpuhost.Snapshot
+		// tracked as (AccelInitialised && DeviceAvailable && SessionLive).
+		// Surface it under both legacy field names for consumers that
+		// already pattern-match on AccelInitialised / DeviceAvailable.
+		AccelInitialised:     bp.GPU,
+		DeviceAvailable:      bp.GPU,
 		BatchThresholdN:      BatchThreshold,
 		ConcurrentThresholdN: concurrentBatchThreshold,
 	}
-	if !snap.AccelInitialised {
-		p.Tier = TierGoroutineParallelCPU
-		return p
-	}
-	if backend.Resolve(snap.DeviceAvailable, false) != backend.GPU {
-		p.Tier = TierGoroutineParallelCPU
-		return p
-	}
-	if !snap.SessionLive {
+	if bp.Resolved != backend.GPU {
 		p.Tier = TierGoroutineParallelCPU
 		return p
 	}

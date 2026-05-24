@@ -5,7 +5,8 @@
 //
 // Dispatch path:
 //
-//   backend.Resolve(gpuhost.Available(), false) → backend.GPU
+//   backend.IsGPU()
+//     ⇒ Resolved() picks the GPU substrate after probing CGo + GPU availability
 //     ⇒ accel.LatticeOps.MLDSAVerifyBatch / MLDSASignBatch on the shared session
 //     ⇒ luxcpp/lux-accel C API lux_mldsa_{verify,sign}_batch (under development)
 //     ⇒ when a backend plugin registers a strong substrate:
@@ -83,7 +84,7 @@ func batchVerifyGPU(pubs []*PublicKey, msgs [][]byte, sigs [][]byte, out []bool)
 		return false, nil
 	}
 
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()
@@ -195,7 +196,7 @@ func batchSignGPU(privs []*PrivateKey, msgs [][]byte, sigs [][]byte) (bool, erro
 		return false, nil
 	}
 
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()
