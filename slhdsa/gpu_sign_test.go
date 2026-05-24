@@ -33,7 +33,8 @@ import (
 	"testing"
 
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
+
+
 )
 
 // genSignBatch192f produces n SLH-DSA-192f keypairs ready for SignBatch.
@@ -97,7 +98,7 @@ func TestSLHDSASignBatch_GPU_Path(t *testing.T) {
 		t.Fatalf("SignBatchGPU: %v", err)
 	}
 	if dispatched {
-		t.Logf("GPU dispatch active (gpuhost.Available=%v)", gpuhost.Available())
+		t.Logf("GPU dispatch active (gpu=%v)", backend.GPUAvailable())
 		// GPU-produced signatures MUST verify under the CPU oracle.
 		// This is the round-trip that catches GPU-output corruption.
 		for i := 0; i < n; i++ {
