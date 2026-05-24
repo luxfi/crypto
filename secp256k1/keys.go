@@ -196,28 +196,33 @@ func (k *PrivateKey) Address() ids.ShortID {
 	return k.PublicKey().Address()
 }
 
-// KeccakAddress returns the 20-byte address derived as the last 20
-// bytes of Keccak256(uncompressed_pubkey). This is the conventional
-// EVM-runtime address format — Lux C-Chain, Polygon, BSC, and any
-// EVM-compatible chain all consume this exact derivation.
+// EVMAddress returns the 20-byte account address used by EVM-runtime
+// chains (Lux C-Chain, Polygon, BSC, Liquid EVM, Hanzo EVM, etc.).
+// Internally derived as the last 20 bytes of Keccak256(uncompressed_pubkey).
 //
-// Naming note: the derivation is "20-byte Keccak hash of secp256k1
-// pubkey". That primitive predates the EVM and is not Ethereum-
-// specific; the EVM is one consumer. The method is named after the
-// VALUE (Keccak-derived 20-byte address) rather than the BRAND that
-// happens to consume it. See secp256k1/keys.go:Address() for the
-// Lux X-Chain / P-Chain native address format (SHA256+RIPEMD160).
-func (k *PrivateKey) KeccakAddress() [20]byte {
-	return k.PublicKey().KeccakAddress()
+// Naming note: the method is named by what the value IS — a 20-byte
+// account address on EVM-runtime chains. The derivation primitive
+// (Keccak256 of secp256k1 pubkey) is an implementation detail; the
+// runtime model (EVM account vs UTXO) is what determines where the
+// address is usable. See PublicKey.Address() for the X-Chain /
+// P-Chain native UTXO address format (SHA256+RIPEMD160).
+func (k *PrivateKey) EVMAddress() [20]byte {
+	return k.PublicKey().EVMAddress()
 }
 
-// EthAddress is the deprecated alias for KeccakAddress. The "Eth"
-// label braids the value (Keccak-derived address) with one brand
-// that consumes it. Use KeccakAddress; this alias will be removed
-// in a future major version once downstream callers migrate.
+// KeccakAddress is the deprecated alias for EVMAddress. Naming the
+// address by its hash primitive (Keccak) instead of its semantic
+// purpose (EVM-runtime account address) confuses two axes. Use
+// EVMAddress.
 //
-// Deprecated: use KeccakAddress.
-func (k *PrivateKey) EthAddress() [20]byte { return k.KeccakAddress() }
+// Deprecated: use EVMAddress.
+func (k *PrivateKey) KeccakAddress() [20]byte { return k.EVMAddress() }
+
+// EthAddress is the deprecated alias for EVMAddress. The "Eth" label
+// braids the value with one brand that consumes it.
+//
+// Deprecated: use EVMAddress.
+func (k *PrivateKey) EthAddress() [20]byte { return k.EVMAddress() }
 
 // Address returns the address of the public key as an ids.ShortID
 func (k *PublicKey) Address() ids.ShortID {
@@ -229,10 +234,9 @@ func (k *PublicKey) Address() ids.ShortID {
 	return addr
 }
 
-// KeccakAddress returns the 20-byte address derived as the last 20
-// bytes of Keccak256(uncompressed_pubkey). See PrivateKey.KeccakAddress
-// docstring for the naming rationale (value over brand).
-func (k *PublicKey) KeccakAddress() [20]byte {
+// EVMAddress returns the 20-byte account address used by EVM-runtime
+// chains. See PrivateKey.EVMAddress for the naming rationale.
+func (k *PublicKey) EVMAddress() [20]byte {
 	// Get uncompressed public key bytes (excluding the 0x04 prefix)
 	pkBytes := k.Bytes()
 
@@ -245,10 +249,15 @@ func (k *PublicKey) KeccakAddress() [20]byte {
 	return addr
 }
 
-// EthAddress is the deprecated alias for KeccakAddress.
+// KeccakAddress is the deprecated alias for EVMAddress.
 //
-// Deprecated: use KeccakAddress.
-func (k *PublicKey) EthAddress() [20]byte { return k.KeccakAddress() }
+// Deprecated: use EVMAddress.
+func (k *PublicKey) KeccakAddress() [20]byte { return k.EVMAddress() }
+
+// EthAddress is the deprecated alias for EVMAddress.
+//
+// Deprecated: use EVMAddress.
+func (k *PublicKey) EthAddress() [20]byte { return k.EVMAddress() }
 
 // Bytes returns the public key bytes
 func (k *PublicKey) Bytes() []byte {
