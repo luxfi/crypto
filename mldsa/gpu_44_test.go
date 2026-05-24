@@ -15,7 +15,7 @@
 //      circl reference, so we know the underlying library is intact.
 //   2. Batch verify equivalence — feed a batch through BatchVerify and
 //      confirm it matches the per-element CPU oracle byte-for-byte. When a
-//      GPU plugin is registered (CRYPTO_BACKEND=gpu + gpuhost detects a
+//      GPU plugin is registered (CRYPTO_BACKEND=gpu + backend.GPUAvailable
 //      device) this exercises the real GPU substrate; otherwise it
 //      validates the goroutine-parallel CPU fallback.
 //   3. Tamper detection — flip a bit and confirm both paths reject.
@@ -29,7 +29,8 @@ import (
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
+
+
 )
 
 // genBatch44 produces n ML-DSA-44 keypairs + signs distinct messages with
@@ -137,7 +138,7 @@ func TestMLDSA44_BatchEquivalence_CPU_GPU(t *testing.T) {
 		t.Fatalf("batchVerifyGPU: %v", err)
 	}
 	if dispatched {
-		t.Logf("GPU dispatch active (gpuhost.Available=%v)", gpuhost.Available())
+		t.Logf("GPU dispatch active (gpu=%v)", backend.GPUAvailable())
 		for i := range cpu {
 			if cpu[i] != gpu[i] {
 				t.Fatalf("CPU/GPU mismatch at[%d]: cpu=%v gpu=%v", i, cpu[i], gpu[i])

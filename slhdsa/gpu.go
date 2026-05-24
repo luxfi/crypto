@@ -9,7 +9,7 @@
 //      Reaches a Metal/CUDA plugin when one is registered, otherwise falls
 //      through to (2). The interface is the same wire as ML-DSA dispatch:
 //
-//        backend.Resolve(gpuhost.Available(), false) → backend.GPU
+//        backend.IsGPU()
 //          ⇒ accel.LatticeOps.SLHDSA{Sign,Verify}Batch on the shared session
 //          ⇒ luxcpp/lux-accel C API lux_slhdsa_{sign,verify}_batch
 //          ⇒ when a backend plugin registers a strong override:
@@ -175,7 +175,7 @@ func VerifyBatchGPU(pubs []*PublicKey, msgs, sigs [][]byte, out []bool) (bool, e
 		return false, nil
 	}
 
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()
@@ -368,7 +368,7 @@ func SignBatchGPU(privs []*PrivateKey, msgs, sigs [][]byte) (bool, error) {
 	if len(msgs) != len(privs) || len(sigs) != len(privs) {
 		return false, nil
 	}
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()
