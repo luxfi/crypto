@@ -10,7 +10,7 @@ import (
 )
 
 func batchGPU(inputs [][]byte, out [][Size]byte) (bool, error) {
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()

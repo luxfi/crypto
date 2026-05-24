@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
 )
 
 // DispatchTier identifies which path the SLH-DSA batch dispatchers will
@@ -115,27 +114,26 @@ type Provenance struct {
 // a stock keypair (no allocation cost on the caller side) and caches
 // the result for the lifetime of the process.
 func GetProvenance() Provenance {
-	snap := gpuhost.Snapshot()
+	bp := backend.Probe()
 
 	p := Provenance{
-		AccelInitialised:         snap.AccelInitialised,
-		DeviceAvailable:          snap.DeviceAvailable,
+		// backend.Probe.GPU is true only when accel initialised AND a
+		// session is live AND at least one device is visible — the same
+		// three-way conjunction the prior gpuhost.Snapshot() tracked
+		// individually. We surface the conjunction here as one bit per
+		// historical field for backward compatibility with consumers
+		// that already pattern-match on AccelInitialised/DeviceAvailable.
+		AccelInitialised:         bp.GPU,
+		DeviceAvailable:          bp.GPU,
 		SignBatchThresholdN:      SignBatchThreshold,
 		ConcurrentSignThresholdN: concurrentSignThreshold,
 	}
 
 	// Walk the dispatch tiers from the strongest evidence downward,
-	// mirroring the order in SignBatch / VerifyBatch.
-	if !snap.AccelInitialised {
-		p.Tier = TierGoroutineParallelCPU
-		return p
-	}
-	if backend.Resolve(snap.DeviceAvailable, false) != backend.GPU {
-		// Vanilla profile or no device — CPU path is the only option.
-		p.Tier = TierGoroutineParallelCPU
-		return p
-	}
-	if !snap.SessionLive {
+	// mirroring the order in SignBatch / VerifyBatch. Resolved() returns
+	// the same answer regardless of whether the user explicitly set
+	// CRYPTO_BACKEND or left it at Auto.
+	if bp.Resolved != backend.GPU {
 		p.Tier = TierGoroutineParallelCPU
 		return p
 	}

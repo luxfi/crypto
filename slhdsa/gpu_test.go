@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
+
+
 )
 
 // genBatch produces n SLH-DSA-192f keypairs + signs distinct messages with
@@ -70,8 +71,8 @@ func TestSLHDSABatchEquivalence_CPU_GPU(t *testing.T) {
 		}
 	}
 
-	// Force GPU resolution to attempt the GPU path. backend.Resolve
-	// gates on gpuhost.Available() so this only actually goes to GPU
+	// Force GPU resolution to attempt the GPU path. backend.IsGPU()
+	// gates on backend.GPUAvailable() so this only actually goes to GPU
 	// when a backend plugin is loaded; otherwise it falls through and
 	// VerifyBatchGPU returns (false, nil).
 	prevBackend := backend.Default()
@@ -85,7 +86,7 @@ func TestSLHDSABatchEquivalence_CPU_GPU(t *testing.T) {
 	}
 
 	if dispatched {
-		t.Logf("GPU dispatch executed (backend=%s, gpuhost.Available=%v)", backend.Default(), gpuhost.Available())
+		t.Logf("GPU dispatch executed (backend=%s, gpu=%v)", backend.Default(), backend.GPUAvailable())
 		for i := range cpu {
 			if cpu[i] != gpu[i] {
 				t.Fatalf("CPU/GPU mismatch at[%d]: cpu=%v gpu=%v", i, cpu[i], gpu[i])
