@@ -11,7 +11,6 @@ import (
 
 	"github.com/luxfi/accel/ops/code"
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
 )
 
 // HQC is code-based (Hamming Quasi-Cyclic): the hot path is GF(2)^N
@@ -54,20 +53,15 @@ const batchSizeThreshold = 4
 // OpenMP at the C++ level. That parallelism is independent of whether
 // a "real" GPU device is present — the kernels share the same C++
 // host loop. We therefore key dispatch on:
-//   1. backend.Resolve() does not explicitly request Vanilla (pure-Go).
+//   1. backend.IsVanilla() is false — i.e. the caller did NOT explicitly
+//      pick the pure-Go fallback.
 //   2. The batch is large enough to amortise the cgo crossover.
 //
-// The gpuhost.Session() call is left for symmetry with crypto/mlkem's
-// dispatcher (and for future Metal/CUDA backend overrides) but its
-// nil-ness is not treated as a hard skip.
+// We do NOT consult a session handle here — accel/ops/code parallelises via
+// OpenMP at the C++ level whether or not a Metal/CUDA device exists, so the
+// presence of an accel session is irrelevant to this dispatcher.
 func batchEncapsulateGPU(pubs []*PublicKey, cts []*Ciphertext, sss [][]byte) (bool, error) {
-	// `cgo` is always true here — this file only compiles under cgo
-	// (the GPU batch surface requires the C++ host library). The
-	// `gpuAvailable` argument tells backend.Resolve whether to
-	// prefer GPU over CGo; we treat either as a green light because
-	// the accel batch surface is faster than per-item PQClean even
-	// without a Metal/CUDA device.
-	if backend.Resolve(gpuhost.Available(), true) == backend.Vanilla {
+	if backend.IsVanilla() {
 		// Caller explicitly requested pure-Go (no PQClean) — no
 		// batch path available, fall through to CPU per-item.
 		return false, nil
@@ -148,7 +142,7 @@ func batchEncapsulateGPU(pubs []*PublicKey, cts []*Ciphertext, sss [][]byte) (bo
 // batchDecapsulateGPU attempts GPU-batched HQC decapsulation.
 // See batchEncapsulateGPU for the dispatch-gating rationale.
 func batchDecapsulateGPU(sks []*PrivateKey, cts []*Ciphertext, sss [][]byte) (bool, error) {
-	if backend.Resolve(gpuhost.Available(), true) == backend.Vanilla {
+	if backend.IsVanilla() {
 		return false, nil
 	}
 	if len(sks) < batchSizeThreshold {

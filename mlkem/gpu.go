@@ -13,7 +13,7 @@ import (
 // Other modes fall through.
 
 func batchEncapsulateGPU(pubs []*PublicKey, cts [][]byte, sss [][]byte) (bool, error) {
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()
@@ -74,7 +74,7 @@ func batchEncapsulateGPU(pubs []*PublicKey, cts [][]byte, sss [][]byte) (bool, e
 }
 
 func batchDecapsulateGPU(sks []*PrivateKey, cts [][]byte, sss [][]byte) (bool, error) {
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 	sess := gpuhost.Session()

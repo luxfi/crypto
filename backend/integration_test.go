@@ -16,7 +16,7 @@ import (
 )
 
 func TestKeccak256BatchAcrossBackends(t *testing.T) {
-	inputs := make([][]byte, keccak.BatchThreshold+8)
+	inputs := make([][]byte, keccak256.BatchThreshold+8)
 	for i := range inputs {
 		buf := make([]byte, 32)
 		rand.Read(buf)

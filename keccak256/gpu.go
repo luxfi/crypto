@@ -16,7 +16,7 @@ import (
 // ErrNoBackends in that mode — the caller treats both shapes as "fall
 // back to vanilla".
 func batchGPU(inputs [][]byte, out [][Size]byte) (handled bool, err error) {
-	if backend.Resolve(gpuhost.Available(), false) != backend.GPU {
+	if !backend.IsGPU() {
 		return false, nil
 	}
 
