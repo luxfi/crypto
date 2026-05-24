@@ -21,7 +21,8 @@ import (
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
 	"github.com/luxfi/crypto/backend"
-	"github.com/luxfi/crypto/internal/gpuhost"
+
+
 )
 
 func genBatch87(t testing.TB, n int) (pubs []*PublicKey, msgs [][]byte, sigs [][]byte) {
@@ -116,7 +117,7 @@ func TestMLDSA87_BatchEquivalence_CPU_GPU(t *testing.T) {
 		t.Fatalf("batchVerifyGPU: %v", err)
 	}
 	if dispatched {
-		t.Logf("GPU dispatch active (gpuhost.Available=%v)", gpuhost.Available())
+		t.Logf("GPU dispatch active (gpu=%v)", backend.GPUAvailable())
 		for i := range cpu {
 			if cpu[i] != gpu[i] {
 				t.Fatalf("CPU/GPU mismatch at[%d]: cpu=%v gpu=%v", i, cpu[i], gpu[i])
