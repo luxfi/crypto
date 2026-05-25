@@ -197,7 +197,7 @@ func (k *PrivateKey) Address() ids.ShortID {
 }
 
 // EVMAddress returns the 20-byte account address used by EVM-runtime
-// chains (Lux C-Chain, Polygon, BSC, Liquid EVM, Hanzo EVM, etc.).
+// chains (Lux C-Chain, Polygon, BSC, downstream EVM L1s, Hanzo EVM, etc.).
 // Internally derived as the last 20 bytes of Keccak256(uncompressed_pubkey).
 //
 // Naming note: the method is named by what the value IS — a 20-byte
