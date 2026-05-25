@@ -16,7 +16,7 @@ import (
 type FallbackReason uint32
 
 const (
-	// FallbackDisabled — LUX_GPU_DISABLE is set; dispatcher routed to CPU.
+	// FallbackDisabled — GPU_DISABLE is set; dispatcher routed to CPU.
 	FallbackDisabled FallbackReason = iota
 	// FallbackUnsupported — host driver reported no usable device
 	// (cudaGetDeviceCount == 0, Metal device init failed, etc.).
