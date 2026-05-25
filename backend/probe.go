@@ -26,7 +26,7 @@ type Snapshot struct {
 	// GPU reports whether luxfi/accel found at least one device. Always
 	// false when Disabled is true, regardless of the underlying probe.
 	GPU bool
-	// Disabled reflects the LUX_GPU_DISABLE operator kill switch.
+	// Disabled reflects the GPU_DISABLE operator kill switch.
 	Disabled bool
 	// GPUBackend names the active accel backend ("metal" / "cuda" /
 	// "webgpu") or "" when no GPU is available.
