@@ -102,7 +102,7 @@ func CGoAvailable() bool { return cgoLinked }
 // GPUAvailable reports whether the luxfi/accel GPU substrate is reachable
 // in this process. First call lazily initialises accel via gpuhost; the
 // answer is cached afterwards. Returns false unconditionally when the
-// LUX_GPU_DISABLE kill switch is set (see disable.go).
+// GPU_DISABLE kill switch is set (see disable.go).
 func GPUAvailable() bool {
 	if gpuDisabled {
 		return false
