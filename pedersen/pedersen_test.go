@@ -4,6 +4,7 @@
 package pedersen
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
@@ -19,25 +20,29 @@ const katSeed = "lux-pedersen-kat-v1"
 // Format: m, r (uint64) -> hex of commit.RawBytes() (64 bytes uncompressed
 // affine: x || y, big-endian).
 //
-// Generators use the canonical brand-neutral DSTs PEDERSEN_G_V1 and
-// PEDERSEN_H_V1 (matches C++/Metal/CUDA/WGSL canonical). Any deviation in
-// the byte-equal output of either Commit or DeterministicGenerators breaks
-// this test loudly.
+// Generators use the canonical SeededGenDST = "PEDERSEN_SEEDED_GEN_V1" with
+// counter encoding key||u64_le(0) for G and key||u64_le(1) for H, where
+// key = SHA-256(katSeed). This matches the C++/Metal/CUDA/WGSL canonical
+// (luxcpp/crypto/pedersen — DST_SEEDED_GEN). Any deviation in the byte-equal
+// output of Commit or DeterministicGenerators breaks this test loudly.
+//
+// Vectors regenerated 2026-05-01 after collapsing the legacy two-DST
+// PEDERSEN_G_V1 / PEDERSEN_H_V1 path (LP-137 RED-FINAL §2.4 / N3).
 var katCases = []struct {
 	m, r uint64
 	hex  string
 }{
 	{0x0, 0x0, "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
-	{0x1, 0x0, "1690bf214b3b458ac68ff8ad15298b2c0757eb3c908bd196d20a1a28032749bd2142beee737e4802be84e65551e57ad829fc3084a712503e38c09a171b8f7af8"},
-	{0x0, 0x1, "11ed080cfc66661d0256d269e66fba661924d0e95c02763b6a9c3c848f8eb40c07682429c46304a6f09495a4036e794669f91858d53ac89c06b0db6bbebf8907"},
-	{0x1, 0x1, "046bf2f0fd48f5378636781d86b78ba9dfecdbc6fedaa15feb0caf59cd10f65e07db066137fec1f80c8eff58e6968dec57149f293b7e8e15ebfee303b5d9dabf"},
-	{0x7, 0xd, "1fd7362ee9fdb2fe14708eaeb359cf0790e05011ea0f75eff0950982b0fb1bbe07a6a565ea9db0073d3d057d4f643c985de3acf1639853e7800347979e35f95e"},
-	{0x5, 0xb, "227f1cbf8905b2b56628a794770047335d1902ce2a1015deb9727099570a067923ccb9407067a34a178926e5627addf4262cf5c235902b78acf0b2119f8a3bff"},
-	{0xdeadbeef, 0xcafebabe, "2151496276fae67477633528c8e1b29b144526713297da2fb6b58f64afb24295162abca28ca2d2055910e3d852b5edb3611055bccca66b3b7f372e2d25312f8d"},
-	{0x1, 0xffffffffffffffff, "2cb8a0a4f69fdabbf027456efa83963005a1b5347069bb5a6832ae8473ca39341a898c5bb4842c504b3d6030e5593566af58088bdb950de9d78db1096df220e2"},
-	{0xffffffffffffffff, 0x1, "2bf9365670f2dc77b54c01178714048abdd75cb6c5bd77b8a1180e28964cf8cd044540b44128e0bb43a73e68fb29bee84f8e7ff1324bd551181c1e8a4a8d3da5"},
-	{0x2a, 0x6c1, "146d5342e3acc1ce2a6b83d879a876c063a0a2ad8ce0d3c27efd624c9f33accb05b8c5f8e773ee4d7082ad7c103c639abcae61327d57cdb9d0d1f4acb0eeb566"},
-	{0x499602d2, 0x24cb016ea, "12778b903c6ce3846d58ffbeee0e173ba26b6ac95c8987001e6fa9a37f114e2f2a5c6eef88c60deb4d89bb11fdd769dafd0b0a19e2e6bc647f620bcc2bdaf92a"},
+	{0x1, 0x0, "1c3bd8ba19f64625f7c4e5e5a9a23f6669a50df47939a9b8ecf195816c0c321b2f62c0a6f193e6e5caeedcf6020522e20133dee692b17a24b30fda2d8844dd00"},
+	{0x0, 0x1, "1ae5ba2da9c3815b91a40f72dfdc3b7cf4e0ecf26c0edfcd9cd139703e9d8b9e2d40ef5624a87fcaaa0f522d16e50bdfeb3bd43ef2c1e3fc7feb2587ef80e059"},
+	{0x1, 0x1, "1949c5277a73c11d89e6d87b351091be4af586b4433af6bb6c65daa285fd13841c8e1f5677b3002a6f60e2e4b476e0bdde9fe14d4231f1d2d76398e3e0f860dd"},
+	{0x7, 0xd, "2797ede04358c04ed45a0d8cf8b466a7500a7c4270f00a54039e5edd92c13dd5041be4807242fb18242a3cea05530959dd7cd79f431848e0e766dcae06ed9b35"},
+	{0x5, 0xb, "2a9c798a92bd8201c99222ea4239acd9ac1c137ea5bace9628ecaf45892b7ef510f58c836a50953a4cafb885952c735c57ae1bb0c4a7c17fee0d6831870405c9"},
+	{0xdeadbeef, 0xcafebabe, "0a8297e7e4f1dd95342e86063093b3d2def5154c4e64ccd64cff91578c3b367b11569aa1796992eaf45b19fee627ec75487e40f96c172b769c4e3dd58f4ab85f"},
+	{0x1, 0xffffffffffffffff, "1bce42ec6446cfb0d7ef1ba7a8ff7c1933abc562a2643cab919a8c679de26b7c0011efe3d15f08817f22198b048cb56820adb48c15dd8e613bc94eba86942544"},
+	{0xffffffffffffffff, 0x1, "02193d1fe951c032cae5f04d7e820842345447e0d19d72c1eb5c05dd13b47a401c4499ff58c3c405e764a9960e23e68d16a46c14e94c03c99328918c54308f76"},
+	{0x2a, 0x6c1, "26a58f8326223a7bef10fb8e1bfffdf9092d610a7c66a277c64b3c74cf45e755151f04cb717b138740cbfdc97ce54dde1733b3716ff2604a5d96cf296609d228"},
+	{0x499602d2, 0x24cb016ea, "0f708ac592493a8e371e0f3d523916bc0e9fb00002cfb6c40f1553ae1919d14521ce35965d7f912efa4059c44cdf6c4858e175731bd30da550c52746f2935a71"},
 }
 
 func TestKATs(t *testing.T) {
@@ -135,5 +140,37 @@ func TestCommitBatchLengthMismatch(t *testing.T) {
 	rs := make([]fr.Element, 4)
 	if _, err := gens.CommitBatch(ms, rs); err != ErrLength {
 		t.Errorf("expected ErrLength, got %v", err)
+	}
+}
+
+// TestCanonicalSeededDST locks the on-wire DST string. The C++ canonical at
+// luxcpp/crypto/pedersen/cpp/pedersen.hpp uses the same constant; any drift
+// here breaks GPU↔CPU byte-equality and re-opens LP-137 RED-FINAL N3.
+func TestCanonicalSeededDST(t *testing.T) {
+	if SeededGenDST != "PEDERSEN_SEEDED_GEN_V1" {
+		t.Fatalf("SeededGenDST drift: got %q want %q", SeededGenDST, "PEDERSEN_SEEDED_GEN_V1")
+	}
+}
+
+// TestDeterministicMatchesFromSeed verifies that DeterministicGenerators
+// (arbitrary-length seed) reduces to NewGeneratorsFromSeed(SHA-256(seed)),
+// which is the contract the post-N3 collapse promises.
+func TestDeterministicMatchesFromSeed(t *testing.T) {
+	a, err := DeterministicGenerators([]byte(katSeed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := sha256.Sum256([]byte(katSeed))
+	b, err := NewGeneratorsFromSeed(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ag, bg, ah, bh bn254.G1Affine
+	ag.FromJacobian(&a.G)
+	bg.FromJacobian(&b.G)
+	ah.FromJacobian(&a.H)
+	bh.FromJacobian(&b.H)
+	if !ag.Equal(&bg) || !ah.Equal(&bh) {
+		t.Fatalf("DeterministicGenerators must equal NewGeneratorsFromSeed(SHA-256(seed))")
 	}
 }
