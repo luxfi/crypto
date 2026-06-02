@@ -111,10 +111,10 @@ func buildValidInput(randSrc *[kProofBodyLen + kPubLen]byte) []byte {
 	return out
 }
 
-//export p3q_verify_ct_setup
-//
 // Initialise the per-startup pool of valid inputs. Returns 0 on
 // success, non-zero on failure.
+//
+//export p3q_verify_ct_setup
 func p3q_verify_ct_setup() C.int {
 	// Register a backend verifier that always accepts. This pins the
 	// CT measurement on the precompile dispatch + backend invocation
@@ -134,24 +134,24 @@ func p3q_verify_ct_setup() C.int {
 	return 0
 }
 
-//export p3q_verify_ct_input_size
-//
 // Returns the per-sample input size for the C harness scratch buffer.
+//
+//export p3q_verify_ct_input_size
 func p3q_verify_ct_input_size() C.size_t {
 	return C.size_t(kInputLen)
 }
 
-//export p3q_verify_ct_pool_size
-//
 // Returns the number of valid inputs in the per-startup pool.
+//
+//export p3q_verify_ct_pool_size
 func p3q_verify_ct_pool_size() C.size_t {
 	return C.size_t(kValidPool)
 }
 
-//export p3q_verify_ct_copy_pool
-//
 // Copies validPool[idx] into the caller-supplied dst buffer
 // (kInputLen bytes). Returns 0 on success, non-zero on bounds violation.
+//
+//export p3q_verify_ct_copy_pool
 func p3q_verify_ct_copy_pool(idx C.size_t, dst *C.uint8_t) C.int {
 	i := int(idx)
 	if i < 0 || i >= kValidPool || validPool[i] == nil {
@@ -168,8 +168,6 @@ var (
 	supplied    = uint64(1 << 30) // far above required for kInputLen
 )
 
-//export p3q_verify_ct
-//
 // One dudect measurement sample.
 //
 // data points to kInputLen bytes of caller-controlled wire calldata.
@@ -180,6 +178,8 @@ var (
 // The function MUST be branchless on `data` — any data-dependent
 // branch we introduce here pollutes the measurement before Run()
 // even starts. We only copy data into a fresh slice and dispatch.
+//
+//export p3q_verify_ct
 func p3q_verify_ct(data *C.uint8_t) {
 	inputSlice := unsafe.Slice((*byte)(unsafe.Pointer(data)), kInputLen)
 	input := append([]byte{}, inputSlice...)

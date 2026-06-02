@@ -152,9 +152,10 @@ func GetSignatureSize(mode Mode) int {
 
 // GetPrivateKeySize returns the size of a private key for the given mode.
 // FIPS 205 §10 catalogue: sk = 4n where n is the hash output width:
-//   128-bit security : n=16 -> sk=64
-//   192-bit security : n=24 -> sk=96
-//   256-bit security : n=32 -> sk=128
+//
+//	128-bit security : n=16 -> sk=64
+//	192-bit security : n=24 -> sk=96
+//	256-bit security : n=32 -> sk=128
 func GetPrivateKeySize(mode Mode) int {
 	switch mode {
 	case SHA2_128s, SHAKE_128s, SHA2_128f, SHAKE_128f:

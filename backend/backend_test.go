@@ -188,4 +188,3 @@ func TestEnvOverride(t *testing.T) {
 		t.Errorf("env override: Default() = %v; want Vanilla", got)
 	}
 }
-
