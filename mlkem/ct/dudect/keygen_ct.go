@@ -33,9 +33,9 @@ import (
 
 const kKeygenRandSize = 64 // ML-KEM-768 keygen tape per FIPS 203
 
-//export mlkem_keygen_ct_setup
-//
 // Returns 0 on success.
+//
+//export mlkem_keygen_ct_setup
 func mlkem_keygen_ct_setup() C.int {
 	// Smoke test: ensure the underlying API is functional with a
 	// zero tape (the class-A input).
@@ -47,16 +47,16 @@ func mlkem_keygen_ct_setup() C.int {
 	return 0
 }
 
-//export mlkem_keygen_ct_input_size
-//
 // Returns the per-sample input width: 64 bytes (the keygen tape).
+//
+//export mlkem_keygen_ct_input_size
 func mlkem_keygen_ct_input_size() C.size_t {
 	return C.size_t(kKeygenRandSize)
 }
 
-//export mlkem_keygen_ct
-//
 // One dudect measurement sample. data points to a 64-byte tape.
+//
+//export mlkem_keygen_ct
 func mlkem_keygen_ct(data *C.uint8_t) {
 	src := unsafe.Slice((*byte)(unsafe.Pointer(data)), kKeygenRandSize)
 	r := bytes.NewReader(src)

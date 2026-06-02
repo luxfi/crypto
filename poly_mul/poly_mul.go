@@ -8,14 +8,15 @@
 //
 //   - Schoolbook   O(n^2)  -- always correct, fastest below n=64
 //   - NTT-based    O(n log n) for the negacyclic convolution that lattice
-//                  cryptography (ML-KEM, ML-DSA, Corona) uses
+//     cryptography (ML-KEM, ML-DSA, Corona) uses
 //
 // Q = 998244353 is the canonical FFT-friendly prime used by AtCoder, Cyclone-FFT,
 // the SPOJ POLYMUL reference, and most competitive-programming NTT references.
 // Its 2-adicity is 23, so the NTT supports lengths up to N = 2^23.
 //
 // Negacyclic convolution: c[k] = sum_{i+j=k}    a[i]*b[j]
-//                              - sum_{i+j=k+n}  a[i]*b[j]
+//   - sum_{i+j=k+n}  a[i]*b[j]
+//
 // over Z_Q[X]/(X^n + 1) with q the prime above. This is the exact shape
 // used by lattice schemes; cyclic convolution is recovered by padding.
 //

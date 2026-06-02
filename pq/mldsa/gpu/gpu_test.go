@@ -242,9 +242,9 @@ func TestReduce32_Bounds(t *testing.T) {
 // TestAddSubMod_Bounds exercises addModQ / subModQ around the boundary.
 func TestAddSubMod_Bounds(t *testing.T) {
 	tests := []struct {
-		a, b   uint32
-		wantA  uint32 // addModQ(a,b)
-		wantS  uint32 // subModQ(a,b)
+		a, b  uint32
+		wantA uint32 // addModQ(a,b)
+		wantS uint32 // subModQ(a,b)
 	}{
 		{0, 0, 0, 0},
 		{Q - 1, 1, 0, Q - 2},
