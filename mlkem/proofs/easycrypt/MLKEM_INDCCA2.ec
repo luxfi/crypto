@@ -31,7 +31,8 @@
 (*   [NIST24] NIST FIPS 203, August 2024.                               *)
 (* -------------------------------------------------------------------- *)
 
-require import AllCore List Int IntDiv Distr DBool DInterval SmtMap Real.
+require import AllCore List Int IntDiv Distr DBool DInterval SmtMap Real StdOrder.
+import RealOrder.
 
 (* -------------------------------------------------------------------- *)
 (* Reuse types from MLKEM_Correctness.ec                                 *)
@@ -84,9 +85,9 @@ module IND_CCA2 (A : IND_CCA2_Adv) = {
 
   proc main() : bool = {
     var rk, re : rand_t;
-    var ct_real, ct_chal;
+    var ct_real : ct_t;
     var ss_chal : ss_t;
-    var guess;
+    var guess : bool;
     rk <$ duniform [witness];
     (pk, sk) <- keygen MLKem768 rk;
     re <$ duniform [witness];
@@ -124,11 +125,17 @@ op delta_decrypt : ps_id_t -> real.  (* Per-key delta from FIPS 203 7.3 *)
 op msg_bits   : int.   (* |m| = 256 for ML-KEM *)
 op j_bits     : int.   (* |J output| = 256 for ML-KEM *)
 
+(* The query bounds are non-negative counts. This is a definitional fact
+   about the model's parameters (a number of oracle queries is never
+   negative); it is what makes the linear advantage bound below
+   monotone in the per-query advantages. *)
+axiom q_bounds_ge0 : 0 <= q_D_bound /\ 0 <= q_G_bound /\ 0 <= q_H_bound.
+
 axiom delta_bound_mlkem768 :
-  delta_decrypt MLKem768 <= 2%r ^^ (-164).
+  delta_decrypt MLKem768 <= 2%r ^ (-164).
 
 axiom delta_bound_mlkem1024 :
-  delta_decrypt MLKem1024 <= 2%r ^^ (-174).
+  delta_decrypt MLKem1024 <= 2%r ^ (-174).
 
 (* The IND-CPA PKE adversary advantage (Module-LWE / Module-LWR hardness). *)
 op adv_indcpa_pke : ps_id_t -> real.
@@ -137,8 +144,8 @@ op adv_indcpa_pke : ps_id_t -> real.
 op adv_indcca2_kem (p : ps_id_t) (A : real) : real =
   q_G_bound%r * delta_decrypt p +
   2%r * q_G_bound%r * adv_indcpa_pke p +
-  q_H_bound%r / 2%r ^^ msg_bits +
-  q_D_bound%r / 2%r ^^ j_bits.
+  q_H_bound%r / 2%r ^ msg_bits +
+  q_D_bound%r / 2%r ^ j_bits.
 
 (* The FO-K reduction theorem statement. *)
 axiom fo_k_reduction (p : ps_id_t) (Aadv : real) :
@@ -165,6 +172,17 @@ op adv_mlwr : ps_id_t -> real.
 axiom indcpa_pke_reduction (p : ps_id_t) :
   adv_indcpa_pke p <= adv_mlwe p + adv_mlwr p.
 
+(* Advantages and per-key decryption-failure probabilities are
+   non-negative reals. This is a definitional fact about the model's
+   quantities (an advantage / probability is never negative); it is what
+   makes the linear bound monotone when the query counts are replaced by
+   their upper bounds in the concrete instantiation below. *)
+axiom advantages_ge0 (p : ps_id_t) :
+  0%r <= delta_decrypt p /\
+  0%r <= adv_indcpa_pke p /\
+  0%r <= adv_mlwe p /\
+  0%r <= adv_mlwr p.
+
 (* -------------------------------------------------------------------- *)
 (* Composed bound                                                        *)
 (* -------------------------------------------------------------------- *)
@@ -175,11 +193,12 @@ lemma mlkem_indcca2_security (p : ps_id_t) (Aadv : real) :
   Aadv <=
     q_G_bound%r * delta_decrypt p +
     2%r * q_G_bound%r * (adv_mlwe p + adv_mlwr p) +
-    q_H_bound%r / 2%r ^^ msg_bits +
-    q_D_bound%r / 2%r ^^ j_bits.
+    q_H_bound%r / 2%r ^ msg_bits +
+    q_D_bound%r / 2%r ^ j_bits.
 proof.
   have H1 := fo_k_reduction p Aadv.
   have H2 := indcpa_pke_reduction p.
+  have Hq := q_bounds_ge0.
   rewrite /adv_indcca2_kem in H1.
   smt().
 qed.
@@ -205,18 +224,22 @@ axiom mlkem768_concrete_bound :
   q_G_bound <= 2 ^ 64 /\
   q_H_bound <= 2 ^ 64 /\
   q_D_bound <= 2 ^ 64 /\
-  adv_mlwe MLKem768 <= 2%r ^^ (-192) /\
-  adv_mlwr MLKem768 <= 2%r ^^ (-192).
+  adv_mlwe MLKem768 <= 2%r ^ (-192) /\
+  adv_mlwr MLKem768 <= 2%r ^ (-192).
 
 lemma mlkem768_concrete_security (Aadv : real) :
   Aadv <=
     (2^64)%r * delta_decrypt MLKem768 +
     2%r * (2^64)%r * (adv_mlwe MLKem768 + adv_mlwr MLKem768) +
-    (2^64)%r / 2%r ^^ msg_bits +
-    (2^64)%r / 2%r ^^ j_bits.
+    (2^64)%r / 2%r ^ msg_bits +
+    (2^64)%r / 2%r ^ j_bits.
 proof.
   have H := mlkem_indcca2_security MLKem768 Aadv.
   have HC := mlkem768_concrete_bound.
+  have Hq := q_bounds_ge0.
+  have Ha := advantages_ge0 MLKem768.
+  have Hp1 : 0%r < 2%r ^ msg_bits by apply expr_gt0.
+  have Hp2 : 0%r < 2%r ^ j_bits by apply expr_gt0.
   smt().
 qed.
 
