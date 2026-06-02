@@ -451,9 +451,9 @@ func SignBatchGPU(privs []*PrivateKey, msgs, sigs [][]byte) (bool, error) {
 //
 // Dispatch ladder:
 //
-//   1. GPU substrate (SignBatchGPU) for n >= SignBatchThreshold.
-//   2. Goroutine-parallel CPU sign for n >= concurrentSignThreshold.
-//   3. Serial CPU sign as the floor.
+//  1. GPU substrate (SignBatchGPU) for n >= SignBatchThreshold.
+//  2. Goroutine-parallel CPU sign for n >= concurrentSignThreshold.
+//  3. Serial CPU sign as the floor.
 //
 // Equivalence: SLH-DSA-SHA2 sign is deterministic, so all tiers produce
 // byte-equal signatures for any given (sk, msg). Per FIPS 205 §10.2 the

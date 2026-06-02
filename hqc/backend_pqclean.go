@@ -68,8 +68,8 @@ type rngState struct {
 }
 
 var (
-	rngMu      sync.Mutex
-	activeRNG  *rngState
+	rngMu     sync.Mutex
+	activeRNG *rngState
 )
 
 // installRNG takes the cgo lock and registers `r` as the entropy
@@ -92,12 +92,12 @@ func clearRNG() error {
 	return s.err
 }
 
-//export hqcGoRandombytes
-//
 // Called from randombytes_shim.c. Reads exactly `n` bytes from the
 // installed RNG into the buffer at `buf`. Returns 0 on full read,
 // non-zero on partial read or reader error (PQClean checks the
 // return value of randombytes() == 0).
+//
+//export hqcGoRandombytes
 func hqcGoRandombytes(buf *C.uint8_t, n C.size_t) C.int {
 	if activeRNG == nil {
 		// Misuse — no RNG installed. Fail loudly via non-zero return

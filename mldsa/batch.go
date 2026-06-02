@@ -26,12 +26,12 @@ var concurrentBatchThreshold = 8
 //
 // Dispatch ladder:
 //
-//   1. GPU substrate (accel.LatticeOps.MLDSAVerifyBatch) when n >= BatchThreshold
-//      AND a backend plugin is loaded AND mode is in {44, 65, 87}.
-//   2. Goroutine-parallel CPU verify when n >= concurrentBatchThreshold.
-//      Scales to GOMAXPROCS without GPU substrate. Useful on hosts that
-//      have CPU cores but no GPU plugin (Linux CI, no-Metal Macs, etc).
-//   3. Serial CPU verify as the floor.
+//  1. GPU substrate (accel.LatticeOps.MLDSAVerifyBatch) when n >= BatchThreshold
+//     AND a backend plugin is loaded AND mode is in {44, 65, 87}.
+//  2. Goroutine-parallel CPU verify when n >= concurrentBatchThreshold.
+//     Scales to GOMAXPROCS without GPU substrate. Useful on hosts that
+//     have CPU cores but no GPU plugin (Linux CI, no-Metal Macs, etc).
+//  3. Serial CPU verify as the floor.
 //
 // All paths are byte-equal: each path ends in cloudflare/circl's
 // FIPS 204-conformant Verify. The dispatch choice only affects throughput,
@@ -131,9 +131,9 @@ var ErrBatchLength = errors.New("mldsa: batch input slices have inconsistent len
 //
 // Dispatch ladder mirrors BatchVerify:
 //
-//   1. GPU substrate (accel.LatticeOps.MLDSASignBatch).
-//   2. Goroutine-parallel CPU sign.
-//   3. Serial CPU sign.
+//  1. GPU substrate (accel.LatticeOps.MLDSASignBatch).
+//  2. Goroutine-parallel CPU sign.
+//  3. Serial CPU sign.
 //
 // For deterministic-mode signing (FIPS 204 § Algorithm 2 with rnd=0^256),
 // callers can pass nil for randSource. The CPU path passes deterministic=true
