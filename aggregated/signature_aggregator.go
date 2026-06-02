@@ -71,14 +71,14 @@ type SignatureConfig struct {
 	PreferredType SignatureType `json:"preferredType"`
 
 	// Enable specific signature types
-	EnableBLS      bool `json:"enableBLS"`
-	EnableCorona bool `json:"enableCorona"`
-	EnableCGGMP21  bool `json:"enableCGGMP21"`
+	EnableBLS     bool `json:"enableBLS"`
+	EnableCorona  bool `json:"enableCorona"`
+	EnableCGGMP21 bool `json:"enableCGGMP21"`
 
 	// Fee configuration (in nLUX - nano LUX)
-	BLSFee      uint64 `json:"blsFee"`      // 0 = free
-	CoronaFee uint64 `json:"coronaFee"` // Premium for enhanced privacy
-	CGGMP21Fee  uint64 `json:"cggmp21Fee"`  // Premium for threshold signatures
+	BLSFee     uint64 `json:"blsFee"`     // 0 = free
+	CoronaFee  uint64 `json:"coronaFee"`  // Premium for enhanced privacy
+	CGGMP21Fee uint64 `json:"cggmp21Fee"` // Premium for threshold signatures
 
 	// Performance settings
 	ParallelAggregation bool `json:"parallelAggregation"`

@@ -160,4 +160,3 @@ func (e *cpuEngine) verifyBatch(mode Mode, msgs, sigs, pks [][]byte) ([]bool, er
 	})
 	return res, nil
 }
-

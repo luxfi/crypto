@@ -56,9 +56,9 @@ func NewGenerators(rng io.Reader) (*Generators, error) {
 // SHA-256 and then dispatched to NewGeneratorsFromSeed, so the actual on-curve
 // derivation is identical to the C++/Metal/CUDA/WGSL canonical:
 //
-//   key = SHA-256(seed)
-//   G   = HashToG1(key || u64_le(0), DST=PEDERSEN_SEEDED_GEN_V1)
-//   H   = HashToG1(key || u64_le(1), DST=PEDERSEN_SEEDED_GEN_V1)
+//	key = SHA-256(seed)
+//	G   = HashToG1(key || u64_le(0), DST=PEDERSEN_SEEDED_GEN_V1)
+//	H   = HashToG1(key || u64_le(1), DST=PEDERSEN_SEEDED_GEN_V1)
 //
 // This collapses LP-137 issue N3 (RED-FINAL §2.4): the legacy two-DST
 // PEDERSEN_G_V1 / PEDERSEN_H_V1 path is removed; everything now flows through
