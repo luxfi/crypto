@@ -22,10 +22,10 @@ type kat struct {
 	Key           string `json:"key"`
 	ContextString string `json:"context_string"`
 	Cases         []struct {
-		InputLen   int    `json:"input_len"`
-		Hash       string `json:"hash"`
-		KeyedHash  string `json:"keyed_hash"`
-		DeriveKey  string `json:"derive_key"`
+		InputLen  int    `json:"input_len"`
+		Hash      string `json:"hash"`
+		KeyedHash string `json:"keyed_hash"`
+		DeriveKey string `json:"derive_key"`
 	} `json:"cases"`
 }
 

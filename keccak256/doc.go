@@ -6,7 +6,7 @@
 //   - vanilla: golang.org/x/crypto/sha3.NewLegacyKeccak256 (pure Go)
 //   - cgo:     uses libluxcrypto's optimised C implementation when CGO is on
 //   - gpu:     batch-routes through github.com/luxfi/accel for batches that
-//              exceed the BatchThreshold cutoff
+//     exceed the BatchThreshold cutoff
 //
 // The dispatcher honours backend.Default(); see github.com/luxfi/crypto/backend.
 package keccak256

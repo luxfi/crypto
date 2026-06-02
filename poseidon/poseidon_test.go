@@ -15,11 +15,11 @@ import (
 var poseidon2KATJSON []byte
 
 type kat struct {
-	Width         int        `json:"width"`
-	FullRounds    int        `json:"full_rounds"`
-	PartialRounds int        `json:"partial_rounds"`
-	SBox          int        `json:"sbox"`
-	Cases         []katCase  `json:"kat"`
+	Width         int       `json:"width"`
+	FullRounds    int       `json:"full_rounds"`
+	PartialRounds int       `json:"partial_rounds"`
+	SBox          int       `json:"sbox"`
+	Cases         []katCase `json:"kat"`
 }
 
 type katCase struct {
