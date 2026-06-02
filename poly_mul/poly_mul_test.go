@@ -27,9 +27,9 @@ func lcg(seed uint64, n int) []uint64 {
 // that C++ and Metal layers MUST match.
 func TestKATs(t *testing.T) {
 	type kat struct {
-		name      string
-		n         int
-		sA, sB    uint64
+		name             string
+		n                int
+		sA, sB           uint64
 		sum, first, last uint64
 	}
 	kats := []kat{

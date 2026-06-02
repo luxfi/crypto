@@ -29,8 +29,6 @@ import (
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/luxfi/crypto/backend"
-
-
 )
 
 // genBatch44 produces n ML-DSA-44 keypairs + signs distinct messages with
@@ -223,9 +221,9 @@ func TestMLDSA44_BatchSign_RoundTrip(t *testing.T) {
 // BenchmarkMLDSA44_BatchVerify measures throughput of the ML-DSA-44 batch
 // verify dispatch ladder. Run with -bench=. to compare:
 //
-//   BenchmarkMLDSA44_BatchVerify/serial-1
-//   BenchmarkMLDSA44_BatchVerify/concurrent-8
-//   BenchmarkMLDSA44_BatchVerify/concurrent-32
+//	BenchmarkMLDSA44_BatchVerify/serial-1
+//	BenchmarkMLDSA44_BatchVerify/concurrent-8
+//	BenchmarkMLDSA44_BatchVerify/concurrent-32
 func BenchmarkMLDSA44_BatchVerify(b *testing.B) {
 	for _, size := range []int{1, 8, 32, 64} {
 		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
