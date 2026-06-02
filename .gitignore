@@ -32,3 +32,4 @@ QWEN.md
 target/
 test-results/
 tmp/
+*.eco
