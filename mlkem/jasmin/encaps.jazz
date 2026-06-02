@@ -19,7 +19,11 @@
 
 require "lib/mlkem_params.jinc"
 
-from Jade require "crypto_kem/mlkem/mlkem768/amd64/ref/enc.jinc"
+// libjade's ML-KEM-768 ref tree exposes keypair/enc/dec through a single
+// `kem.jinc` (functions __crypto_kem_keypair_jazz / __crypto_kem_enc_jazz /
+// __crypto_kem_dec_jazz); there is no separate enc.jinc/dec.jinc/keygen.jinc
+// in libjade. Resolve the encaps kernel via the canonical kem.jinc.
+from Jade require "crypto_kem/mlkem/mlkem768/amd64/ref/kem.jinc"
 
 // Lux ML-KEM-768 encaps wrapper.
 //
