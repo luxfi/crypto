@@ -70,8 +70,8 @@ func TestParseNodeEoA(t *testing.T) {
 	// EmptyCodeHash deterministically (see parseEoAccountNode in
 	// encoding.go). values[2..255] stay nil after round-trip.
 	values := make([][]byte, 256)
-	values[0] = zero32[:]          // basic data (packed: version+balance+nonce+codesize)
-	values[1] = EmptyCodeHash[:]   // code hash — required = EmptyCodeHash for EoA
+	values[0] = zero32[:]        // basic data (packed: version+balance+nonce+codesize)
+	values[1] = EmptyCodeHash[:] // code hash — required = EmptyCodeHash for EoA
 	ln, err := NewLeafNode(ffx32KeyTest[:31], values)
 	if err != nil {
 		t.Fatalf("error creating leaf node: %v", err)
