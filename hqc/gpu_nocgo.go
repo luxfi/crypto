@@ -153,10 +153,10 @@ func karatsuba(o, a, b []uint64, size int, stack []uint64) {
 	ah := a[sizeL:]
 	bh := b[sizeL:]
 
-	karatsuba(o, a, b, sizeL, rest)            // o[0:2*sizeL] = a_L * b_L
-	karatsuba(tmp2, ah, bh, sizeH, rest)       // tmp2 = a_H * b_H
+	karatsuba(o, a, b, sizeL, rest)      // o[0:2*sizeL] = a_L * b_L
+	karatsuba(tmp2, ah, bh, sizeH, rest) // tmp2 = a_H * b_H
 	karatsubaAdd1(alh, blh, a, b, sizeL, sizeH)
-	karatsuba(tmp1, alh, blh, sizeL, rest)    // tmp1 = (a_L+a_H)*(b_L+b_H)
+	karatsuba(tmp1, alh, blh, sizeL, rest) // tmp1 = (a_L+a_H)*(b_L+b_H)
 	karatsubaAdd2(o, tmp1, tmp2, sizeL, sizeH)
 }
 

@@ -21,8 +21,6 @@ import (
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
 	"github.com/luxfi/crypto/backend"
-
-
 )
 
 func genBatch87(t testing.TB, n int) (pubs []*PublicKey, msgs [][]byte, sigs [][]byte) {

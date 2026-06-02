@@ -81,27 +81,27 @@ func mlkem_decaps_ct_setup() C.int {
 	return 0
 }
 
-//export mlkem_decaps_ct_pool_size
-//
 // Returns the per-sample input width (FIPS 203 ML-KEM-768 ciphertext
 // is 1088 bytes). Named "pool_size" for harness API compatibility.
+//
+//export mlkem_decaps_ct_pool_size
 func mlkem_decaps_ct_pool_size() C.size_t {
 	return C.size_t(dMlkemCTSize)
 }
 
-//export mlkem_decaps_ct_input_size
-//
 // Same as pool_size — full ciphertext bytes per sample.
+//
+//export mlkem_decaps_ct_input_size
 func mlkem_decaps_ct_input_size() C.size_t {
 	return C.size_t(dMlkemCTSize)
 }
 
-//export mlkem_decaps_ct_copy_valid_ct
-//
 // Copies the class-A reference ciphertext into the caller-supplied C
 // buffer (must be at least mlkem_decaps_ct_input_size() bytes). Returns
 // 0 on success. Avoids passing a Go pointer back through cgo (which
 // would trip Go 1.26's cgocheck=1 unpinned-pointer panic).
+//
+//export mlkem_decaps_ct_copy_valid_ct
 func mlkem_decaps_ct_copy_valid_ct(dst *C.uint8_t) C.int {
 	if len(dMlkemValidCT) == 0 || dst == nil {
 		return 1
@@ -110,8 +110,6 @@ func mlkem_decaps_ct_copy_valid_ct(dst *C.uint8_t) C.int {
 	return 0
 }
 
-//export mlkem_decaps_ct
-//
 // One dudect sample: decapsulate the per-sample bytes. Class A → valid
 // reference ciphertext (FO-accept branch). Class B → caller-random
 // bytes (FO-reject branch via implicit rejection). Output is discarded;
@@ -120,6 +118,8 @@ func mlkem_decaps_ct_copy_valid_ct(dst *C.uint8_t) C.int {
 // Critical: this function MUST be branchless in its dispatch — only
 // the Decaps call may differ between samples. Any data-dependent
 // branch here would surface as a harness artifact.
+//
+//export mlkem_decaps_ct
 func mlkem_decaps_ct(data *C.uint8_t) {
 	if dMlkemSK == nil {
 		return
