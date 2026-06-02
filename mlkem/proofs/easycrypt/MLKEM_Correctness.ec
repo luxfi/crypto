@@ -145,12 +145,20 @@ op encaps : ps_id_t -> rand_t -> pk_t -> ct_t * ss_t.
 op decaps : ps_id_t -> sk_t -> ct_t -> ss_t.
 
 (* The underlying Kyber.CPAPKE (CPA-secure PKE), used for the
-   Encaps/Decaps payload before the FO-K transform. *)
-op cpapke_encrypt : ps_id_t -> rand_t -> pk_t -> ss_t -> ct_t.
-op cpapke_decrypt : ps_id_t -> sk_t -> ct_t -> ss_t.
+   Encaps/Decaps payload before the FO-K transform.
+
+   The plaintext "message" m and the decrypted message m' are 32-byte
+   values of type `rand_t` (the same domain the encaps message is drawn
+   from); the shared secret K is the distinct type `ss_t`. The encryption
+   coins are `rand_t` as well. So:
+     cpapke_encrypt p coins pk m  -- coins : rand_t, message m : rand_t
+     cpapke_decrypt p sk ct       -- recovers the message m : rand_t *)
+op cpapke_encrypt : ps_id_t -> rand_t -> pk_t -> rand_t -> ct_t.
+op cpapke_decrypt : ps_id_t -> sk_t -> ct_t -> rand_t.
 
 (* The FIPS 203 Encaps internally calls G to derive (K, r) from (m, pk)
-   and then cpapke_encrypt(r, pk, m). We name the G output. *)
+   and then cpapke_encrypt(r, pk, m). We name the G output (K : ss_t,
+   r : rand_t). *)
 op hash_g : (rand_t * pk_t) -> ss_t * rand_t.
 
 (* H : pk -> 32-byte hash. *)
@@ -174,10 +182,10 @@ op hash_j : sk_t -> ct_t -> ss_t.
 op good_tape : ps_id_t -> rand_t -> pk_t -> bool.
 
 axiom cpapke_decrypt_inverse
-      (p : ps_id_t) (r : rand_t) (pk : pk_t) (sk : sk_t) (m : ss_t) :
+      (p : ps_id_t) (coins : rand_t) (pk : pk_t) (sk : sk_t) (m : rand_t) :
   honest_keypair pk sk =>
-  good_tape p r pk =>
-  cpapke_decrypt p sk (cpapke_encrypt p r pk m) = m.
+  good_tape p m pk =>
+  cpapke_decrypt p sk (cpapke_encrypt p coins pk m) = m.
 
 (* HYP 2: FO-K transform recovery.
 
@@ -191,12 +199,12 @@ axiom fo_k_recovery
       (p : ps_id_t) (r : rand_t) (pk : pk_t) (sk : sk_t) :
   honest_keypair pk sk =>
   good_tape p r pk =>
-  let (m, k_seed) = hash_g (r, pk) in
-  let ct = cpapke_encrypt p k_seed pk m in
+  let (k_seed, r') = hash_g (r, pk) in
+  let ct = cpapke_encrypt p r' pk r in
   let m' = cpapke_decrypt p sk ct in
-  let (k_seed', _) = hash_g (m', pk) in
+  let (k_seed', r'') = hash_g (m', pk) in
   k_seed = k_seed' /\
-  cpapke_encrypt p k_seed' pk m' = ct.
+  cpapke_encrypt p r'' pk m' = ct.
 
 (* HYP 3: hash_g is deterministic and matches the FIPS 203 spec. *)
 axiom hash_g_functional :
@@ -214,7 +222,7 @@ axiom hash_h_functional :
    produce the ciphertext via cpapke_encrypt. *)
 op encaps_internal (p : ps_id_t) (r : rand_t) (pk : pk_t) : ct_t * ss_t =
   let (k_seed, r') = hash_g (r, pk) in
-  let ct = cpapke_encrypt p k_seed pk r in
+  let ct = cpapke_encrypt p r' pk r in
   (ct, k_seed).
 
 (* Decaps internals: decrypt the message, recompute K, and check
@@ -238,8 +246,8 @@ axiom decaps_internal_spec
       (p : ps_id_t) (sk : sk_t) (ct : ct_t) (pk : pk_t) :
   honest_keypair pk sk =>
   let m' = cpapke_decrypt p sk ct in
-  let (k_seed, _) = hash_g (m', pk) in
-  let ct' = cpapke_encrypt p k_seed pk m' in
+  let (k_seed, r') = hash_g (m', pk) in
+  let ct' = cpapke_encrypt p r' pk m' in
   decaps_internal p sk ct = (if ct' = ct then k_seed else hash_j sk ct).
 
 lemma mlkem_correctness
@@ -249,26 +257,28 @@ lemma mlkem_correctness
   let (ct, ss) = encaps p r pk in
   decaps p sk ct = ss.
 proof.
-  move => Hkey Htape.
+  move=> Hkey Htape.
   rewrite (encaps_is_internal p r pk) /encaps_internal /=.
-  pose g_out := hash_g (r, pk).
-  have HgEq : hash_g (r, pk) = g_out by trivial.
-  pose k_seed := g_out.`1.
-  pose r' := g_out.`2.
-  pose ct := cpapke_encrypt p k_seed pk r.
-  pose ss := k_seed.
-  rewrite (decaps_is_internal p sk ct).
-  (* Apply FO-K recovery on the honest tape. *)
+  (* Expose hash_g (r, pk) = (k_seed, r') once, keeping the equation Hg so
+     the shared subterm in the decaps obligations reduces uniformly. *)
+  have [k_seed r' Hg] : exists a b, hash_g (r, pk) = (a, b)
+    by exists (hash_g (r, pk)).`1 (hash_g (r, pk)).`2; rewrite -pairS.
+  rewrite Hg /=.
+  pose ct := cpapke_encrypt p r' pk r.
+  (* Decryption recovers the encapsulated message r on the honest tape. *)
+  have Hdec : cpapke_decrypt p sk ct = r
+    by rewrite /ct (cpapke_decrypt_inverse p r' pk sk r Hkey Htape).
+  (* FO-K recovery, reduced via Hg / Hdec: its k_seed = k_seed' conjunct
+     collapses (both are k_seed), leaving the re-encryption equality. *)
   have HFO := fo_k_recovery p r pk sk Hkey Htape.
-  rewrite /= in HFO.
-  case HFO => Heq Hreencrypt.
-  rewrite (decaps_internal_spec p sk ct pk Hkey) /=.
-  have Hreenc :
-    let m' = cpapke_decrypt p sk ct in
-    let (k_seed', _) = hash_g (m', pk) in
-    cpapke_encrypt p k_seed' pk m' = ct
-   by smt(fo_k_recovery hash_g_functional).
-  smt(fo_k_recovery cpapke_decrypt_inverse hash_g_functional).
+  rewrite Hg /= -/ct Hdec Hg /= in HFO.
+  (* Decaps spec, reduced: decaps_internal returns k_seed iff the
+     re-encryption matches, which it does by HFO. *)
+  have Hspec := decaps_internal_spec p sk ct pk Hkey.
+  move: Hspec => /=.
+  rewrite Hdec Hg /=.
+  move=> Hspec.
+  by rewrite (decaps_is_internal p sk ct) Hspec HFO.
 qed.
 
 (* -------------------------------------------------------------------- *)

@@ -138,14 +138,14 @@ lemma mlkem_wire_format_keygen (p : ps_id_t) (r : rand_t) :
   let (pk, sk) = keygen p r in
   (pk_bytes pk, sk_bytes sk) = fips203_keygen p (rand_to_bytes r).
 proof.
-  by apply circl_fips203_compliant_keygen.
+  by apply (circl_fips203_compliant_keygen p r).
 qed.
 
 lemma mlkem_wire_format_encaps (p : ps_id_t) (r : rand_t) (pk : pk_t) :
   let (ct, ss) = encaps p r pk in
   (ct_bytes ct, ss_bytes ss) = fips203_encaps p (rand_to_bytes r) (pk_bytes pk).
 proof.
-  by apply circl_fips203_compliant_encaps.
+  by apply (circl_fips203_compliant_encaps p r pk).
 qed.
 
 lemma mlkem_wire_format_decaps (p : ps_id_t) (sk : sk_t) (ct : ct_t) :
@@ -170,7 +170,8 @@ proof.
   move => HtapeEq.
   have H1 := circl_fips203_compliant_keygen p r1.
   have H2 := circl_fips203_compliant_keygen p r2.
-  rewrite /= in H1 H2.
+  rewrite /= in H1.
+  rewrite /= in H2.
   smt().
 qed.
 
@@ -183,7 +184,8 @@ proof.
   move => HtapeEq.
   have H1 := circl_fips203_compliant_encaps p r1 pk.
   have H2 := circl_fips203_compliant_encaps p r2 pk.
-  rewrite /= in H1 H2.
+  rewrite /= in H1.
+  rewrite /= in H2.
   smt().
 qed.
 
