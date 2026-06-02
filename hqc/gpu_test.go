@@ -18,11 +18,11 @@ import (
 // CPU PQClean reference. The two paths share the same canonical
 // kernels via accel/ops/code so the test asserts that:
 //
-//   1. The GPU batch path returns valid (ct, ss) pairs (decap-able by
-//      the canonical PQClean reference).
-//   2. The byte layout matches what PQClean produces with the same
-//      entropy stream — there is no "shifted" or "padded" encoding
-//      difference between the two paths.
+//  1. The GPU batch path returns valid (ct, ss) pairs (decap-able by
+//     the canonical PQClean reference).
+//  2. The byte layout matches what PQClean produces with the same
+//     entropy stream — there is no "shifted" or "padded" encoding
+//     difference between the two paths.
 //
 // We can't compare against per-item GPU vs per-item CPU directly
 // because the batch surface takes a flat seed buffer while the

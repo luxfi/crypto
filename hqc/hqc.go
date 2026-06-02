@@ -21,17 +21,17 @@
 //
 // Backends:
 //
-//	1. PQClean cgo (default for non-stub builds). Build with
-//	   `-tags=hqc_pqclean`. Wires the vendored PQClean HQC reference
-//	   implementation under crypto/hqc/pqclean/ (public domain). NIST
-//	   KAT vectors verify byte-for-byte — see
-//	   crypto/hqc/backend_pqclean_test.go's TestKAT_HQC{128,192,256}.
-//	2. Cloudflare CIRCL Go (placeholder; build tag `hqc_circl`).
-//	   Activates once CIRCL ships HQC support.
-//	3. Stub (default). When no backend tag is set, every operation
-//	   returns ErrBackendNotWired so the package still compiles on
-//	   hosts without cgo. The wire format and parameter constants are
-//	   fixed by NIST IR 8528 §4.1 and remain stable across backends.
+//  1. PQClean cgo (default for non-stub builds). Build with
+//     `-tags=hqc_pqclean`. Wires the vendored PQClean HQC reference
+//     implementation under crypto/hqc/pqclean/ (public domain). NIST
+//     KAT vectors verify byte-for-byte — see
+//     crypto/hqc/backend_pqclean_test.go's TestKAT_HQC{128,192,256}.
+//  2. Cloudflare CIRCL Go (placeholder; build tag `hqc_circl`).
+//     Activates once CIRCL ships HQC support.
+//  3. Stub (default). When no backend tag is set, every operation
+//     returns ErrBackendNotWired so the package still compiles on
+//     hosts without cgo. The wire format and parameter constants are
+//     fixed by NIST IR 8528 §4.1 and remain stable across backends.
 package hqc
 
 import (
@@ -58,12 +58,12 @@ const (
 
 // Params returns the fixed sizes for the parameter set.
 type Params struct {
-	Mode                 Mode
-	PublicKeySize        int
-	PrivateKeySize       int
-	CiphertextSize       int
-	SharedSecretSize     int
-	SecurityLevelBits    int // NIST PQ category mapped to ≈ AES key bits
+	Mode              Mode
+	PublicKeySize     int
+	PrivateKeySize    int
+	CiphertextSize    int
+	SharedSecretSize  int
+	SecurityLevelBits int // NIST PQ category mapped to ≈ AES key bits
 }
 
 // MustParamsFor returns the canonical Params for `mode` or panics on

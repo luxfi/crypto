@@ -34,10 +34,11 @@ import (
 // amortises the cgo crossover across slots.
 //
 // Measured on Apple M1 Max (HQC-128 encaps):
-//   1-item batch:   accel = 35 us, direct = 30 us   (direct wins)
-//   4-item batch:   accel = 110 us, direct = 120 us (parity)
-//   16-item batch:  accel = 410 us, direct = 480 us (accel ~17% win)
-//   128-item batch: accel = 1.7 ms, direct = 3.8 ms (accel ~2.2x)
+//
+//	1-item batch:   accel = 35 us, direct = 30 us   (direct wins)
+//	4-item batch:   accel = 110 us, direct = 120 us (parity)
+//	16-item batch:  accel = 410 us, direct = 480 us (accel ~17% win)
+//	128-item batch: accel = 1.7 ms, direct = 3.8 ms (accel ~2.2x)
 //
 // The exact threshold is workload-dependent. We pick 4 (the first
 // batch size where accel matches direct) so the API remains useful
@@ -53,9 +54,9 @@ const batchSizeThreshold = 4
 // OpenMP at the C++ level. That parallelism is independent of whether
 // a "real" GPU device is present — the kernels share the same C++
 // host loop. We therefore key dispatch on:
-//   1. backend.IsVanilla() is false — i.e. the caller did NOT explicitly
-//      pick the pure-Go fallback.
-//   2. The batch is large enough to amortise the cgo crossover.
+//  1. backend.IsVanilla() is false — i.e. the caller did NOT explicitly
+//     pick the pure-Go fallback.
+//  2. The batch is large enough to amortise the cgo crossover.
 //
 // We do NOT consult a session handle here — accel/ops/code parallelises via
 // OpenMP at the C++ level whether or not a Metal/CUDA device exists, so the
