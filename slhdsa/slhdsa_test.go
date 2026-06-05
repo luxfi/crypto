@@ -59,6 +59,14 @@ func TestSLHDSA_SignVerify_SHAKE_128s(t *testing.T) {
 }
 
 func TestSLHDSA_SignVerify_SHA2_256s(t *testing.T) {
+	// SHA-2-256s is the slowest production mode (~1.5s sign without
+	// -race, ~10s with). The matching SHA2_256f variant gives
+	// equivalent FIPS-205 compliance coverage at ~50ms; gate the slow
+	// "s" variant under -short.
+	if testing.Short() {
+		t.Skip("skipping SLH-DSA-SHA2-256s slow variant under -short")
+	}
+
 	sk, err := GenerateKey(rand.Reader, SHA2_256s)
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
@@ -226,11 +234,26 @@ func TestSLHDSA_PublicKeyFromBytes(t *testing.T) {
 }
 
 func TestSLHDSA_AllModes(t *testing.T) {
-	// Test that all modes are supported
-	modes := []Mode{
+	// Test that all modes are supported.
+	//
+	// The "s" variants (small signature, deep WOTS+ chains) push sign
+	// to ~1.5s without -race and ~10s under -race — aggregate ~6s/35s.
+	// Under -short we keep a subset covering one (SHA-2, SHAKE) × one
+	// (s, f) combination per level so the mode-mapping coverage stays
+	// intact at a fraction of the cost.
+	allModes := []Mode{
 		SHA2_128s, SHAKE_128s, SHA2_128f, SHAKE_128f,
 		SHA2_192s, SHAKE_192s, SHA2_192f, SHAKE_192f,
 		SHA2_256s, SHAKE_256s, SHA2_256f, SHAKE_256f,
+	}
+	shortModes := []Mode{
+		SHA2_128f, SHAKE_128f, // fast 128-bit variants
+		SHA2_192f, SHAKE_192f, // fast 192-bit variants
+		SHA2_256f, SHAKE_256f, // fast 256-bit variants
+	}
+	modes := allModes
+	if testing.Short() {
+		modes = shortModes
 	}
 
 	for _, mode := range modes {
