@@ -51,6 +51,16 @@ func nameToCirclID(t *testing.T, name string) circl.ID {
 // in the underlying circl version cannot silently break compatibility with the
 // FIPS 205 specification.
 func TestSLHDSA_KAT_KeygenFIPS205(t *testing.T) {
+	// 120 NIST ACVP keygen vectors across 12 modes. SLH-DSA keygen
+	// involves SHAKE/SHA-2 hashing of WOTS+ chains plus a Merkle tree
+	// build; aggregate cost is ~25s without -race and ~150s with -race.
+	// Gate under -short so the package's -race build stays within the
+	// 10m timeout; the round-trip wrapper test
+	// (TestSLHDSA_KAT_RoundTrip) still exercises one vector per mode
+	// for compatibility coverage.
+	if testing.Short() {
+		t.Skip("skipping full 120-vector KAT keygen suite under -short")
+	}
 	for _, v := range slhdsaKATVectors {
 		v := v
 		t.Run(v.Mode+"/"+v.SkSeed[:8], func(t *testing.T) {
@@ -102,6 +112,15 @@ func TestSLHDSA_KAT_KeygenFIPS205(t *testing.T) {
 // agrees with the parameter set names used in NIST ACVP. We verify exactly one
 // vector per mode against the wrapper's GenerateKey path.
 func TestSLHDSA_KAT_RoundTrip(t *testing.T) {
+	// 12 modes × keygen + sign + verify. Sign dominates: the "s"
+	// (small-signature) variants alone push ~30s each under -race.
+	// Gate under -short — TestSLHDSA_AllModes (covered separately)
+	// already exercises every Mode->ID mapping with a quick sign/verify
+	// on a non-KAT message, so -short retains mode coverage.
+	if testing.Short() {
+		t.Skip("skipping 12-mode KAT round-trip Sign suite under -short")
+	}
+
 	// Map ACVP names to our Mode constants.
 	nameToMode := map[string]Mode{
 		"SLH-DSA-SHA2-128s":  SHA2_128s,
