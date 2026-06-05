@@ -56,9 +56,21 @@ func BatchVerify(pubs []*PublicKey, msgs [][]byte, sigs [][]byte) []bool {
 	}
 
 	// Tier 1: GPU substrate.
+	//
+	// Red M-1: batchVerifyGPU returns (false, accel.ErrInvalidArgument) when
+	// the C ABI rejects the input as malformed (length / count cap, null
+	// ptr). The CPU oracle may accept what GPU rejects → consensus split.
+	// Panic here — BatchVerify returns no error, and a contract-violating
+	// input deserves the same shape as the existing length-mismatch /
+	// mixed-mode panics above. Recoverable GPU errors (NotSupported,
+	// OutOfMemory, kernel failure) return (false, nil) and fall through.
 	if n >= BatchThreshold {
 		if _, ok := modeToCAPI(mode); ok {
-			if ok, err := batchVerifyGPU(pubs, msgs, sigs, out); ok && err == nil {
+			ok, err := batchVerifyGPU(pubs, msgs, sigs, out)
+			if err != nil {
+				panic("mldsa.BatchVerify: GPU dispatch rejected input as malformed: " + err.Error())
+			}
+			if ok {
 				return out
 			}
 		}
@@ -156,9 +168,17 @@ func BatchSign(randSource io.Reader, privs []*PrivateKey, msgs [][]byte) ([][]by
 	}
 
 	// Tier 1: GPU substrate.
+	//
+	// Red M-1: batchSignGPU returns (false, accel.ErrInvalidArgument) on
+	// malformed input. Propagate as a real error here (BatchSign already
+	// returns error); other GPU errors fall through to CPU silently.
 	if n >= BatchThreshold {
 		if _, ok := modeToCAPI(mode); ok {
-			if ok, err := batchSignGPU(privs, msgs, sigs); ok && err == nil {
+			ok, err := batchSignGPU(privs, msgs, sigs)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
 				return sigs, nil
 			}
 		}
