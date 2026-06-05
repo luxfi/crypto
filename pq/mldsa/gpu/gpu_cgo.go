@@ -6,6 +6,7 @@
 package gpu
 
 import (
+	"errors"
 	"runtime"
 	"sync"
 
@@ -249,7 +250,17 @@ func (e *cgoEngine) signBatch(mode Mode, msgs, sks, sigs [][]byte) error {
 	}
 	defer sigT.Close()
 
+	// Red M-1: ErrInvalidArgument means the GPU C ABI rejected the input as
+	// malformed (length / count cap, null with non-zero len). The CPU oracle
+	// accepts these inputs (FIPS 204 allows arbitrary-length messages), so
+	// silent fallback creates a verdict-divergence shape across the same
+	// input on different nodes → consensus split. Propagate as a hard
+	// error. Other errors (NotSupported, OutOfMemory, kernel failure) are
+	// recoverable and fall back to CPU.
 	if err := e.sess.Lattice().MLDSASignBatch(int(mode), msgT.Untyped(), skT.Untyped(), sigT.Untyped()); err != nil {
+		if errors.Is(err, accel.ErrInvalidArgument) {
+			return err
+		}
 		return e.signBatchCPU(mode, msgs, sks, sigs)
 	}
 	if err := e.sess.Sync(); err != nil {
@@ -365,7 +376,12 @@ func (e *cgoEngine) verifyBatch(mode Mode, msgs, sigs, pks [][]byte) ([]bool, er
 	}
 	defer resT.Close()
 
+	// Red M-1: ErrInvalidArgument is a HARD error (see signBatch). Other
+	// errors silently fall back to CPU.
 	if err := e.sess.Lattice().MLDSAVerifyBatch(int(mode), msgT.Untyped(), sigT.Untyped(), pkT.Untyped(), resT.Untyped()); err != nil {
+		if errors.Is(err, accel.ErrInvalidArgument) {
+			return nil, err
+		}
 		return e.verifyBatchCPU(mode, msgs, sigs, pks)
 	}
 	if err := e.sess.Sync(); err != nil {
