@@ -156,17 +156,28 @@ var concurrentSignThreshold = 2
 // VerifyBatchGPU verifies a batch of SLH-DSA signatures on the GPU when a
 // GPU backend is present and the parameter set is one of the 'f' variants
 // (see modeToCAPI). Returns (dispatched, error):
-//   - dispatched=true means the GPU path produced `out`; len(out) == len(pubs).
-//   - dispatched=false means the GPU is unavailable for this batch and the
-//     caller MUST fall back to per-element CPU verify. `out` is untouched.
+//   - dispatched=true, error=nil  : GPU produced `out`; len(out) == len(pubs).
+//   - dispatched=false, error=nil : GPU is unavailable; caller MUST fall
+//     back to per-element CPU verify. `out` is untouched.
+//   - dispatched=false, error=accel.ErrInvalidArgument : the GPU C ABI
+//     rejected this input (e.g. msg_len > LUX_GPU_SLHDSA_MSG_LEN_CAP,
+//     count > kBatchMaxFactor ceiling, or null pointer with non-zero
+//     length). Caller MUST propagate the error as a hard contract
+//     violation — falling back to CPU here would produce a consensus
+//     split between GPU and CPU validators on the same input.
+//     This is the Red CRITICAL #176 propagation policy (M-1 pattern,
+//     mirrored from ML-DSA at lux/crypto/pq/mldsa/gpu/gpu_cgo.go:381).
 //
 // All inputs MUST share the same Mode. Mixed batches must be partitioned by
 // the caller (the GPU kernel dispatches one mode per launch).
 //
-// This function never panics on a transport-level failure; it returns
-// (false, nil) so the call site falls back transparently to CPU. The single
-// signal that something is materially broken is when len(pubs) is inconsistent
-// with len(msgs) or len(sigs) — that returns (false, nil) too.
+// This function never panics on a transport-level failure; for transport-
+// only failures (NewSession, tensor alloc, plugin not registered) it
+// returns (false, nil) so the call site falls back transparently to CPU.
+// Shape-inconsistency at the input boundary (len(pubs) != len(msgs))
+// also returns (false, nil) because the same shape error will surface
+// in the CPU fallback. The single signal of a HARD failure is
+// ErrInvalidArgument from the C ABI.
 func VerifyBatchGPU(pubs []*PublicKey, msgs, sigs [][]byte, out []bool) (bool, error) {
 	if len(pubs) == 0 {
 		return true, nil
@@ -253,7 +264,18 @@ func VerifyBatchGPU(pubs []*PublicKey, msgs, sigs [][]byte, out []bool) (bool, e
 	}
 	defer rT.Close()
 
+	// Red CRITICAL #176 / M-1 propagation: ErrInvalidArgument from the
+	// C ABI is a HARD error — the GPU plugin rejected the input as
+	// out-of-contract (msg_len > LUX_GPU_SLHDSA_MSG_LEN_CAP, count
+	// overflow, etc). Falling back to CPU here would let the CPU
+	// oracle absorb the full input while the GPU has already declared
+	// it invalid → consensus split. Other accel errors (NotSupported,
+	// OutOfMemory, KernelFailed, NoBackends) are recoverable; fall
+	// through to CPU.
 	if err := sess.Lattice().SLHDSAVerifyBatch(capiMode, mT.Untyped(), sT.Untyped(), pT.Untyped(), rT.Untyped()); err != nil {
+		if errors.Is(err, accel.ErrInvalidArgument) {
+			return false, err
+		}
 		return false, nil
 	}
 	bytes, err := rT.ToSlice()
@@ -278,6 +300,18 @@ func VerifyBatchGPU(pubs []*PublicKey, msgs, sigs [][]byte, out []bool) (bool, e
 //
 // Inputs must all share the same Mode; otherwise this function returns the
 // CPU per-element result of each public key verifying against its own mode.
+//
+// Red CRITICAL #176 / M-1 propagation: when VerifyBatchGPU returns
+// accel.ErrInvalidArgument, the GPU C ABI has rejected the input as
+// contract-violating (msg_len > LUX_GPU_SLHDSA_MSG_LEN_CAP, count >
+// kBatchMaxFactor ceiling). The CPU oracle has no such cap and may
+// accept what the GPU has rejected → consensus split between
+// CPU-only and GPU-accelerated validators. Panic here — VerifyBatch
+// returns no error, and a contract-violating input deserves the same
+// shape as the existing length-mismatch shape (returning empty out).
+// Recoverable GPU errors (NotSupported, OutOfMemory, KernelFailed,
+// NoBackends) return (false, nil) and fall through to the CPU tiers.
+// This mirrors mldsa.BatchVerify (lux/crypto/mldsa/batch.go).
 func VerifyBatch(pubs []*PublicKey, msgs, sigs [][]byte) []bool {
 	n := len(pubs)
 	out := make([]bool, n)
@@ -289,7 +323,15 @@ func VerifyBatch(pubs []*PublicKey, msgs, sigs [][]byte) []bool {
 	}
 
 	// Tier 1: GPU substrate.
-	if dispatched, _ := VerifyBatchGPU(pubs, msgs, sigs, out); dispatched {
+	dispatched, dispatchErr := VerifyBatchGPU(pubs, msgs, sigs, out)
+	if dispatchErr != nil {
+		// VerifyBatchGPU only returns a non-nil error for
+		// accel.ErrInvalidArgument (the M-1 hard-error case). Mirror
+		// the panic pattern used by mldsa.BatchVerify so the caller's
+		// consensus-critical path fails closed.
+		panic("slhdsa.VerifyBatch: GPU dispatch rejected input as malformed: " + dispatchErr.Error())
+	}
+	if dispatched {
 		return out
 	}
 
@@ -428,7 +470,15 @@ func SignBatchGPU(privs []*PrivateKey, msgs, sigs [][]byte) (bool, error) {
 	}
 	defer sigT.Close()
 
+	// Red CRITICAL #176 / M-1 propagation: same as VerifyBatchGPU.
+	// ErrInvalidArgument is a HARD contract violation; do not fall back
+	// to CPU — a CPU sign over a bound-violating message would produce
+	// a signature the GPU would never produce, asymmetric across the
+	// validator set.
 	if err := sess.Lattice().SLHDSASignBatch(capiMode, mT.Untyped(), skT.Untyped(), sigT.Untyped()); err != nil {
+		if errors.Is(err, accel.ErrInvalidArgument) {
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -482,9 +532,23 @@ func SignBatch(randSource io.Reader, privs []*PrivateKey, msgs [][]byte) ([][]by
 
 	// Tier 1: GPU substrate. SLH-DSA sign is the canonical Magnetar slow path
 	// (>1s per signature for 192f) so threshold n is intentionally low.
+	//
+	// Red CRITICAL #176 / M-1 propagation: when SignBatchGPU returns
+	// accel.ErrInvalidArgument, the GPU C ABI has rejected the input
+	// as contract-violating. The CPU oracle's SignCtx (cloudflare/circl)
+	// has no length cap and would produce a signature the GPU would
+	// never produce — asymmetric signing across the validator set in
+	// deterministic quorum signing (FIPS 205 §10.2 SignDeterministic).
+	// Surface the error so the caller fails closed. Recoverable errors
+	// (NotSupported, OutOfMemory, KernelFailed) fall through to the
+	// CPU tiers below.
 	if n >= SignBatchThreshold {
 		if _, ok := modeToCAPI(mode); ok {
-			if ok, err := SignBatchGPU(privs, msgs, sigs); ok && err == nil {
+			dispatched, dispatchErr := SignBatchGPU(privs, msgs, sigs)
+			if dispatchErr != nil {
+				return nil, dispatchErr
+			}
+			if dispatched {
 				return sigs, nil
 			}
 		}
