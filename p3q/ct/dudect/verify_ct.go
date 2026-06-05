@@ -64,7 +64,7 @@ import (
 	"unsafe"
 
 	"github.com/luxfi/geth/common"
-	p3q "github.com/luxfi/precompile/p3q"
+	starkfri "github.com/luxfi/precompile/starkfri"
 )
 
 // Pool size: 64 valid inputs is enough to expose any per-content
@@ -120,7 +120,7 @@ func p3q_verify_ct_setup() C.int {
 	// CT measurement on the precompile dispatch + backend invocation
 	// itself, not on a particular verification outcome. (The CT
 	// property we want must hold regardless of backend acceptance.)
-	p3q.RegisterVerifier(func(byte, []byte, []byte) (bool, error) {
+	starkfri.RegisterVerifier(func(byte, []byte, []byte) (bool, error) {
 		return true, nil
 	})
 
@@ -183,10 +183,10 @@ var (
 func p3q_verify_ct(data *C.uint8_t) {
 	inputSlice := unsafe.Slice((*byte)(unsafe.Pointer(data)), kInputLen)
 	input := append([]byte{}, inputSlice...)
-	_, _, _ = p3q.P3QVerifyPrecompile.Run(
+	_, _, _ = starkfri.StarkFRIVerifyPrecompile.Run(
 		nil,
 		dummyCaller,
-		p3q.ContractP3QVerifyAddress,
+		starkfri.ContractStarkFRIVerifyAddress,
 		input,
 		supplied,
 		true,
