@@ -121,15 +121,15 @@ type ThresholdEngine interface {
 
 ```go
 // Validator creates their share
-precomp, _ := ringtail.Precompute(validatorSK)
-share, _ := ringtail.QuickSign(precomp, blockHash)
+precomp, _ := Corona.Precompute(validatorSK)
+share, _ := Corona.QuickSign(precomp, blockHash)
 
 // Collect shares from t validators
 shares := collectSharesFromValidators()
 
 // Aggregate into final certificate
 if len(shares) >= threshold {
-    cert, _ := ringtail.Aggregate(shares)
+    cert, _ := Corona.Aggregate(shares)
     // cert is the threshold signature
 }
 ```
@@ -143,7 +143,7 @@ type FinalizedBlock struct {
     Height       uint64
     Hash         []byte
     BLSAggregate []byte  // Classical BLS aggregate
-    RingtailCert []byte  // Threshold certificate (post-quantum)
+    CoronaCert []byte  // Threshold certificate (post-quantum)
     Signers      []byte  // Bitfield of participating validators
 }
 ```
