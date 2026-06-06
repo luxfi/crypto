@@ -130,7 +130,7 @@ Pulsar threshold operations depend on the consensus layer.
 func exportPublicKeys(s *signer.Signer) map[string][]byte {
     return map[string][]byte{
         "bls":      s.GetBLSPublicKey(),
-        "corona": s.GetCoronaPublicKey().Bytes(),
+        "Corona": s.GetCoronaPublicKey().Bytes(),
     }
 }
 ```
@@ -140,7 +140,7 @@ func exportPublicKeys(s *signer.Signer) map[string][]byte {
 ```go
 // For advanced operations
 blsKey := s.BLSSecretKey()
-coronaKey := s.CoronaPrivateKey()
+CoronaKey := s.CoronaPrivateKey()
 ```
 
 ## Security Considerations
