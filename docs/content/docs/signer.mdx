@@ -42,7 +42,7 @@ func main() {
     }
 
     fmt.Printf("BLS Public Key: %x\n", s.GetBLSPublicKey())
-    fmt.Printf("Pulsar Public Key: %x\n", s.GetRingtailPublicKey().Bytes())
+    fmt.Printf("Pulsar Public Key: %x\n", s.GetCoronaPublicKey().Bytes())
 }
 ```
 
@@ -67,7 +67,7 @@ Pulsar is a lattice-based threshold signature scheme used for post-quantum secur
 ```go
 // Pulsar threshold signing requires coordination through consensus
 // The signer package provides key management
-pk := s.GetRingtailPublicKey()
+pk := s.GetCoronaPublicKey()
 
 // Threshold operations are coordinated by the consensus layer
 // See github.com/luxfi/consensus for full implementation
@@ -85,7 +85,7 @@ type ConsensusMessage struct {
     Round        int
     BlockHash    []byte
     BLSSignature []byte      // Aggregatable
-    RingtailSig  []byte      // Threshold contribution
+    CoronaSig  []byte      // Threshold contribution
 }
 
 // BLS signatures are aggregated across validators
@@ -104,7 +104,7 @@ type FinalizedBlock struct {
     Height        uint64
     Hash          []byte
     BLSAggregate  []byte  // Aggregated BLS from validators
-    RingtailCert  []byte  // Threshold certificate
+    CoronaCert  []byte  // Threshold certificate
     ValidatorSet  []byte  // Participating validators
 }
 ```
@@ -130,7 +130,7 @@ Pulsar threshold operations depend on the consensus layer.
 func exportPublicKeys(s *signer.Signer) map[string][]byte {
     return map[string][]byte{
         "bls":      s.GetBLSPublicKey(),
-        "ringtail": s.GetRingtailPublicKey().Bytes(),
+        "Corona": s.GetCoronaPublicKey().Bytes(),
     }
 }
 ```
@@ -140,7 +140,7 @@ func exportPublicKeys(s *signer.Signer) map[string][]byte {
 ```go
 // For advanced operations
 blsKey := s.BLSSecretKey()
-ringtailKey := s.RingtailPrivateKey()
+CoronaKey := s.CoronaPrivateKey()
 ```
 
 ## Security Considerations
@@ -167,7 +167,7 @@ func secureKeyGeneration() (*signer.Signer, error) {
     if len(s.GetBLSPublicKey()) == 0 {
         return nil, errors.New("BLS key generation failed")
     }
-    if s.GetRingtailPublicKey() == nil {
+    if s.GetCoronaPublicKey() == nil {
         return nil, errors.New("Pulsar key generation failed")
     }
 
@@ -193,7 +193,7 @@ func TestSigner(t *testing.T) {
     require.False(t, s.VerifyBLS([]byte("wrong"), blsSig))
 
     // Pulsar key should exist
-    require.NotNil(t, s.GetRingtailPublicKey())
+    require.NotNil(t, s.GetCoronaPublicKey())
 }
 ```
 
