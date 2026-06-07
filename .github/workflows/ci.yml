@@ -25,10 +25,18 @@ jobs:
       - name: gofmt
         if: matrix.cgo == '0'
         run: test -z "$(gofmt -s -l .)"
-      - name: Test
+      # -race requires cgo, so it only runs on the cgo=1 legs. The cgo=0
+      # legs run the same suite without the race detector (pure-Go path).
+      - name: Test (race)
+        if: matrix.cgo == '1'
         env:
-          CGO_ENABLED: ${{ matrix.cgo }}
+          CGO_ENABLED: '1'
         run: go test -v -count=1 -race -timeout=15m ./...
+      - name: Test (no race, pure-Go)
+        if: matrix.cgo == '0'
+        env:
+          CGO_ENABLED: '0'
+        run: go test -v -count=1 -timeout=15m ./...
       - name: Coverage (CGO build, amd64 only — single canonical baseline)
         if: matrix.cgo == '1' && matrix.arch == 'amd64'
         run: |
