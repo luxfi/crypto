@@ -74,6 +74,27 @@ jobs:
         env:
           CGO_ENABLED: '1'
         run: |
+          # The lux-build self-hosted runner does not ship `gcc` (cgo's
+          # default CC on Linux), so the build fails with
+          #   cgo: C compiler "gcc" not found
+          # before any HQC code runs. Pick the first C compiler that is
+          # actually on PATH (cc/clang/gcc) and pin CC to it. The PQClean
+          # HQC reference sources are portable C99 and build identically
+          # under clang or gcc, so the NIST KAT roundtrip is unaffected by
+          # the compiler choice.
+          for candidate in "$CC" cc clang gcc; do
+            if [ -n "$candidate" ] && command -v "$candidate" >/dev/null 2>&1; then
+              CC="$candidate"
+              break
+            fi
+          done
+          if [ -z "$CC" ] || ! command -v "$CC" >/dev/null 2>&1; then
+            echo "::error::no C compiler found on PATH (tried cc, clang, gcc); cgo build cannot proceed"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+          export CC
+          echo "Using CC=$CC ($($CC --version 2>&1 | head -1))"
           go test -count=1 -tags=hqc_pqclean -v ./hqc/
 
   build:
