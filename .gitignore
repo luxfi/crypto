@@ -10,12 +10,9 @@ __pycache__/
 **/target/
 # hygiene (untrack node_modules, block common build output)
 # mlkem dudect build artifacts
-AGENTS.md
 build/
-CLAUDE.md
 coverage/
 dist/
-GEMINI.md
 GROK.md
 grpc-server.log
 mlkem/ct/dudect/dudect_decaps
