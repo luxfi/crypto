@@ -119,6 +119,13 @@ func batchEncapsulateGPU(pubs []*PublicKey, cts []*Ciphertext, sss [][]byte) (bo
 	ssBuf := make([]byte, count*cp.SharedSecret)
 
 	if err := code.HQCEncapsBatch(codeMode, ctBuf, ssBuf, pkBuf, seedsBuf, count); err != nil {
+		if errors.Is(err, code.ErrNativeHQCUnavailable) {
+			// accel native HQC not linked (no -tags=lux_hqc_native) — the
+			// batch path is unavailable; decline so the caller falls back
+			// to the per-item PQClean path. Zeroise the seeds we drew.
+			zeroise(seedsBuf)
+			return false, nil
+		}
 		return false, err
 	}
 
@@ -192,6 +199,13 @@ func batchDecapsulateGPU(sks []*PrivateKey, cts []*Ciphertext, sss [][]byte) (bo
 	ssBuf := make([]byte, count*cp.SharedSecret)
 
 	if err := code.HQCDecapsBatch(codeMode, ssBuf, ctBuf, skBuf, count); err != nil {
+		if errors.Is(err, code.ErrNativeHQCUnavailable) {
+			// accel native HQC not linked (no -tags=lux_hqc_native) — the
+			// batch path is unavailable; decline so the caller falls back
+			// to the per-item PQClean path. Zeroise the secret key buffer.
+			zeroise(skBuf)
+			return false, nil
+		}
 		return false, err
 	}
 
