@@ -70,18 +70,29 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+      - name: Ensure C toolchain (cgo)
+        # The lux-build self-hosted runner ships no C compiler at all
+        # (PATH has no cc / clang / gcc), so the cgo build aborted with
+        #   cgo: C compiler "gcc" not found
+        # before any HQC code ran. Install build-essential (gcc) the same
+        # way sibling lux repos provision this runner. Skip if a compiler
+        # is already present so the step is a no-op on images that have one.
+        run: |
+          if command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1; then
+            echo "C compiler already present; skipping install."
+          else
+            echo "No C compiler on PATH; installing build-essential."
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends build-essential
+          fi
       - name: HQC PQClean cgo build + test
         env:
           CGO_ENABLED: '1'
         run: |
-          # The lux-build self-hosted runner does not ship `gcc` (cgo's
-          # default CC on Linux), so the build fails with
-          #   cgo: C compiler "gcc" not found
-          # before any HQC code runs. Pick the first C compiler that is
-          # actually on PATH (cc/clang/gcc) and pin CC to it. The PQClean
-          # HQC reference sources are portable C99 and build identically
-          # under clang or gcc, so the NIST KAT roundtrip is unaffected by
-          # the compiler choice.
+          # Pin CC to the first compiler actually on PATH (cc/clang/gcc).
+          # The PQClean HQC reference sources are portable C99 and build
+          # identically under clang or gcc, so the NIST KAT roundtrip is
+          # unaffected by the compiler choice.
           for candidate in "$CC" cc clang gcc; do
             if [ -n "$candidate" ] && command -v "$candidate" >/dev/null 2>&1; then
               CC="$candidate"
