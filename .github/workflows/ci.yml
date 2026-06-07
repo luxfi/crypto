@@ -16,7 +16,7 @@ jobs:
         # cross-compiled (build only) in the `build` job below.
         arch: [amd64]
         cgo: ['0', '1']
-    runs-on: lux-build
+    runs-on: evo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -115,7 +115,7 @@ jobs:
 
   hqc-pqclean-e2e:
     name: HQC PQClean cgo e2e (NIST KAT roundtrip)
-    runs-on: lux-build
+    runs-on: evo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -167,7 +167,7 @@ jobs:
         arch: [amd64, arm64]
     # All builds run on the amd64 self-hosted runner. arm64 cross-compiles
     # via GOARCH; CGO_ENABLED=0 keeps it pure-Go (no cross-compiler needed).
-    runs-on: lux-build
+    runs-on: evo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
