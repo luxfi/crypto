@@ -21,17 +21,47 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26.3'
+          go-version: '1.26.4'
+      # cgo=1 (and -race) need a C compiler; the lux-build self-hosted runner
+      # ships none. Provision it the same way the green hqc-pqclean-e2e job
+      # does. No-op when a compiler is already present.
+      - name: Ensure C toolchain (cgo=1)
+        if: matrix.cgo == '1'
+        run: |
+          if command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1; then
+            echo "C compiler already present; skipping install."
+          else
+            echo "No C compiler on PATH; installing build-essential."
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends build-essential
+          fi
+          for candidate in "$CC" cc clang gcc; do
+            if [ -n "$candidate" ] && command -v "$candidate" >/dev/null 2>&1; then
+              echo "CC=$candidate" >> "$GITHUB_ENV"; break
+            fi
+          done
       - name: gofmt
         if: matrix.cgo == '0'
         run: test -z "$(gofmt -s -l .)"
       # -race requires cgo, so it only runs on the cgo=1 legs. The cgo=0
       # legs run the same suite without the race detector (pure-Go path).
+      #
+      # ./cgo (luxlink) is a pkg-config aggregator with no algorithms; it
+      # needs the lux-crypto/lux-gpu/lux-lattice .pc bundles from the private
+      # luxcpp tree, which are not installable on CI. The Makefile `test`
+      # target and release.yml already exclude it when those .pc files are
+      # absent — mirror that gate here. (cgo=0 has no buildable files in ./cgo
+      # so the `./...` wildcard already skips it on that leg.)
       - name: Test (race)
         if: matrix.cgo == '1'
         env:
           CGO_ENABLED: '1'
-        run: go test -v -count=1 -race -timeout=15m ./...
+        run: |
+          if pkg-config --exists lux-crypto lux-gpu 2>/dev/null; then
+            go test -v -count=1 -race -timeout=15m ./...
+          else
+            go test -v -count=1 -race -timeout=15m $(go list ./... | grep -v /cgo)
+          fi
       - name: Test (no race, pure-Go)
         if: matrix.cgo == '0'
         env:
@@ -43,9 +73,15 @@ jobs:
           # Full crypto suite contributes to the coverage baseline,
           # including the verkle encoding tests (TestParseNodeEoA +
           # TestParseNodeSingleSlot) which are now aligned with the
-          # EIP-6800 post-pack value layout — no skips.
+          # EIP-6800 post-pack value layout — no skips. ./cgo excluded for
+          # the same reason as the Test (race) step above.
+          if pkg-config --exists lux-crypto lux-gpu 2>/dev/null; then
+            PKGS="./..."
+          else
+            PKGS="$(go list ./... | grep -v /cgo)"
+          fi
           go test -count=1 -coverprofile=coverage.txt -covermode=atomic \
-            -timeout=15m ./...
+            -timeout=15m $PKGS
           go tool cover -func=coverage.txt | tail -1
       - name: Coverage floor gate (must stay ≥ 60%)
         if: matrix.cgo == '1' && matrix.arch == 'amd64'
@@ -68,7 +104,7 @@ jobs:
         continue-on-error: true
       - name: Bench
         if: matrix.cgo == '1'
-        run: go test -bench=. -benchmem -benchtime=100ms ./... || true
+        run: go test -bench=. -benchmem -benchtime=100ms $(go list ./... | grep -v /cgo) || true
 
   hqc-pqclean-e2e:
     name: HQC PQClean cgo e2e (NIST KAT roundtrip)
@@ -129,7 +165,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26.3'
+          go-version: '1.26.4'
       - name: Build (cross-compile via GOARCH)
         env:
           CGO_ENABLED: '0'
