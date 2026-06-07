@@ -132,9 +132,29 @@ func AddParamsForCurve(curve elliptic.Curve, params *ECIESParams) {
 }
 
 // ParamsFromCurve selects parameters optimal for the selected elliptic curve.
-// Only the curves P256, P384, and P512 are supported.
+// Only the curves secp256k1, P256, P384, and P521 are supported.
 func ParamsFromCurve(curve elliptic.Curve) (params *ECIESParams) {
-	return paramsFromCurve[curve]
+	if curve == nil {
+		return nil
+	}
+	// Fast path: exact instance match.
+	if p := paramsFromCurve[curve]; p != nil {
+		return p
+	}
+	// Fallback: match by curve parameters. Wrapper types (e.g. the
+	// crypto package's btCurve, which wraps secp256k1 but is a distinct
+	// type) break instance-identity map lookups; matching on the field
+	// prime P uniquely identifies the curve and is wrapper-agnostic.
+	cp := curve.Params()
+	if cp == nil || cp.P == nil {
+		return nil
+	}
+	for c, p := range paramsFromCurve {
+		if cc := c.Params(); cc != nil && cc.P != nil && cc.P.Cmp(cp.P) == 0 {
+			return p
+		}
+	}
+	return nil
 }
 
 func pubkeyParams(key *PublicKey) (*ECIESParams, error) {
