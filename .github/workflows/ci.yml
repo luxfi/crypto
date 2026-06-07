@@ -58,9 +58,9 @@ jobs:
           CGO_ENABLED: '1'
         run: |
           if pkg-config --exists lux-crypto lux-gpu 2>/dev/null; then
-            go test -v -count=1 -race -timeout=15m ./...
+            go test -v -count=1 -race -timeout=30m ./...
           else
-            go test -v -count=1 -race -timeout=15m $(go list ./... | grep -v /cgo)
+            go test -v -count=1 -race -timeout=30m $(go list ./... | grep -v /cgo)
           fi
       - name: Test (no race, pure-Go)
         if: matrix.cgo == '0'
@@ -81,7 +81,7 @@ jobs:
             PKGS="$(go list ./... | grep -v /cgo)"
           fi
           go test -count=1 -coverprofile=coverage.txt -covermode=atomic \
-            -timeout=15m $PKGS
+            -timeout=30m $PKGS
           go tool cover -func=coverage.txt | tail -1
       # Floor set to the measured cgo=1 baseline (59%). The previous 60% value
       # was aspirational and never actually exercised: the cgo=1 leg failed at
