@@ -24,11 +24,19 @@
 //
 //	crypto/hqc -> accel/hqc -> accel/ops/code -> luxcpp/gpu C kernels
 //
+// The native kernels are linked only when built with -tags=lux_hqc_native
+// (accel v1.2+). Without that tag the accel surface returns
+// code.ErrNativeHQCUnavailable; GF2Polymul below detects this and falls
+// back to the tag-neutral pure-Go implementation in
+// gpu_polymul_purego.go, which is byte-for-byte identical to PQClean.
+// That keeps the default cgo build (CI, pure-Go deployments) correct and
+// link-clean without the native HQC library.
+//
 // The batch dispatchers batchEncapsulateGPU / batchDecapsulateGPU
 // live in gpu.go (build-tag-agnostic) and route through the same
-// accel/ops/code batch surface. This file ONLY covers single-shot
-// primitives so callers that need one-off polymuls don't pay the
-// batch surface's setup cost.
+// accel/ops/code batch surface, with the same fallback semantics. This
+// file ONLY covers single-shot primitives so callers that need one-off
+// polymuls don't pay the batch surface's setup cost.
 //
 // Determinism contract: byte-equal to PQClean's vect_mul. Validators
 // reach consensus on the output of HQC encapsulation / decapsulation,
@@ -37,41 +45,11 @@
 package hqc
 
 import (
+	"errors"
+
 	luxhqc "github.com/luxfi/accel/hqc"
+	"github.com/luxfi/accel/ops/code"
 )
-
-// vecNSize64 returns the per-mode uint64 vector length for GF(2)^N.
-// Defined in gpu_nocgo.go too — the cgo path mirrors it explicitly
-// rather than calling out via the accel boundary for what is a
-// compile-time-known constant.
-func vecNSize64(mode Mode) (int, error) {
-	switch mode {
-	case HQC128:
-		return (17669 + 63) / 64, nil
-	case HQC192:
-		return (35851 + 63) / 64, nil
-	case HQC256:
-		return (57637 + 63) / 64, nil
-	default:
-		return 0, ErrModeMismatch
-	}
-}
-
-// redMaskForMode returns the high-word mask used to clear the top
-// PARAM_N-aligned bits after reduction mod (X^N - 1). Mirrors
-// gpu_nocgo.go's same-named helper.
-func redMaskForMode(mode Mode) (uint64, int, error) {
-	switch mode {
-	case HQC128:
-		return 0x1f, 17669, nil
-	case HQC192:
-		return 0x7ff, 35851, nil
-	case HQC256:
-		return 0x1fffffffff, 57637, nil
-	default:
-		return 0, 0, ErrModeMismatch
-	}
-}
 
 // toAccelHQCMode maps crypto/hqc.Mode to accel/hqc.Mode. Both enums
 // share bit patterns but we keep the mapping explicit so they can
@@ -93,9 +71,15 @@ func toAccelHQCMode(mode Mode) (luxhqc.Mode, error) {
 // All three buffers must be length VecNSize64 for mode. Wraps the
 // accel/hqc HQC kernel — byte-equal to PQClean's vect_mul.
 //
-// Constant-time: the kernel uses the same masked table lookup as
-// PQClean (no data-dependent branches or memory indices on secret
-// operands).
+// When the accel native HQC library is not linked (the default build,
+// without -tags=lux_hqc_native), accel returns
+// code.ErrNativeHQCUnavailable; we then fall back to the pure-Go
+// Karatsuba path (gpu_polymul_purego.go), which is also byte-equal to
+// PQClean. Either way the result is consensus-identical.
+//
+// Constant-time: both the native kernel and the pure-Go fallback use
+// the same masked table lookup as PQClean (no data-dependent branches
+// or memory indices on secret operands).
 func GF2Polymul(mode Mode, c, a, b []uint64) error {
 	accelMode, err := toAccelHQCMode(mode)
 	if err != nil {
@@ -107,7 +91,15 @@ func GF2Polymul(mode Mode, c, a, b []uint64) error {
 	// shorter than ~256 uint64 — at HQC-128's VEC_N_SIZE_64=277 this
 	// is already amortised; HQC-192 (561) and HQC-256 (901) are
 	// firmly cgo-favourable.
-	return luxhqc.GF2PolymulBatch(accelMode, c, a, b, 1)
+	if err := luxhqc.GF2PolymulBatch(accelMode, c, a, b, 1); err != nil {
+		if errors.Is(err, code.ErrNativeHQCUnavailable) {
+			// Native kernel not linked — use the pure-Go path, which is
+			// byte-for-byte identical to PQClean's vect_mul.
+			return polymulGo(mode, c, a, b)
+		}
+		return err
+	}
+	return nil
 }
 
 // GF2Add computes c[i] = a[i] ^ b[i] over GF(2)^N. Constant-time
@@ -115,15 +107,7 @@ func GF2Polymul(mode Mode, c, a, b []uint64) error {
 // path because (a) it's a single SIMD-friendly loop the compiler
 // inlines well, and (b) the cgo crossover is a hard floor of ~150ns
 // that overwhelms the actual XOR cost for any vector under ~64 KB.
+// Delegates to the shared helper in gpu_polymul_purego.go.
 func GF2Add(c, a, b []uint64) {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
-	if len(c) < n {
-		n = len(c)
-	}
-	for i := 0; i < n; i++ {
-		c[i] = a[i] ^ b[i]
-	}
+	gf2AddGo(c, a, b)
 }
