@@ -15,7 +15,7 @@ require (
     github.com/stretchr/testify v1.9.0
     github.com/luxfi/geth v1.16.34
     github.com/luxfi/lattice/v6 v6.1.1
-    github.com/luxfi/ringtail v0.1.0
+    github.com/luxfi/corona v0.7.6
 )
 
 replace (
@@ -24,7 +24,7 @@ replace (
     github.com/luxfi/crypto/mldsa => ./mldsa
     github.com/luxfi/crypto/slhdsa => ./slhdsa
     github.com/luxfi/crypto/precompile => ./precompile
-    github.com/luxfi/ringtail => ../ringtail
+    github.com/luxfi/corona => ../corona
 )
 GOMOD
 
@@ -66,6 +66,6 @@ echo "  • SLH-DSA (FIPS 205): Stateless Hash-based Signatures"
 echo "  • SHAKE (FIPS 202): Extensible Output Functions"
 echo "  • Lamport: One-Time Signatures"
 echo "  • BLS: Aggregate Signatures"
-echo "  • Ringtail: Ring Signatures"
+echo "  • Corona: Ring Signatures"
 echo ""
 echo "Total: 47 precompiled contracts integrated in coreth"
