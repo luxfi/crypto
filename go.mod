@@ -73,8 +73,3 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// Route upstream crypto modules through luxfi-maintained mirrors so that
-// downstream Lux services consume a single canonical source. See
-// LUXFI-FORK.md in each fork for pin SHAs and sync policy.
-replace github.com/crate-crypto/go-ipa => github.com/luxfi/go-ipa v0.0.0-20260427175713-d31adc040fa6
