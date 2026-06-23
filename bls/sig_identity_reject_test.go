@@ -2,8 +2,10 @@
 // See the file LICENSE for licensing terms.
 
 // sig_identity_reject_test.go — INFO-4 regression: SignatureFromBytes must reject
-// the G2 identity (point at infinity), symmetric with the isIdentityG1 pubkey
-// guard in Verify. The canonical compressed G2 identity is 0xc0 || 95 zero bytes
+// the G2 identity (point at infinity), symmetric with the pubkey identity guard.
+// The pubkey side rejects identity at the deserialization boundary
+// (PublicKeyFrom*Bytes → Validate()/KeyValidate()), so this pins the matching
+// signature-side reject. The canonical compressed G2 identity is 0xc0 || 95 zero bytes
 // (compression bit + infinity bit set; all coordinate bytes zero — see blst
 // e1.c:205 "compressed and infinity bits"). It is a WELL-FORMED encoding that
 // both deserializers used to accept:
