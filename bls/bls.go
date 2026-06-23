@@ -301,6 +301,16 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 	if err := g.SetBytes(sigBytes); err != nil {
 		return nil, ErrFailedSignatureDecompress
 	}
+	// Reject the G2 identity (point at infinity) — symmetric with the isIdentityG1
+	// pubkey guard in Verify (INFO-4). CIRCL's SetBytes accepts a well-formed
+	// infinity encoding (0xc0 || zeros) and returns at the isInfinity branch BEFORE
+	// IsOnG2, so without this the identity signature would deserialize cleanly; blst
+	// SigValidate(false) likewise skips the infinity check. The identity sig does
+	// not forge against a real key, but accepting it is an asymmetry with the pubkey
+	// path and admits a degenerate point into the verifier — reject it here.
+	if g.IsIdentity() {
+		return nil, ErrFailedSignatureDecompress
+	}
 	// Store the validated compressed bytes; blssign.Signature is the raw
 	// compressed form and blssign.Verify re-derives the point internally, so we
 	// keep the canonical wire bytes (round-trips through SignatureToBytes).
