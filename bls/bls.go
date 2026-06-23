@@ -287,12 +287,24 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 	if len(sigBytes) != SignatureLen {
 		return nil, ErrFailedSignatureDecompress
 	}
-	for _, b := range sigBytes {
-		if b != 0 {
-			return &Signature{sig: sigBytes}, nil
-		}
+	// Validate that the bytes decode to a point that is on-curve AND in the
+	// prime-order r-torsion subgroup of G2 — the exact contract the CGO/blst
+	// path enforces with Uncompress + SigValidate(false). CIRCL's
+	// bls12381.G2.SetBytes performs both checks: it decodes the compressed
+	// point and then calls IsOnG2() (= isValidProjective && isOnCurve &&
+	// isRTorsion) before returning, rejecting any input that is not a valid
+	// subgroup element. Without this, a length-96 non-zero blob that is not a
+	// real signature point would be accepted here (the prior byte-loop only
+	// rejected all-zero), diverging from blst and admitting garbage signatures
+	// into the verifier.
+	var g bls12381.G2
+	if err := g.SetBytes(sigBytes); err != nil {
+		return nil, ErrFailedSignatureDecompress
 	}
-	return nil, ErrFailedSignatureDecompress
+	// Store the validated compressed bytes; blssign.Signature is the raw
+	// compressed form and blssign.Verify re-derives the point internally, so we
+	// keep the canonical wire bytes (round-trips through SignatureToBytes).
+	return &Signature{sig: sigBytes}, nil
 }
 
 func AggregateSignatures(sigs []*Signature) (*Signature, error) {
