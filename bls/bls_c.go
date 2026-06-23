@@ -247,7 +247,15 @@ func SignatureFromBytes(sigBytes []byte) (*Signature, error) {
 		return nil, ErrFailedSignatureDecompress
 	}
 
-	if !sig.SigValidate(false) {
+	// SigValidate(true) checks BOTH r-torsion subgroup membership AND rejects the
+	// G2 identity (point at infinity) — go_p2_affine_validate(p, infcheck=true) is
+	// `if is_inf(p) return false; return in_g2(p)`. The prior SigValidate(false)
+	// skipped the infinity check, accepting the identity signature (INFO-4); this
+	// makes the blst path symmetric with the purego SignatureFromBytes identity
+	// reject and with the isIdentityG1 pubkey guard. The identity sig does not forge
+	// against a real key, but admitting a degenerate point into the verifier is an
+	// asymmetry worth closing.
+	if !sig.SigValidate(true) {
 		return nil, ErrInvalidSignature
 	}
 
