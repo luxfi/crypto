@@ -51,6 +51,37 @@ func genLeaf(t *testing.T, root *x509.Certificate, rootKey *ecdsa.PrivateKey) (*
 	return key, der
 }
 
+// genCAWithKey makes a self-signed CA using a caller-supplied key (any curve — P-384 for AMD).
+func genCAWithKey(t *testing.T, cn string, key *ecdsa.PrivateKey) (*x509.Certificate, []byte) {
+	t.Helper()
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(10), Subject: pkix.Name{CommonName: cn},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, KeyUsage: x509.KeyUsageCertSign, BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, _ := x509.ParseCertificate(der)
+	return cert, der
+}
+
+// genLeafWithKey makes a leaf cert for leafKey signed by root/rootKey (any curve).
+func genLeafWithKey(t *testing.T, root *x509.Certificate, rootKey, leafKey *ecdsa.PrivateKey) []byte {
+	t.Helper()
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(11), Subject: pkix.Name{CommonName: "leaf"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, root, &leafKey.PublicKey, rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return der
+}
+
 func makeQuote(attestKey *ecdsa.PrivateKey, leafDER []byte, m [32]byte, operatorPub []byte) *Quote {
 	rd := BindKey(operatorPub)
 	digest := sha256.Sum256(signedBody(m, rd))
