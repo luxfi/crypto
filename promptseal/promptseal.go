@@ -1,13 +1,17 @@
-// Package promptseal is the confidentiality envelope for Proof-of-Inference: it seals a user's
-// prompt to an operator's registered public key so the prompt is NEVER plaintext on the wire and
-// only the chosen operator — inside its compute boundary — can open it. This closes the audit's G9:
-// the default inference path handed the operator the plaintext prompt by hash; now the operator
+// Package promptseal is the POST-QUANTUM confidentiality envelope for Proof-of-Inference: it seals a
+// user's prompt to an operator's registered public key so the prompt is NEVER plaintext on the wire
+// and only the chosen operator — inside its compute boundary — can open it. This closes the audit's
+// G9: the default inference path handed the operator the plaintext prompt by hash; now the operator
 // registry carries a recipient KEM key and the requester seals to it.
 //
-// It is a thin, single-shot wrapper over RFC 9180 HPKE (base mode) with X25519 + HKDF-SHA256 +
-// ChaCha20-Poly1305 — the same primitive the rest of the stack uses (github.com/cloudflare/circl).
-// The associated data (aad) binds the ciphertext to its context (e.g. the intentID), so a sealed
-// prompt cannot be replayed under a different request.
+// PQ: the KEM is X-Wing — the standardized HYBRID of X25519 and ML-KEM-768 (RFC 9180 HPKE, over
+// github.com/cloudflare/circl). Hybrid means the seal stays confidential if EITHER X25519 OR
+// ML-KEM-768 holds, so it is secure against a future quantum adversary (ML-KEM-768) while keeping
+// classical security today (X25519) — the same strict-PQ posture as the staking layer (ML-DSA). The
+// rest of the proof system is already post-quantum: keccak commitments (PQ-secure) and the
+// information-theoretic Freivalds soundness bound (holds against an unbounded adversary). The
+// associated data (aad) binds the ciphertext to its context (the intentID), so a sealed prompt
+// cannot be replayed under a different request.
 package promptseal
 
 import (
@@ -20,14 +24,15 @@ import (
 // Info domain-separates this use of HPKE from any other in the stack.
 var info = []byte("hanzo/poi/prompt-seal/v1")
 
-// suite: X25519-HKDF-SHA256 KEM, HKDF-SHA256 KDF, ChaCha20-Poly1305 AEAD.
-var suite = hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_ChaCha20Poly1305)
+// suite: X-Wing (X25519 + ML-KEM-768) KEM, HKDF-SHA256 KDF, ChaCha20-Poly1305 AEAD.
+var suite = hpke.NewSuite(hpke.KEM_XWING, hpke.KDF_HKDF_SHA256, hpke.AEAD_ChaCha20Poly1305)
 
-// kemScheme is the X25519 KEM; its encapsulated key ("enc") is 32 bytes.
-var kemScheme = hpke.KEM_X25519_HKDF_SHA256.Scheme()
+// kemScheme is the X-Wing hybrid KEM.
+var kemScheme = hpke.KEM_XWING.Scheme()
 
-// encLen is the X25519 encapsulated-key length prefixed to every sealed blob.
-var encLen = kemScheme.EncapsulationSeedSize() // 32 for X25519
+// encLen is the hybrid encapsulated-key length prefixed to every sealed blob (X25519 share ‖
+// ML-KEM-768 ciphertext).
+var encLen = kemScheme.CiphertextSize()
 
 var (
 	ErrShortSealed = errors.New("promptseal: sealed blob shorter than the encapsulated key")
