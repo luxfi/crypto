@@ -12,7 +12,7 @@
 // Wired to fill the family-disjoint gap on the KEM side, parallel to
 // the Pulsar / Corona / Magnetar trio on the signature side:
 //
-//	Signature stack:    Pulsar (MLWE)   Corona (RLWE)   Magnetar (hash)
+//	Signature stack:    Pulsar (MLWE)   Corona (MLWE)   Magnetar (hash)
 //	KEM stack:          ML-KEM (MLWE)   —               HQC (code)
 //
 // Spec: NIST IR 8528 "Status Report on the Fourth Round of the NIST
