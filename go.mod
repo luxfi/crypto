@@ -17,7 +17,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/jedisct1/go-minisign v0.0.0-20241212093149-d2f9f49435c7
 	github.com/luxfi/accel v1.2.4
-	github.com/luxfi/age v1.5.0
+	github.com/luxfi/age v1.6.0
 	github.com/luxfi/cache v1.2.1
 	github.com/luxfi/crypto/ipa v1.2.4
 	github.com/luxfi/geth v1.16.98
