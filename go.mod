@@ -25,7 +25,7 @@ require (
 	github.com/luxfi/log v1.4.3
 	github.com/luxfi/mock v0.1.1
 	github.com/luxfi/precompile v0.19.3
-	github.com/mr-tron/base58 v1.2.0
+	github.com/mr-tron/base58 v1.3.0
 	github.com/stretchr/testify v1.11.1
 	github.com/supranational/blst v0.3.16
 	github.com/zeebo/blake3 v0.2.4
@@ -39,12 +39,13 @@ require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/gorilla/rpc v1.2.1 // indirect
+	github.com/grandcat/zeroconf v1.0.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/luxfi/atomic v1.0.0 // indirect
-	github.com/luxfi/codec v1.2.1 // indirect
 	github.com/luxfi/compress v0.1.1 // indirect
 	github.com/luxfi/concurrent v0.1.1 // indirect
 	github.com/luxfi/consensus v1.36.2 // indirect
@@ -53,9 +54,10 @@ require (
 	github.com/luxfi/database v1.21.1 // indirect
 	github.com/luxfi/math v1.5.1 // indirect
 	github.com/luxfi/math/big v0.1.0 // indirect
+	github.com/luxfi/mdns v0.1.1 // indirect
 	github.com/luxfi/metric v1.8.1 // indirect
 	github.com/luxfi/p2p v1.22.1 // indirect
-	github.com/luxfi/pq v1.0.3 // indirect
+	github.com/luxfi/pq v1.1.0 // indirect
 	github.com/luxfi/runtime v1.3.1 // indirect
 	github.com/luxfi/sampler v1.1.0 // indirect
 	github.com/luxfi/utils v1.3.1 // indirect
@@ -63,11 +65,16 @@ require (
 	github.com/luxfi/version v1.0.1 // indirect
 	github.com/luxfi/vm v1.3.1 // indirect
 	github.com/luxfi/warp v1.24.1 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/luxfi/zap v1.2.6 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/zeebo/assert v1.3.0 // indirect
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
+	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
+	golang.org/x/mod v0.36.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
