@@ -140,7 +140,23 @@ func (sig *LatticeSignature) Verify(message []byte, ring [][]byte) bool {
 
 	expectedTag := h.Sum(nil)
 
-	return constantTimeCompare(sig.tag, expectedTag)
+	// The recomputation above is NOT a signature check, and the comparison below
+	// is why this scheme refuses to verify at all.
+	//
+	// Every input to that hash is either public (message, ring) or supplied by
+	// whoever presents the signature (keyImage, s[i]) — latticeCommitment is
+	// SHA-512(s ‖ pk ‖ keyImage ‖ i) and nothing else. No secret key, and no
+	// value derived from one, is ever tested. So an attacker picks a random
+	// keyImage and random s[i], computes the tag exactly as this function does,
+	// and the comparison succeeds for any ring: the scheme is universally
+	// forgeable, not merely "not post-quantum" as the header comment says.
+	//
+	// Verification therefore fails closed. Restoring it means a real LSAG
+	// construction where each s[i] satisfies a per-position relation binding the
+	// signer's secret to the challenge — the tag being reproducible is a
+	// consequence of signing, never the definition of validity.
+	_ = expectedTag
+	return false
 }
 
 // ParseLatticeSignature parses a lattice ring signature from bytes.
