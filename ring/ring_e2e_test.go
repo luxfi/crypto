@@ -94,7 +94,8 @@ func TestE2E_LatticeRingSignature(t *testing.T) {
 
 	// Step 4: Verify the signature
 	valid := sig.Verify(message, ringPubKeys)
-	require.True(t, valid, "signature should be valid")
+	require.False(t, valid,
+		"LatticeLSAG must not verify while its construction is universally forgeable")
 
 	// Step 5: Verify key image linkability
 	keyImage := sig.KeyImage()
@@ -105,7 +106,8 @@ func TestE2E_LatticeRingSignature(t *testing.T) {
 	sigBytes := sig.Bytes()
 	parsedSig, err := ring.ParseSignature(ring.LatticeLSAG, sigBytes)
 	require.NoError(t, err)
-	require.True(t, parsedSig.Verify(message, ringPubKeys), "parsed signature should verify")
+	require.False(t, parsedSig.Verify(message, ringPubKeys),
+		"LatticeLSAG must not verify after a round-trip either: the encoding is fine, the construction is not")
 
 	t.Logf("Lattice E2E test passed: ring size=%d, signature size=%d bytes, key image=%x...",
 		ringSize, len(sigBytes), keyImage[:8])
@@ -239,9 +241,12 @@ func TestE2E_CrossSchemeIsolation(t *testing.T) {
 	latticeSig, err := latticeSigner.Sign(message, latticeRing, 0)
 	require.NoError(t, err)
 
-	// Verify each with correct ring
+	// LSAG verifies with its own ring. LatticeLSAG does not verify at all —
+	// its tag is recomputable from attacker-supplied inputs alone, so its
+	// verifier fails closed rather than accept a forgery.
 	require.True(t, lsagSig.Verify(message, lsagRing))
-	require.True(t, latticeSig.Verify(message, latticeRing))
+	require.False(t, latticeSig.Verify(message, latticeRing),
+		"LatticeLSAG must not verify while its construction is universally forgeable")
 
 	// Verify LSAG doesn't verify with lattice ring and vice versa
 	require.False(t, lsagSig.Verify(message, latticeRing), "LSAG should not verify with lattice ring")

@@ -348,7 +348,8 @@ func TestLatticeSignAndVerify(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, sig)
 
-	require.True(t, sig.Verify(message, ring), "lattice signature should verify")
+	require.False(t, sig.Verify(message, ring),
+		"LatticeLSAG must not verify while its construction is universally forgeable")
 	require.Equal(t, ringSize, sig.RingSize())
 	require.Equal(t, LatticeLSAG, sig.Scheme())
 
@@ -380,8 +381,10 @@ func TestLatticeSerialization(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
 
-	// Verify
-	require.True(t, parsed.Verify(message, ring))
+	// Serialization round-trips; verification still refuses, because the
+	// construction is forgeable rather than the encoding being wrong.
+	require.False(t, parsed.Verify(message, ring),
+		"LatticeLSAG must not verify while its construction is universally forgeable")
 	require.Equal(t, sig.KeyImage(), parsed.KeyImage())
 	require.Equal(t, sig.RingSize(), parsed.RingSize())
 }
