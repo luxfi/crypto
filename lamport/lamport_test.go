@@ -1,6 +1,8 @@
 package lamport
 
 import (
+	"bytes"
+	"crypto/sha3"
 	"testing"
 )
 
@@ -148,5 +150,42 @@ func BenchmarkLamportVerifySHA256(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pub.Verify(msg, sig)
+	}
+}
+
+// TestSHA3ModesAreActuallySHA3 pins the fix for a defect that was invisible from
+// outside: the SHA3_256 and SHA3_512 modes returned sha256.New() and
+// sha512.New(), with a comment saying a real import would come later. Keys and
+// signatures produced under those modes were SHA-2, so a verifier reading the
+// mode field and using real SHA-3 would reject every one of them — and two
+// implementations that agreed on the label disagreed on the bytes.
+//
+// The test compares against the standard library directly rather than against
+// a captured vector: a captured vector would have frozen whatever the code did.
+func TestSHA3ModesAreActuallySHA3(t *testing.T) {
+	msg := []byte("lamport sha3 mode must be sha3")
+
+	for _, tc := range []struct {
+		name string
+		mode HashFunc
+		want func([]byte) []byte
+	}{
+		{"SHA3_256", SHA3_256, func(b []byte) []byte { h := sha3.New256(); h.Write(b); return h.Sum(nil) }},
+		{"SHA3_512", SHA3_512, func(b []byte) []byte { h := sha3.New512(); h.Write(b); return h.Sum(nil) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := getHasher(tc.mode)
+			h.Write(msg)
+			got := h.Sum(nil)
+			if !bytes.Equal(got, tc.want(msg)) {
+				t.Fatalf("%s does not hash with SHA-3", tc.name)
+			}
+			// And it must differ from the SHA-2 it used to silently return.
+			s2 := getHasher(map[HashFunc]HashFunc{SHA3_256: SHA256, SHA3_512: SHA512}[tc.mode])
+			s2.Write(msg)
+			if bytes.Equal(got, s2.Sum(nil)) {
+				t.Fatalf("%s produced the SHA-2 digest — the silent fallback is back", tc.name)
+			}
+		})
 	}
 }

@@ -7,6 +7,7 @@ package lamport
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha3"
 	"crypto/sha512"
 	"errors"
 	"hash"
@@ -352,9 +353,9 @@ func getHasher(hashFunc HashFunc) hash.Hash {
 	case SHA512:
 		return sha512.New()
 	case SHA3_256:
-		return sha256.New() // Would use sha3.New256() with proper import
+		return sha3.New256()
 	case SHA3_512:
-		return sha512.New() // Would use sha3.New512() with proper import
+		return sha3.New512()
 	default:
 		return sha256.New()
 	}
