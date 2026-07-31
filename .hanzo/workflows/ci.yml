@@ -1,0 +1,150 @@
+name: CI
+
+# The Go suite (CGO on and off), the HQC PQClean cgo end-to-end, the Rust
+# workspace and the cross-compile, on the native runners
+# (git.hanzo.ai → git-runner).
+#
+# This replaces .github/workflows/ci.yml and .github/workflows/test.yml, every
+# job of which named `runs-on: lux-build` — an ARC autoscaling runner set that
+# no longer exists. The cluster has no ARC CRDs, no ARC namespace and no such
+# pool, so nothing could ever claim them; a job naming a label no runner carries
+# does not fail, it waits.
+#
+# The two files were also running the same thing twice. ci.yml and test.yml each
+# carried a `go test` matrix over CGO_ENABLED 0 and 1 on amd64 — four Go test
+# jobs per push for two distinct configurations. ci.yml's is the stronger of the
+# pair (-race, 15m timeout, and it feeds the coverage floor), so it is the one
+# kept. test.yml's genuinely distinct jobs — the QEMU arm64 run and the Rust
+# workspace — come across intact.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer commit makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # arm64 binaries cannot be EXECUTED on an amd64 runner, so the test matrix
+    # is amd64 only. arm64 is covered two ways below: emulated execution in
+    # `arm64-emulated`, and cross-compilation in `build`.
+    strategy:
+      fail-fast: false
+      matrix:
+        cgo: ['0', '1']
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: gofmt
+        if: matrix.cgo == '0'
+        run: test -z "$(gofmt -s -l .)"
+
+      - name: Test
+        env:
+          CGO_ENABLED: ${{ matrix.cgo }}
+        run: go test -v -count=1 -race -timeout=15m ./...
+
+      - name: Coverage (CGO build — the single canonical baseline)
+        if: matrix.cgo == '1'
+        run: |
+          # The full crypto suite contributes to the baseline, including the
+          # verkle encoding tests (TestParseNodeEoA + TestParseNodeSingleSlot),
+          # which are aligned with the EIP-6800 post-pack value layout. No skips.
+          go test -count=1 -coverprofile=coverage.txt -covermode=atomic \
+            -timeout=15m ./...
+          go tool cover -func=coverage.txt | tail -1
+
+      - name: Coverage floor gate (must stay >= 60%)
+        if: matrix.cgo == '1'
+        run: |
+          PCT=$(go tool cover -func=coverage.txt | tail -1 | awk '{print $3}' | tr -d '%')
+          # awk for the float comparison; bash cannot compare floats.
+          DROP=$(awk -v p="$PCT" 'BEGIN { print (p < 60.0) ? 1 : 0 }')
+          if [ "$DROP" = "1" ]; then
+            echo "::error::Coverage dropped to $PCT% (floor 60%)"
+            exit 2
+          fi
+          echo "Coverage: $PCT% (floor 60%)"
+
+      - name: Bench
+        if: matrix.cgo == '1'
+        run: go test -bench=. -benchmem -benchtime=100ms ./... || true
+
+  hqc-pqclean-e2e:
+    name: HQC PQClean cgo e2e (NIST KAT roundtrip)
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: HQC PQClean cgo build + test
+        env:
+          CGO_ENABLED: '1'
+        run: go test -count=1 -tags=hqc_pqclean -v ./hqc/
+
+  arm64-emulated:
+    # arm64 regression coverage by executing under QEMU on the amd64 pool.
+    # 5-10x slower than native, so it is gated to main pushes.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Test arm64 (emulated)
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD":/work -w /work \
+            -e CGO_ENABLED=0 \
+            golang:1.26.4 \
+            sh -c 'go test -v -count=1 -short -timeout 900s ./...'
+
+  rust:
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace --all-features
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build (cross-compile via GOARCH)
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+        run: make build
