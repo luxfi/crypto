@@ -1,0 +1,80 @@
+name: Release
+
+# Cuts the GitHub release for a v*.*.* (or crypto/v*.*.*) tag and nudges the Go
+# module proxy, on the native runners (git.hanzo.ai → git-runner).
+#
+# This replaces .github/workflows/release.yml, every job of which named
+# `runs-on: lux-build` — an ARC autoscaling runner set that no longer exists.
+# The cluster has no ARC CRDs, no ARC namespace and no such pool, so every tag
+# queued jobs nothing could pick up, and an unclaimable job does not fail: it
+# waits.
+#
+# luxfi/* are PUBLIC modules, fetched and checksum-verified through the default
+# immutable proxy.golang.org + sum.golang.org. No GOPRIVATE / GONOSUMDB /
+# GOPROXY=direct bypass — those route around the checksum database.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'crypto/v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+# A release is not made irrelevant by a newer one — let it finish.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    # arm64 cross-compiles via GOARCH; CGO_ENABLED=0 keeps it pure Go, so no
+    # cross-compiler is needed and one amd64 runner covers both.
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build (cross-compile via GOARCH)
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+        run: go build $(go list ./... | grep -v /cgo | grep -v /fuzzers)
+
+  release:
+    needs: build
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update the Go module index
+        run: |
+          curl -X POST "https://proxy.golang.org/github.com/luxfi/crypto/@v/${{ github.ref_name }}.info" || true
