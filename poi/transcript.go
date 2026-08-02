@@ -143,7 +143,7 @@ func MerkleVerify(leaf, root [32]byte, index int, proof [][32]byte) bool {
 
 // Opening is what a prover reveals to answer a challenge.
 type Opening struct {
-	Index int
+	Index   int
 	A, B, C Mat
 	Proof   [][32]byte
 }
