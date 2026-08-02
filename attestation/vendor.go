@@ -70,19 +70,22 @@ func chainTo(leafDER []byte, interDER [][]byte, roots *x509.CertPool) (*x509.Cer
 // --- Intel SGX DCAP v3 ----------------------------------------------------------------------------
 //
 // Layout: Header(48) ‖ ReportBody(384) ‖ sigDataLen(4) ‖ sigData.
-//   Header:      version u16le @0; tee_type u32le @4 (0 = SGX).
-//   ReportBody:  mr_enclave[32] @ +64; report_data[64] @ +320.   (absolute @112 and @368)
-//   sigData:     quoteSig[64] (r‖s) ‖ attestPub[64] (raw P256 point) ‖ qeReport[384] ‖
-//                qeReportSig[64] ‖ authDataLen u16 ‖ authData ‖ certDataType u16 ‖ certDataLen u32 ‖
-//                certData(PEM PCK chain).
+//
+//	Header:      version u16le @0; tee_type u32le @4 (0 = SGX).
+//	ReportBody:  mr_enclave[32] @ +64; report_data[64] @ +320.   (absolute @112 and @368)
+//	sigData:     quoteSig[64] (r‖s) ‖ attestPub[64] (raw P256 point) ‖ qeReport[384] ‖
+//	             qeReportSig[64] ‖ authDataLen u16 ‖ authData ‖ certDataType u16 ‖ certDataLen u32 ‖
+//	             certData(PEM PCK chain).
+//
 // Trust: attestPub signs Header‖ReportBody (the quote); attestPub is bound in qeReport.report_data
-//   = sha256(attestPub ‖ authData); the PCK leaf (from certData) signs qeReport and chains to the
-//   pinned Intel SGX root.
+//
+//	= sha256(attestPub ‖ authData); the PCK leaf (from certData) signs qeReport and chains to the
+//	pinned Intel SGX root.
 const (
 	sgxHeaderLen = 48
 	sgxBodyLen   = 384
-	sgxMREnclave = sgxHeaderLen + 64  // 112
-	sgxReportDat = sgxHeaderLen + 320 // 368
+	sgxMREnclave = sgxHeaderLen + 64             // 112
+	sgxReportDat = sgxHeaderLen + 320            // 368
 	sgxSigOff    = sgxHeaderLen + sgxBodyLen + 4 // 436
 )
 
@@ -152,8 +155,9 @@ func VerifySGX(raw []byte, roots *x509.CertPool, allowed map[[32]byte]bool, boun
 // --- Intel TDX DCAP v4 ----------------------------------------------------------------------------
 //
 // Layout: Header(48) ‖ TDReport(584) ‖ sigDataLen(4) ‖ sigData (same sigData shape as SGX).
-//   Header:    version u16le @0 (=4); tee_type u32le @4 (=0x81 for TDX).
-//   TDReport:  mr_td[48] @ +136; report_data[64] @ +520.   (absolute @184 and @568)
+//
+//	Header:    version u16le @0 (=4); tee_type u32le @4 (=0x81 for TDX).
+//	TDReport:  mr_td[48] @ +136; report_data[64] @ +520.   (absolute @184 and @568)
 const (
 	tdxHeaderLen = 48
 	tdxBodyLen   = 584
@@ -222,8 +226,9 @@ func VerifyTDX(raw []byte, roots *x509.CertPool, allowed map[[48]byte]bool, boun
 // --- AMD SEV-SNP ----------------------------------------------------------------------------------
 //
 // Layout: attestation_report (1184 bytes). report_data[64] @0x50; measurement[48] @0x90;
-//   signature @0x2A0 (ECDSA-P384: r[72]‖s[72], little-endian, zero-padded). The VCEK (P-384) signs
-//   report[0:0x2A0]; the VCEK cert chains to the pinned AMD ARK/ASK (supplied out of band).
+//
+//	signature @0x2A0 (ECDSA-P384: r[72]‖s[72], little-endian, zero-padded). The VCEK (P-384) signs
+//	report[0:0x2A0]; the VCEK cert chains to the pinned AMD ARK/ASK (supplied out of band).
 const (
 	snpReportLen  = 1184
 	snpReportData = 0x50  // 80

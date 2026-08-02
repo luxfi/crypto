@@ -11,6 +11,7 @@
 // both deserializers used to accept:
 //   - purego (CIRCL): G2.SetBytes returns at the isInfinity branch BEFORE IsOnG2.
 //   - blst: SigValidate(false) skipped the infinity check.
+//
 // The fix rejects it on both paths (purego: explicit IsIdentity reject; blst:
 // SigValidate(true) does is_inf + in_g2). This test is build-tag agnostic so it
 // runs against whichever implementation is compiled in, asserting BOTH paths
