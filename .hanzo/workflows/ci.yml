@@ -123,11 +123,29 @@ jobs:
           platforms: arm64
       - name: Test arm64 (emulated)
         run: |
-          docker run --rm --platform linux/arm64 \
-            -v "$PWD":/work -w /work \
+          set -e
+          # The source is COPIED in, not bind-mounted. `-v "$PWD":/work` cannot
+          # work here: this step already runs inside the job container, so $PWD
+          # is a path in that container, while `docker run -v` is resolved by the
+          # HOST daemon. The host has no such path, so Docker helpfully created an
+          # empty directory and go reported:
+          #
+          #   pattern ./...: directory prefix . does not contain main module
+          #                  or its selected dependencies
+          #   FAIL ./... [setup failed]
+          #
+          # which reads as a broken module and is really an empty mount. The
+          # workspace lives in a GITEA-ACTIONS-TASK-* docker volume, so there is
+          # no host path to point at; docker cp sidesteps that entirely.
+          cid=$(docker create --platform linux/arm64 -w /work \
             -e CGO_ENABLED=0 \
             golang:1.26.4 \
-            sh -c 'go test -v -count=1 -short -timeout 900s ./...'
+            sh -c 'go test -v -count=1 -short -timeout 900s ./...')
+          docker cp . "$cid:/work"
+          rc=0
+          docker start -a "$cid" || rc=$?
+          docker rm -f "$cid" >/dev/null 2>&1 || true
+          exit $rc
 
   rust:
     runs-on: [lux-build-linux-amd64]
