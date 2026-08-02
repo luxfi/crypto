@@ -56,7 +56,18 @@ jobs:
       - name: Test
         env:
           CGO_ENABLED: ${{ matrix.cgo }}
-        run: go test -v -count=1 -race -timeout=15m ./...
+        run: |
+          # -race is a CGO feature. With CGO_ENABLED=0 the toolchain refuses
+          # before running anything:
+          #     go: -race requires cgo; enable cgo by setting CGO_ENABLED=1
+          # so the cgo=0 leg of this matrix has never executed a single test —
+          # it failed at argument parsing, which reads as a test failure.
+          #
+          # That leg exists to prove the PURE-GO path builds and passes; the race
+          # detector belongs to the cgo leg, which still gets it.
+          race=""
+          [ "${CGO_ENABLED}" = "1" ] && race="-race"
+          go test -v -count=1 $race -timeout=15m ./...
 
       - name: Coverage (CGO build — the single canonical baseline)
         if: matrix.cgo == '1'
