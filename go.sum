@@ -252,6 +252,8 @@ github.com/luxfi/dkg v0.3.5/go.mod h1:M+WH7GFRN+YUD851Rlnumdp0Md98kplNN8pVx65U8I
 github.com/luxfi/fhe v1.11.1/go.mod h1:QeNytuStXaY+HWvUN4+ULZBRMzvnrzjA/AV6FWksBro=
 github.com/luxfi/filesystem v0.0.1/go.mod h1:OQVSU6XNwqrr1AI+MqkID2taHUclx7NYmmr3svgttec=
 github.com/luxfi/formatting v1.1.1/go.mod h1:zhBWp6fLZduhpiAdPgVDdPVOyhw4FvwRUksF6+xKQCE=
+github.com/luxfi/geth v1.20.1 h1:QUGQr4AKvADjwMi7t8a0OfoyxShgEcI9pwie1jFYfm0=
+github.com/luxfi/geth v1.20.1/go.mod h1:GV5bIMEgWviRN+jPXERyVpI16H3iHqPcdIokDoZdrvU=
 github.com/luxfi/hid v0.9.3/go.mod h1:XJ/7DZAHf5dggm3zWNbitKuFGB7J96b4iX+8NO3BsnY=
 github.com/luxfi/ids v1.3.2 h1:c6Rft5kZB4XqiCtWaGH47bfhaNFm3FGRfhEzI01GVeI=
 github.com/luxfi/ids v1.3.2/go.mod h1:+5l8cYMbKpORJbQ2r98CYJo9TQATgUdnmzpYFZWMwwc=
