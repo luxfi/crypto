@@ -9,6 +9,7 @@
 package slhdsa
 
 import (
+	"bytes"
 	"crypto"
 	"errors"
 	"io"
@@ -269,9 +270,11 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return priv.PublicKey
 }
 
-// Bytes returns the serialized private key
+// Bytes returns the serialized private key. The copy is the caller's to keep:
+// Zeroize, including the one the finalizer runs, only reaches this key's own
+// secret.
 func (priv *PrivateKey) Bytes() []byte {
-	return priv.secretKey
+	return bytes.Clone(priv.secretKey)
 }
 
 // Zeroize overwrites the private key material with zeros.
@@ -290,7 +293,8 @@ func (pub *PublicKey) Bytes() []byte {
 	return pub.publicKey
 }
 
-// PrivateKeyFromBytes deserializes a private key
+// PrivateKeyFromBytes deserializes a private key. The key copies data, so the
+// caller keeps ownership of the slice it passed in and may reuse it freely.
 func PrivateKeyFromBytes(mode Mode, data []byte) (*PrivateKey, error) {
 	id := modeToID(mode)
 	if !id.IsValid() {
@@ -313,7 +317,7 @@ func PrivateKeyFromBytes(mode Mode, data []byte) (*PrivateKey, error) {
 
 	priv := &PrivateKey{
 		mode:      mode,
-		secretKey: data,
+		secretKey: bytes.Clone(data),
 		PublicKey: &PublicKey{
 			mode:      mode,
 			publicKey: pubBytes,
