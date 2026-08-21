@@ -28,7 +28,9 @@ const (
 	PublicKeyLen = 33
 
 	PrivateKeyPrefix = "PrivateKey-"
-	nullStr          = "null"
+	// redactedStr stands where the key would be, so a value still reads as a key.
+	redactedStr = "[redacted]"
+	nullStr     = "null"
 )
 
 var (
@@ -309,9 +311,12 @@ func RecoverPublicKeyFromHash(hash, sig []byte) (*PublicKey, error) {
 	return result, nil
 }
 
-// MarshalText implements encoding.TextMarshaler
+// MarshalText implements encoding.TextMarshaler, and refuses. Anything that
+// reaches for it is serializing a private key without having said so — json.Marshal
+// on a struct that happens to hold one, a logger walking a value. A caller that
+// means to write the key out asks Reveal for it, at a line a reader can see.
 func (k *PrivateKey) MarshalText() ([]byte, error) {
-	return []byte(k.String()), nil
+	return nil, errors.New("secp256k1: refusing to marshal a private key; call Reveal if that is what you mean")
 }
 
 // UnmarshalJSON implements json.Unmarshaler
@@ -359,8 +364,23 @@ func (k *PrivateKey) unmarshalText(str string) error {
 	return nil
 }
 
-// String returns the string representation of the private key
+// String says that this is a private key and does not say which one. It is what
+// fmt reaches for, so it is reached by every %v on a struct that holds a key, by
+// every error built with one in scope, and by a text logger walking a value — and
+// what it returned round-tripped through UnmarshalText to the identical key.
+//
+// The type keeps the marker so a reader can still tell what the field was.
 func (k *PrivateKey) String() string {
+	if k == nil || k.sk == nil {
+		return nullStr
+	}
+	return PrivateKeyPrefix + redactedStr
+}
+
+// Reveal returns the encoded private key. It is the one way to obtain it as text,
+// named so the intent is legible where it is called rather than hidden behind a
+// verb the runtime supplies. The result round-trips through UnmarshalText.
+func (k *PrivateKey) Reveal() string {
 	if k == nil || k.sk == nil {
 		return nullStr
 	}

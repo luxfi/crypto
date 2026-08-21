@@ -40,8 +40,11 @@ type Party struct {
 	Index  int
 	Config *Config
 
-	// Key material
-	Xi           *big.Int         // Secret key share
+	// Key material. The share is unexported: a struct field holding a secret is
+	// reached by every reflection encoder there is — json.Marshal, a %+v in a log
+	// line, a debug dump — none of which asks for a key. Recovering the share from
+	// this type is a method call, so it happens where someone wrote one.
+	xi           *big.Int         // secret key share
 	PublicKey    *ecdsa.PublicKey // Group public key
 	PublicShares map[int]*big.Int // Public key shares from all parties
 
@@ -62,9 +65,12 @@ type SigningSession struct {
 	Message     []byte
 	MessageHash *big.Int
 
-	// Round 1: Commitment
-	Ki             *big.Int // k_i (nonce share)
-	Gammai         *big.Int // gamma_i (random mask)
+	// Round 1: Commitment. Unexported for the same reason as the share, and with a
+	// sharper edge: chi_i = x_i * k_i, so a value carrying both k_i and chi_i gives
+	// up the secret share to one modular inverse. This type is returned by the
+	// public API, so a single %+v of it used to be enough.
+	ki             *big.Int // k_i (nonce share)
+	gammai         *big.Int // gamma_i (random mask)
 	CommitmentSent bool
 	Commitments    map[int][]byte // Received commitments
 
@@ -74,8 +80,8 @@ type SigningSession struct {
 	BigGammaShares map[int]*ECPoint // [gamma_j]G points
 
 	// Round 3: Multiplication
-	DeltaShare     *big.Int         // delta_i = k_i * gamma_i
-	ChiShare       *big.Int         // chi_i = x_i * k_i
+	deltaShare     *big.Int         // delta_i = k_i * gamma_i
+	chiShare       *big.Int         // chi_i = x_i * k_i
 	BigDeltaShares map[int]*ECPoint // [delta_j]G points
 
 	// Round 4: Opening
@@ -129,7 +135,7 @@ func (p *Party) KeyGen(parties []int) error {
 	if err != nil {
 		return err
 	}
-	p.Xi = xi
+	p.xi = xi
 
 	// Compute public key share [x_i]G
 	Xi := ScalarBaseMult(p.Config.Curve, xi)
@@ -203,8 +209,8 @@ func (p *Party) Round1_Commitment(sessionID string) ([]byte, error) {
 		return nil, err
 	}
 
-	session.Ki = ki
-	session.Gammai = gammai
+	session.ki = ki
+	session.gammai = gammai
 
 	// Compute commitment = H(i, [gamma_i]G)
 	bigGammai := ScalarBaseMult(p.Config.Curve, gammai)
@@ -237,7 +243,7 @@ func (p *Party) Round2_Reveal(sessionID string, commitments map[int][]byte) (*Ro
 	}
 
 	// Create reveal message
-	bigGammai := ScalarBaseMult(p.Config.Curve, session.Gammai)
+	bigGammai := ScalarBaseMult(p.Config.Curve, session.gammai)
 
 	msg := &Round2Message{
 		FromIndex: p.Index,
@@ -275,14 +281,14 @@ func (p *Party) Round3_Multiply(sessionID string, reveals map[int]*Round2Message
 	}
 
 	// Compute delta_i = k_i * gamma_i
-	deltai := new(big.Int).Mul(session.Ki, session.Gammai)
+	deltai := new(big.Int).Mul(session.ki, session.gammai)
 	deltai.Mod(deltai, p.Config.Curve.Params().N)
-	session.DeltaShare = deltai
+	session.deltaShare = deltai
 
 	// Compute chi_i = x_i * k_i
-	chii := new(big.Int).Mul(p.Xi, session.Ki)
+	chii := new(big.Int).Mul(p.xi, session.ki)
 	chii.Mod(chii, p.Config.Curve.Params().N)
-	session.ChiShare = chii
+	session.chiShare = chii
 
 	// Compute [delta_i]G
 	bigDeltai := ScalarBaseMult(p.Config.Curve, deltai)
@@ -317,7 +323,7 @@ func (p *Party) Round4_Open(sessionID string, round3msgs map[int]*Round3Message)
 
 	msg := &Round4Message{
 		FromIndex: p.Index,
-		DeltaI:    session.DeltaShare,
+		DeltaI:    session.deltaShare,
 		// Include proofs of correct multiplication
 	}
 

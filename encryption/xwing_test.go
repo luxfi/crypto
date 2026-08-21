@@ -161,8 +161,9 @@ func TestXWingIdentityStringRoundTrip(t *testing.T) {
 		t.Fatalf("GenerateXWingIdentity: %v", err)
 	}
 
-	// Serialize and parse back.
-	idStr := id.String()
+	// Serialize and parse back. Reveal is the explicit door; String says only that
+	// this is an identity, so that a %v anywhere cannot print a decryption key.
+	idStr := id.Reveal()
 	id2, err := ParseXWingIdentity(idStr)
 	if err != nil {
 		t.Fatalf("ParseXWingIdentity: %v", err)
