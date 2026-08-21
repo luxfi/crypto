@@ -19,10 +19,12 @@ type PaillierPublicKey struct {
 // PaillierPrivateKey represents a Paillier private key
 type PaillierPrivateKey struct {
 	PublicKey *PaillierPublicKey
-	Lambda    *big.Int // lcm(p-1, q-1)
-	Mu        *big.Int // modular multiplicative inverse
-	P         *big.Int // prime p
-	Q         *big.Int // prime q
+	// The trapdoor, unexported. Any one of these recovers the factorisation, and
+	// an exported field is emitted by whatever walks the value.
+	lambda *big.Int // lcm(p-1, q-1)
+	mu     *big.Int // modular multiplicative inverse
+	primeP *big.Int // prime p
+	primeQ *big.Int // prime q
 }
 
 // GeneratePaillierKeyPair generates a new Paillier keypair
@@ -71,10 +73,10 @@ func GeneratePaillierKeyPair(bits int) (*PaillierPrivateKey, *PaillierPublicKey,
 
 	privKey := &PaillierPrivateKey{
 		PublicKey: pubKey,
-		Lambda:    lambda,
-		Mu:        mu,
-		P:         p,
-		Q:         q,
+		lambda:    lambda,
+		mu:        mu,
+		primeP:    p,
+		primeQ:    q,
 	}
 
 	return privKey, pubKey, nil
@@ -114,10 +116,10 @@ func (priv *PaillierPrivateKey) Decrypt(ciphertext *big.Int) (*big.Int, error) {
 	}
 
 	// Compute plaintext = L(c^lambda mod n^2) * mu mod n
-	cLambda := new(big.Int).Exp(ciphertext, priv.Lambda, priv.PublicKey.NSq)
+	cLambda := new(big.Int).Exp(ciphertext, priv.lambda, priv.PublicKey.NSq)
 	l := L(cLambda, priv.PublicKey.N)
 
-	plaintext := new(big.Int).Mul(l, priv.Mu)
+	plaintext := new(big.Int).Mul(l, priv.mu)
 	plaintext.Mod(plaintext, priv.PublicKey.N)
 
 	return plaintext, nil
