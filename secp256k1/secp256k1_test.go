@@ -43,8 +43,11 @@ func TestPrivateKeyMarshalText(t *testing.T) {
 	key, err := NewPrivateKey()
 	require.NoError(err)
 
-	text, err := key.MarshalText()
-	require.NoError(err)
+	// Reveal is the explicit door; MarshalText refuses so that nothing serializes
+	// a key without having said so.
+	text := []byte(key.Reveal())
+	_, mErr := key.MarshalText()
+	require.Error(mErr)
 
 	key2 := &PrivateKey{}
 	err = key2.UnmarshalText(text)
@@ -60,8 +63,11 @@ func TestPrivateKeyUnmarshalTextDirect(t *testing.T) {
 	key, err := NewPrivateKey()
 	require.NoError(err)
 
-	text, err := key.MarshalText()
-	require.NoError(err)
+	// Reveal is the explicit door; MarshalText refuses so that nothing serializes
+	// a key without having said so.
+	text := []byte(key.Reveal())
+	_, mErr := key.MarshalText()
+	require.Error(mErr)
 
 	// Test direct UnmarshalText (no quotes)
 	key2 := &PrivateKey{}
@@ -77,7 +83,7 @@ func TestPrivateKeyUnmarshalJSON(t *testing.T) {
 	key, err := NewPrivateKey()
 	require.NoError(err)
 
-	keyString := key.String()
+	keyString := key.Reveal()
 
 	// Test UnmarshalJSON with quoted string (as JSON would provide)
 	quotedJSON := []byte(`"` + keyString + `"`)
@@ -94,13 +100,14 @@ func TestPrivateKeyUnmarshalJSON(t *testing.T) {
 }
 
 func TestPrivateKeyMarshalUnmarshalJSON(t *testing.T) {
+	// json.Marshal reaches MarshalText, which refuses — see Reveal.
 	require := require.New(t)
 
 	key, err := NewPrivateKey()
 	require.NoError(err)
 
 	// Marshal to JSON
-	jsonBytes := []byte(`"` + key.String() + `"`)
+	jsonBytes := []byte(`"` + key.Reveal() + `"`)
 
 	// Unmarshal from JSON
 	key2 := &PrivateKey{}

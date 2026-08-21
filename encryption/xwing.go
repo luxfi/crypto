@@ -72,8 +72,20 @@ func (id *XWingIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
 	return id.i.Unwrap(stanzas)
 }
 
-// String returns the Bech32-encoded secret key (AGE-SECRET-KEY-PQ-1...).
+// String says that this is an identity and does not say which one. It is what fmt
+// reaches for, so a %v on anything holding one, or an error built with one in
+// scope, used to print the decryption key for every blob it can open — and the
+// printed form parses straight back through ParseXWingIdentity.
+//
+// The sibling XWingRecipient.String is the PUBLIC half and is meant to be printed.
 func (id *XWingIdentity) String() string {
+	return "AGE-SECRET-KEY-PQ-[redacted]"
+}
+
+// Reveal returns the Bech32-encoded secret key (AGE-SECRET-KEY-PQ-1...). It is
+// the one way to obtain it as text, named so that writing a decryption key
+// somewhere is visible at the line that does it.
+func (id *XWingIdentity) Reveal() string {
 	return id.i.String()
 }
 
