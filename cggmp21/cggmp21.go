@@ -68,7 +68,7 @@ type SigningSession struct {
 	// Round 1: Commitment. Unexported for the same reason as the share, and with a
 	// sharper edge: chi_i = x_i * k_i, so a value carrying both k_i and chi_i gives
 	// up the secret share to one modular inverse. This type is returned by the
-	// public API, so a single %+v of it used to be enough.
+	// public API, and an exported field is one %+v away from a log line.
 	ki             *big.Int // k_i (nonce share)
 	gammai         *big.Int // gamma_i (random mask)
 	CommitmentSent bool
