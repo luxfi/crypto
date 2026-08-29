@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@hanzo/font':
-        specifier: ^1.8.0
-        version: 1.8.2(next@16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
+        specifier: ^1.9.2
+        version: 1.9.2(next@16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
       fumadocs-core:
         specifier: ^15.8.5
         version: 15.8.5(@types/react@19.2.3)(lucide-react@0.468.0(react@19.2.0))(next@16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -250,8 +250,8 @@ packages:
   '@formatjs/intl-localematcher@0.6.2':
     resolution: {integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==}
 
-  '@hanzo/font@1.8.2':
-    resolution: {integrity: sha512-Ag9gldPYdVoBn7sXIyXFf7GQtruW2hbs8UDwFPmr1JQX78V8n9wcFrwrRVySkepAb3DrJZ2VQ7Lj3gy1yRqq9Q==}
+  '@hanzo/font@1.9.2':
+    resolution: {integrity: sha512-CXKXhfRgAj9SnhRJtraS6jEToGz74hbrMSJm85Kp8y6uN64zOH+IvohpWT/Surh9Qn1KWIGXsIx216JMa++X6A==}
     peerDependencies:
       next: '>=13.2.0'
 
@@ -2065,7 +2065,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@hanzo/font@1.8.2(next@16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))':
+  '@hanzo/font@1.9.2(next@16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))':
     dependencies:
       next: 16.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
