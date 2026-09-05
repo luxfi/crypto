@@ -179,6 +179,65 @@ func mldsa65_verify(
 	return -2
 }
 
+// The context-taking pair. FIPS 204 signs over a context string as well as the
+// message, and a signature made under one context does not verify under
+// another — which is what lets one key sign for two protocols without either
+// signature being replayable into the other. The context-free calls above pass
+// no context and are not the same operation.
+//
+// The C++ node's post-quantum handshake calls these two by name and could not
+// link without them, so it was never added to its build at all.
+
+//export mldsa65_sign_ctx
+func mldsa65_sign_ctx(
+	skData *C.char, skLen C.int,
+	msgData *C.char, msgLen C.int,
+	ctxData *C.char, ctxLen C.int,
+	sig *C.char, sigLen *C.int,
+) C.int {
+	skBytes := C.GoBytes(unsafe.Pointer(skData), skLen)
+	msgBytes := C.GoBytes(unsafe.Pointer(msgData), msgLen)
+	ctxBytes := C.GoBytes(unsafe.Pointer(ctxData), ctxLen)
+
+	priv, err := mldsa.PrivateKeyFromBytes(mldsa.MLDSA65, skBytes)
+	if err != nil {
+		return -1
+	}
+
+	signature, err := priv.SignCtx(rand.Reader, msgBytes, ctxBytes)
+	if err != nil {
+		return -2
+	}
+
+	*sigLen = C.int(len(signature))
+	C.memcpy(unsafe.Pointer(sig), unsafe.Pointer(&signature[0]), C.size_t(len(signature)))
+
+	return 0
+}
+
+//export mldsa65_verify_ctx
+func mldsa65_verify_ctx(
+	pkData *C.char, pkLen C.int,
+	msgData *C.char, msgLen C.int,
+	ctxData *C.char, ctxLen C.int,
+	sigData *C.char, sigLen C.int,
+) C.int {
+	pkBytes := C.GoBytes(unsafe.Pointer(pkData), pkLen)
+	msgBytes := C.GoBytes(unsafe.Pointer(msgData), msgLen)
+	ctxBytes := C.GoBytes(unsafe.Pointer(ctxData), ctxLen)
+	sigBytes := C.GoBytes(unsafe.Pointer(sigData), sigLen)
+
+	pub, err := mldsa.PublicKeyFromBytes(pkBytes, mldsa.MLDSA65)
+	if err != nil {
+		return -1
+	}
+
+	if pub.VerifySignatureCtx(msgBytes, sigBytes, ctxBytes) {
+		return 0
+	}
+	return -2
+}
+
 //export mldsa65_pk_size
 func mldsa65_pk_size() C.int {
 	return C.int(mldsa.MLDSA65PublicKeySize)
