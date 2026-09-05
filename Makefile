@@ -1,6 +1,6 @@
 # Lux Post-Quantum Cryptography Makefile
 
-.PHONY: all test bench clean fmt lint install-deps verify build gen_kats
+.PHONY: all test bench clean fmt lint install-deps verify build gen_kats dist
 
 # Go parameters
 GOCMD=go
@@ -72,6 +72,33 @@ build:
 	@echo "🔨 Building packages..."
 	CGO_ENABLED=$(CGO_ENABLED) $(GOBUILD) -v $(ALL_PACKAGES)
 	@echo "✅ Build complete"
+
+# The C shared library, for the callers that are not Go: Rust, Python, C++.
+#
+# On macOS a shared library carries the name its consumers will ask the loader
+# for, and `go build -buildmode=c-shared` writes the bare file name. A binary
+# linked against that asks for "libluxcrypto.dylib" with no directory, which the
+# loader looks for beside the process and nowhere else — an -rpath in the
+# consumer is never consulted, because the request it would answer was never
+# made. Naming it @rpath/... is what lets a consumer say where the library is
+# and be believed. Linux resolves by SONAME and needs nothing extra.
+DIST     ?= dist
+ifeq ($(shell uname -s),Darwin)
+LIBNAME   = libluxcrypto.dylib
+LDFLAGS_SHARED = -ldflags "-extldflags '-Wl,-install_name,@rpath/$(LIBNAME)'"
+else
+LIBNAME   = libluxcrypto.so
+LDFLAGS_SHARED =
+endif
+
+dist:
+	@echo "🔨 Building libluxcrypto.a and $(LIBNAME)..."
+	@mkdir -p $(DIST)
+	CGO_ENABLED=1 $(GOBUILD) -buildmode=c-archive \
+		-o $(DIST)/libluxcrypto.a ./bindings/cabi/
+	CGO_ENABLED=1 $(GOBUILD) -buildmode=c-shared $(LDFLAGS_SHARED) \
+		-o $(DIST)/$(LIBNAME) ./bindings/cabi/
+	@echo "✅ $(DIST)/libluxcrypto.a $(DIST)/$(LIBNAME)"
 
 # Verify module
 verify:

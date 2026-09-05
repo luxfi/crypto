@@ -1,9 +1,8 @@
 // Package main exports lux/crypto PQ functions as a C shared library.
 //
-// Build:
-//
-//	CGO_ENABLED=1 go build -buildmode=c-shared -o libluxcrypto.so ./bindings/cabi/
-//	CGO_ENABLED=1 go build -buildmode=c-shared -o libluxcrypto.dylib ./bindings/cabi/  # macOS
+// Build it with `make dist`, which is the only recipe: on macOS the library
+// has to be named @rpath/libluxcrypto.dylib or no consumer can say where it
+// is, and a build spelled out by hand gets that wrong every time.
 //
 // This produces libluxcrypto.{so,dylib,dll} + libluxcrypto.h
 // which Python (ctypes/cffi), TypeScript (N-API/WASM), and Rust (FFI) can bind to.
