@@ -91,12 +91,21 @@ LIBNAME   = libluxcrypto.so
 LDFLAGS_SHARED =
 endif
 
+# The C ABI compiles against luxfi/accel's header. The target finds it from the
+# module graph rather than asking the caller for a path: a build that needs an
+# environment variable nobody wrote down is a build that is discovered by
+# failing.
+ACCEL_INCLUDE = $(shell $(GOCMD) list -m -f '{{.Dir}}' github.com/luxfi/accel 2>/dev/null)/internal/capi/include
+
 dist:
 	@echo "🔨 Building libluxcrypto.a and $(LIBNAME)..."
+	@test -f "$(ACCEL_INCLUDE)/lux/accel/c_api.h" || { \
+		echo "no accel header at $(ACCEL_INCLUDE) — run 'go mod download github.com/luxfi/accel'" >&2; \
+		exit 1; }
 	@mkdir -p $(DIST)
-	CGO_ENABLED=1 $(GOBUILD) -buildmode=c-archive \
+	CGO_ENABLED=1 CGO_CFLAGS="-I$(ACCEL_INCLUDE)" $(GOBUILD) -buildmode=c-archive \
 		-o $(DIST)/libluxcrypto.a ./bindings/cabi/
-	CGO_ENABLED=1 $(GOBUILD) -buildmode=c-shared $(LDFLAGS_SHARED) \
+	CGO_ENABLED=1 CGO_CFLAGS="-I$(ACCEL_INCLUDE)" $(GOBUILD) -buildmode=c-shared $(LDFLAGS_SHARED) \
 		-o $(DIST)/$(LIBNAME) ./bindings/cabi/
 	@echo "✅ $(DIST)/libluxcrypto.a $(DIST)/$(LIBNAME)"
 
