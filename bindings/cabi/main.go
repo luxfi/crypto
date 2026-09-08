@@ -227,13 +227,21 @@ func mldsa65_sign_ctx(
 // Every other language reaches ML-DSA through this ABI, which offered only the
 // hedged form, so none of them could produce a reproducible handshake.
 //
-// Same arguments, same order, same return codes as mldsa65_sign_ctx.
+// Same arguments, same order, same return codes as mldsa65_sign_ctx — and that
+// sentence was false when this was added, which is the whole reason to say it
+// here. This took the context before the message where its two siblings take
+// the message before the context. Nothing catches that: the four parameters are
+// (char*, int) pairs, so every permutation compiles and links, and the wrong one
+// simply passes a 6-kilobyte transcript as a FIPS 204 context. A context over
+// 255 bytes is illegal, so the library answers -2 to every signature over a
+// message longer than that, and 0 to every shorter one — which reads as a size
+// limit and is nothing of the kind.
 //
 //export mldsa65_sign_ctx_det
 func mldsa65_sign_ctx_det(
 	skData *C.char, skLen C.int,
-	ctxData *C.char, ctxLen C.int,
 	msgData *C.char, msgLen C.int,
+	ctxData *C.char, ctxLen C.int,
 	sig *C.char, sigLen *C.int,
 ) C.int {
 	skBytes := C.GoBytes(unsafe.Pointer(skData), skLen)
