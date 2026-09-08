@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         cgo: ['0', '1']
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
 
   hqc-pqclean-e2e:
     name: HQC PQClean cgo e2e (NIST KAT roundtrip)
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
     # arm64 regression coverage by executing under QEMU on the amd64 pool.
     # 5-10x slower than native, so it is gated to main pushes.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -148,7 +148,7 @@ jobs:
           exit $rc
 
   rust:
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 45
     defaults:
       run:
@@ -164,7 +164,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [amd64, arm64]
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
