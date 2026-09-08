@@ -215,6 +215,50 @@ func mldsa65_sign_ctx(
 	return 0
 }
 
+// mldsa65_sign_ctx_det is mldsa65_sign_ctx with the randomness taken out.
+//
+// FIPS 204 signing is hedged by default and that is the right default: the
+// per-signature randomness is defence in depth against side-channel leakage.
+// But a protocol whose test vectors include a signature cannot be checked
+// against them by an implementation that signs hedged — it can only verify,
+// never reproduce. LP-10602 (the validator link) is such a protocol: it
+// mandates deterministic signing precisely so a handshake can be written down,
+// and Go's own node signs it that way (mldsa65.SignTo(..., randomized=false)).
+// Every other language reaches ML-DSA through this ABI, which offered only the
+// hedged form, so none of them could produce a reproducible handshake.
+//
+// Same arguments, same order, same return codes as mldsa65_sign_ctx.
+//
+//export mldsa65_sign_ctx_det
+func mldsa65_sign_ctx_det(
+	skData *C.char, skLen C.int,
+	ctxData *C.char, ctxLen C.int,
+	msgData *C.char, msgLen C.int,
+	sig *C.char, sigLen *C.int,
+) C.int {
+	skBytes := C.GoBytes(unsafe.Pointer(skData), skLen)
+	msgBytes := C.GoBytes(unsafe.Pointer(msgData), msgLen)
+	var ctxBytes []byte
+	if ctxLen > 0 {
+		ctxBytes = C.GoBytes(unsafe.Pointer(ctxData), ctxLen)
+	}
+
+	priv, err := mldsa.PrivateKeyFromBytes(mldsa.MLDSA65, skBytes)
+	if err != nil {
+		return -1
+	}
+
+	signature, err := priv.SignCtxDeterministic(msgBytes, ctxBytes)
+	if err != nil {
+		return -2
+	}
+
+	*sigLen = C.int(len(signature))
+	C.memcpy(unsafe.Pointer(sig), unsafe.Pointer(&signature[0]), C.size_t(len(signature)))
+
+	return 0
+}
+
 //export mldsa65_verify_ctx
 func mldsa65_verify_ctx(
 	pkData *C.char, pkLen C.int,
