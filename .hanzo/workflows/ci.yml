@@ -139,7 +139,7 @@ jobs:
           # no host path to point at; docker cp sidesteps that entirely.
           cid=$(docker create --platform linux/arm64 -w /work \
             -e CGO_ENABLED=0 \
-            golang:1.26.4 \
+            golang:1.26.8 \
             sh -c 'go test -v -count=1 -short -timeout 900s ./...')
           docker cp . "$cid:/work"
           rc=0
