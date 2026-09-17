@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "node_modules/tsgo/bin/tsc --noEmit --incremental false",
     "test": "node --loader ts-node/esm src/test.ts"
   },
   "keywords": [
@@ -41,7 +42,8 @@
   },
   "devDependencies": {
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0"
+    "tsgo": "npm:typescript@7.0.2",
+    "typescript": "6.0.3"
   },
   "engines": {
     "node": ">=18"
